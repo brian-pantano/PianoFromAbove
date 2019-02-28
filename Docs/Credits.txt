@@ -1,0 +1,129 @@
+*******************
+3rd Party Libraries
+*******************
+
+Piano From Above uses:
+- TinyXML (http://www.grinninglizard.com/tinyxml/) for configuration files.
+- Google Protocol Buffers (http://code.google.com/p/protobuf/) for data storage.
+
+- TinyXML falls under the zlib License
+- Google Protocol Buffers falls under the New BSD License (see below)
+
+*********************
+Sample Piece Licenses
+*********************
+
+Each sample piece falls under one of the following 4 licenses or is public domain (see below for details)
+- Creative Commons Attribution-ShareAlike 3.0 (Unported): http://creativecommons.org/licenses/by-sa/3.0/
+- Creative Commons Attribution-ShareAlike 3.0 (Germany): http://creativecommons.org/licenses/by-sa/3.0/de/deed.en
+- Creative Commons Attribution-ShareAlike 2.5 (Generic): http://creativecommons.org/licenses/by-sa/2.5/
+- The MutopiaBSD License (see below for text)
+
+***************************************
+File Specific Attributions and Licenses
+***************************************
+
+The following files are attributed to Bernd Krueger (http://www.piano-midi.de).
+They are licensed under the Creative Commons Attribution-ShareAlike 3.0 (Germany) License.
+    Bach - Prelude and Fugue in C Major.mid (BWV 846)
+    Bach - Prelude and Fugue in C Minor.mid (BWV 847)
+    Beethoven - Fur Elise.mid (WoO 59)
+    Beethoven - Moonlight Sonata 1st Movement.mid (Op. 27, No. 2)
+    Beethoven - Pathetique 2nd Movement.mid (Op. 13)
+    Chopin - Black Key Etude.mid (Op. 10, No. 5)
+    Chopin - Etude Op. 10, No. 1.mid (Op. 10, No. 5)
+    Chopin - Fantaisie-Impromptu.mid (Op. 66)
+    Chopin - Funeral March.mid (Op. 35)
+    Chopin - Prelude in A Major.mid (Op. 28, No. 7)
+    Chopin - Prelude in C Minor.mid (Op. 28, No. 20)
+    Chopin - Prelude in E Minor.mid (Op. 28, No. 4)
+    Chopin - Revolutionary Etude.mid (Op. 10, No. 12)
+    Debussy - Clair de Lune.mid (Suite Bergamasque: 3rd Movement)
+    Godowsky - Study of Chopin Etude Op. 10, No. 1.mid (53 Studies on Etudes on Frederic Chopin)
+    Grieg - March of the Trolls.mid (Op. 54, No. 3)
+    Liszt - Hungarian Rhapsody No. 2.mid (S244)
+    Liszt - Love Dreams No. 3.mid (S541)
+    Mozart - Sonata Facile 1st Movement.mid (KV 545)
+    Mozart - Turkish March.mid (KV 331)
+    Schumann - Dreaming.mid (Op. 15, No. 7)
+    Schumann - Farmhand Rupert.mid (Op. 68, No. 12)
+    Schumann - The Happy Farmer.mid (Op. 68, No. 10)
+
+The following files are attributed to The Mutopia Project (http://www.mutopiaproject.org).
+They are licensed under the Creative Commons Attribution-ShareAlike 2.5 License.
+    Schumann - First Sorrow.mid (Op. 68, No. 16)  Typeset by Philippe Hézaine
+    Schumann - Sicilienne.mid (Op. 68, No. 11)    Typeset by Philippe Hézaine
+    
+The following files are attributed to The Mutopia Project (http://www.mutopiaproject.org).
+They are licensed under the Creative Commons Attribution-ShareAlike 3.0 License.
+    Bach - Invention 01.mid (BWV 772)            Typeset by Jeff Covey
+    Bach - Invention 09.mid (BWV 780)            Typeset by Jeff Covey
+    Schumann - Hunting Song.mid (Op. 68, No. 7)  Typeset by Philippe Hézaine
+
+The following files are attributed to The Mutopia Project (http://www.mutopiaproject.org).
+They are licensed under the MutopiaBSD License.
+    Schumann - Humming Song.mid (Op. 68, No. 3)       Typeset by Ying-Chun Liu
+    Schumann - Soldiers' March.mid (Op. 68, No. 2)    Typeset by Ying-Chun Liu
+    Schumann - The Wild Horseman.mid (Op. 68, No. 8)  Typeset by Philippe Hézaine
+
+The following files are attributed to The Mutopia Project (http://www.mutopiaproject.org).
+They are public domain
+    Joplin - Maple Leaf Rag.mid                          Typeset by Chris Sawer
+    Schumann - Melody.mid (Op. 68, No. 1)                Typeset by Ying-Chun Liu
+    Bach - Invention 04.mid (BWV 775)                    Typeset by Allen Garvin
+    Bach - Invention 15.mid (BWV 786)                    Typeset by Allen Garvin
+    Bach - Minuet in B-flat Major.mid (BWV Anh. 118)     Typeset by Steven McDougall
+    Bach - Minuet in F Major.mid (BWV Anh. 113)          Typeset by Allen Garvin
+    Bach - Minuet in G Major.mid (BWV Anh. 114)          Typeset by Allen Garvin
+    Bach - Minuet in G Minor.mid (BWV Anh. 115)          Typeset by Allen Garvin
+    Bach - Musette in D Major.mid (BWV Anh. 126)         Typeset by Allen Garvin
+    Clementie - Sonatina Op. 36, No. 1 1st Movement.mid  Typeset by Brian D. Rude
+    Joplin - The Entertainer.mid                         Typeset by Chris Sawer
+    
+**********************
+The MutopiaBSD License
+**********************
+
+Permission is hereby granted, without written agreement and without license or royalty fees, to use, copy, modify, distribute, perform and record this music and to distribute, perform and record modified versions of this music for any purpose, provided that the above copyright notice, this paragraph and the following disclaimer appear with all copies of this music, whatever the format of the copy, printed, audio or otherwise.
+
+THIS MUSIC IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+Visit the Mutopia website at http://www.mutopiaproject.org for more information.
+
+*******************************
+Google Protocol Buffers License
+*******************************
+
+Copyright 2008, Google Inc.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+    * Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the following disclaimer
+in the documentation and/or other materials provided with the
+distribution.
+    * Neither the name of Google Inc. nor the names of its
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Code generated by the Protocol Buffer compiler is owned by the owner
+of the input file used when generating it.  This code is not
+standalone and requires a support library to be linked with it.  This
+support library is itself covered by the above license.

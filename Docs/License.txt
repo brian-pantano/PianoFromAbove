@@ -1,0 +1,49 @@
+Piano From Above v1.0.0
+Copyright (c) 2010 Brian Pantano
+All Rights Reserved.
+
+This End User License Agreement ("Agreement") is a legal agreement between you (either as an individual or as an entity) and Brian Pantano ("Author") for the Piano From Above software product ("Software").
+
+By proceeding to download, install or use the Software, you indicate your acceptance of the terms in this Agreement. If you do not accept and agree to all of the terms in this Agreement, you must immediately cease all further use of the Software and destroy all copies of it.
+
+1. License
+
+If you have purchased a license to use the Software as an individual for personal or home use, the Author grants you a non-exclusive license to use the Software on up to three personal (home or portable) computers owned by you for use by yourself, either at home or at work, and by any immediate family members residing in the same household.
+
+If you have purchased a license to use the Software as an entity for business or other use, the Author grants you a non-exclusive license to use the Software provided that you have purchased at least as many licenses as either the number of persons using the Software or the number of computers on which the Software is installed, whichever is greater.
+
+2. Restrictions
+
+You may make copies of the Software and distribute such copies to anyone provided that you comply with all other terms in this Agreement.
+
+You may make copies of the Software for backup and archival purposes provided that such copies contain all copyright and other proprietary notices included in the Software.
+
+You may not sell, resell, license, sub-license, charge for, rent, lease, or loan the Software without prior written permission from the Author.
+
+You may not reverse engineer, decompile, disassemble, repackage, modify, translate, or create derivative works of or based upon the Software, in whole or in part, except to the extent (if at all) expressly permitted by law.
+
+You may not transfer or assign any of the licenses, rights, duties or obligations under this Agreement to any other individual or entity.
+
+3. Disclaimer of Warranty
+
+THE SOFTWARE IS DELIVERED TO YOU 'AS IS' AND WITH ALL FAULTS. THE AUTHOR DOES NOT WARRANT THE PERFORMANCE OR RESULTS YOU MAY OBTAIN BY USING THE SOFTWARE. EXCEPT TO THE EXTENT THAT ANY WARRANTY, CONDITION, REPRESENTATION OR TERM CANNOT BE EXCLUDED OR LIMITED BY LAW, THE AUTHOR MAKES NO WARRANTIES, CONDITIONS, REPRESENTATIONS OR OTHER TERMS (EXPRESS OR IMPLIED WHETHER BY STATUTE, COMMON LAW, CUSTOM, USAGE OR OTHERWISE) AS TO ANY MATTER INCLUDING, WITHOUT LIMITATION, MERCHANTABILITY, FITNESS FOR PURPOSE, AND NON-INFRINGEMENT OF THIRD PARTY RIGHTS. THE PROVISIONS OF THIS SECTION 3 SHALL SURVIVE THE TERMINATION OF THIS AGREEMENT HOWSOEVER CAUSED.
+
+4. Limitation of Liability
+
+IN NO EVENT WILL THE AUTHOR BE LIABLE TO YOU FOR ANY DAMAGES, CLAIMS OR COSTS WHATSOEVER INCLUDING CONSEQUENTIAL, SPECIAL, INCIDENTAL OR INDIRECT DAMAGES ARISING OUT OF THE DELIVERY, PERFORMANCE OR USE OF THE SOFTWARE, EVEN IF THE AUTHOR HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. IN NO EVENT WILL THE AUTHOR'S LIABILITY FOR ANY CLAIM, WHETHER IN CONTRACT, TORT OR ANY OTHER THEORY OF LIABILITY, EXCEED THE LICENSE FEE PAID BY YOU, IF ANY. THE FOREGOING LIMITATIONS AND EXCLUSION APPLY TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW IN YOUR JURISDICTION. THE PROVISIONS OF THIS SECTION 4 SHALL SURVIVE THE TERMINATION OF THIS AGREEMENT HOWSOEVER CAUSED.
+
+5. Term and Termination
+
+This Agreement shall continue until terminated. You may terminate this Agreement at any time by destroying all copies of the Software. Your rights under this Agreement will terminate immediately and without further notice if you fail to comply with the terms of this Agreement. If your rights under this Agreement terminate for any reason you must immediately cease all further use of the Software and destroy all copies of it. Sections 2, 3, 4 and 7 shall survive termination.
+
+6. Ownership and Copyright
+
+The Software is owned and copyrighted by the Author. The Author retains all right, title, and interest in and to the Software. The Software is licensed, not sold, to you and you have no rights in or to the Software other than the right to use the Software in accordance with the terms of this Agreement. You may not remove or alter any trademark, logo, copyright or other proprietary notice in or on the Software. This Agreement does not grant you any right to use the trademarks, service marks or logos of the Author.
+
+7. General
+
+If any part of this Agreement is found to be invalid, the validity of the remaining parts of this Agreement shall not be affected.
+
+This Agreement may be modified only by a written document signed by an authorized officer of the Author.
+
+This Agreement is the entire agreement between you and the Author and supersedes any prior agreements, understandings or advertising, whether written or oral, relating to the Software.

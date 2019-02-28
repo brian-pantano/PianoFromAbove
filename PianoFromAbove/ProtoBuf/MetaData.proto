@@ -1,0 +1,61 @@
+package PFAData;
+
+option optimize_for = LITE_RUNTIME;
+
+message Label {
+    required int32 pos = 1;
+    required string label = 2;
+}
+
+message Score {
+    required sint32 score = 1;
+    optional int32 mult = 2 [default = 10];
+
+    optional int32 missed = 3;
+    optional int32 incorrect = 4;
+    optional int32 ok = 5;
+    optional int32 good = 6;
+    optional int32 great = 7;
+
+    optional sint32 curStreak = 8;
+    optional int32 goodStreak = 9;
+    optional int32 badStreak = 10;
+    
+    optional int32 date = 11;
+}
+
+message SongInfo {
+    required bytes md5 = 1;
+    
+    optional int32 division = 2;
+    optional int32 notes = 3;
+    optional int32 beats = 4;
+    optional int32 seconds = 5;
+    optional int32 tracks = 6;
+
+    optional int32 plays = 7;
+}
+
+message FileInfo {
+    required SongInfo info = 1;
+    repeated Label label = 2;
+    repeated Score top10 = 3;
+}
+
+message File {
+    required string fileName = 1;
+    required int32 fileSize = 2;
+    required int32 infoPos = 3;
+}
+
+message MetaData {
+    repeated File file = 1;
+    repeated FileInfo fileInfo = 2;
+}
+
+message Registration {
+    optional string displayname = 1;
+    optional string name = 2;
+    optional bytes key = 3;
+    optional int32 date = 4;
+}
