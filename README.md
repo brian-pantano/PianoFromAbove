@@ -27,6 +27,10 @@ And so I made it happen:
   </a>
 </p>
 
+## Binaries
+
+https://github.com/brian-pantano/PianoFromAbove/releases
+
 ## How to build
 
 This is unfortunately very tricky. Hopefully I will simplify this in the future.
