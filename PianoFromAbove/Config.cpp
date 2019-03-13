@@ -145,7 +145,6 @@ void VisualSettings::LoadDefaultValues()
 
 void AudioSettings::LoadDefaultValues()
 {
-    this->iInDevice = -1;
     this->iOutDevice = -1;
     LoadMIDIDevices();
 }
@@ -161,7 +160,6 @@ void ControlsSettings::LoadDefaultValues()
 {
     this->dFwdBackSecs = 3.0;
     this->dSpeedUpPct = 10.0;
-    memset( this->aKeyboardMap, 0, sizeof( this->aKeyboardMap ) );
 }
 
 void SongLibrary::LoadDefaultValues()
@@ -182,14 +180,12 @@ void SongLibrary::LoadDefaultValues()
 void PlaybackSettings::LoadDefaultValues()
 {
     this->m_ePlayMode = GameState::Splash;
-    this->m_eLearnMode = GameState::Waiting;
     this->m_bMute = false;
     this->m_bPlayable = false;
     this->m_bPaused = true;
     this->m_dSpeed = 1.0;
     this->m_dNSpeed = 1.0;
     this->m_dVolume = 1.0;
-    this->m_eMetronome = Off;
 }
 
 void ViewSettings::LoadDefaultValues()
@@ -197,7 +193,6 @@ void ViewSettings::LoadDefaultValues()
     this->m_bLibrary = true;
     this->m_bControls = true;
     this->m_bKeyboard = true;
-    this->m_bNoteLabels = false;
     this->m_bOnTop = false;
     this->m_bFullScreen = false;
     this->m_bZoomMove = false;
@@ -213,24 +208,6 @@ void ViewSettings::LoadDefaultValues()
 
 void AudioSettings::LoadMIDIDevices()
 {
-    wstring oldInDev( this->iInDevice >= 0 ? this->vMIDIInDevices[this->iInDevice] : L"" );
-    this->iInDevice = -1;
-    this->vMIDIInDevices.clear();
-    int iNumInDevs = midiInGetNumDevs();
-    for ( int i = 0; i < iNumInDevs; i++ )
-    {
-        MIDIINCAPS mic;
-        midiInGetDevCaps( i, &mic, sizeof( MIDIINCAPS ) );
-        this->vMIDIInDevices.push_back( mic.szPname );
-
-        if ( this->sDesiredIn == this->vMIDIInDevices[i] )
-            this->iInDevice = i;
-        if ( oldInDev == this->vMIDIInDevices[i] && this->iInDevice < 0 )
-            this->iInDevice = i;
-    }
-    if ( this->iInDevice < 0 )
-        this->iInDevice = iNumInDevs - 1;
-
     wstring oldOutDev( this->iOutDevice >= 0 ? this->vMIDIOutDevices[this->iOutDevice] : L"" );
     this->iOutDevice = -1;
     this->vMIDIOutDevices.clear();
@@ -303,15 +280,6 @@ void AudioSettings::LoadConfigValues( TiXmlElement *txRoot )
             if ( this->vMIDIOutDevices[i] == this->sDesiredOut )
                 this->iOutDevice = (int)i;
     }
-
-    string sMIDIInDevice;
-    if ( txAudio->QueryStringAttribute( "MIDIInDevice", &sMIDIInDevice ) == TIXML_SUCCESS )
-    {
-        this->sDesiredIn = Util::StringToWstring( sMIDIInDevice );
-        for ( size_t i = 0; i < this->vMIDIInDevices.size(); i++ )
-            if ( this->vMIDIInDevices[i] == this->sDesiredIn )
-                this->iInDevice = (int)i;
-    }
 }
 
 void VideoSettings::LoadConfigValues( TiXmlElement *txRoot )
@@ -335,17 +303,6 @@ void ControlsSettings::LoadConfigValues( TiXmlElement *txRoot )
 
     txControls->QueryDoubleAttribute( "FwdBackSecs", &this->dFwdBackSecs );
     txControls->QueryDoubleAttribute( "SpeedUpPct", &this->dSpeedUpPct );
-
-    int iNote, iId;
-    TiXmlElement *txKeyboardMap = txControls->FirstChildElement( "KeyboardMap" );
-    if ( txKeyboardMap )
-        for ( TiXmlElement *txCommand = txKeyboardMap->FirstChildElement( "Command" );
-              txCommand;
-              txCommand = txCommand->NextSiblingElement( "Command" ) )
-            if ( txCommand->QueryIntAttribute( "Id", &iId ) == TIXML_SUCCESS &&
-                 txCommand->QueryIntAttribute( "Note", &iNote ) == TIXML_SUCCESS &&
-                 iNote >= 0 && iNote < 128 )
-                this->aKeyboardMap[iNote] = iId;
 }
 
 void SongLibrary::LoadConfigValues( TiXmlElement *txRoot )
@@ -413,14 +370,10 @@ void PlaybackSettings::LoadConfigValues( TiXmlElement *txRoot )
     if ( !txPlayback ) return;
 
     int iAttrVal;
-    if ( txPlayback->QueryIntAttribute( "LearnMode", &iAttrVal ) == TIXML_SUCCESS )
-        m_eLearnMode = static_cast< GameState::LearnMode >( iAttrVal );
     if ( txPlayback->QueryIntAttribute( "Mute", &iAttrVal ) == TIXML_SUCCESS )
         m_bMute = ( iAttrVal != 0 );
     txPlayback->QueryDoubleAttribute( "NoteSpeed", &m_dNSpeed);
     txPlayback->QueryDoubleAttribute( "Volume", &m_dVolume );
-    if ( txPlayback->QueryIntAttribute( "Metronome", &iAttrVal ) == TIXML_SUCCESS )
-        m_eMetronome = static_cast< Metronome >( iAttrVal );
 }
 
 void ViewSettings::LoadConfigValues( TiXmlElement *txRoot )
@@ -435,8 +388,6 @@ void ViewSettings::LoadConfigValues( TiXmlElement *txRoot )
         m_bControls = ( iAttrVal != 0 );
     if ( txView->QueryIntAttribute( "Keyboard", &iAttrVal ) == TIXML_SUCCESS )
         m_bKeyboard = ( iAttrVal != 0 );
-    if ( txView->QueryIntAttribute( "NoteLabels", &iAttrVal ) == TIXML_SUCCESS )
-        m_bNoteLabels = ( iAttrVal != 0 );
     if ( txView->QueryIntAttribute( "OnTop", &iAttrVal ) == TIXML_SUCCESS )
         m_bOnTop = ( iAttrVal != 0 );
     txView->QueryFloatAttribute( "OffsetX", &m_fOffsetX );
@@ -490,8 +441,6 @@ bool AudioSettings::SaveConfigValues( TiXmlElement *txRoot )
 
     if ( this->sDesiredOut.length() > 0 )
         txAudio->SetAttribute( "MIDIOutDevice", Util::WstringToString( this->sDesiredOut ) );
-    if ( this->sDesiredIn.length() > 0 )
-        txAudio->SetAttribute( "MIDIInDevice", Util::WstringToString( this->sDesiredIn ) );
 
     return true;
 }
@@ -512,17 +461,6 @@ bool ControlsSettings::SaveConfigValues( TiXmlElement *txRoot )
     txRoot->LinkEndChild( txControls );
     txControls->SetDoubleAttribute( "FwdBackSecs", this->dFwdBackSecs );
     txControls->SetDoubleAttribute( "SpeedUpPct", this->dSpeedUpPct );
-
-    TiXmlElement *txKeyboardMap = new TiXmlElement( "KeyboardMap" );
-    txControls->LinkEndChild( txKeyboardMap );
-    for ( int i = 0; i < 128; i++ )
-        if ( this->aKeyboardMap[i] > 0 )
-        {
-            TiXmlElement *txCommand = new TiXmlElement( "Command" );
-            txKeyboardMap->LinkEndChild( txCommand );
-            txCommand->SetAttribute( "Id", this->aKeyboardMap[i] );
-            txCommand->SetAttribute( "Note", i );
-        }
     return true;
 }
 
@@ -567,11 +505,9 @@ bool PlaybackSettings::SaveConfigValues( TiXmlElement *txRoot )
 {
     TiXmlElement *txPlayback = new TiXmlElement( "Playback" );
     txRoot->LinkEndChild( txPlayback );
-    txPlayback->SetAttribute( "LearnMode", m_eLearnMode );
     txPlayback->SetAttribute( "Mute", m_bMute );
     txPlayback->SetDoubleAttribute( "Volume", m_dVolume );
     txPlayback->SetDoubleAttribute( "NoteSpeed", m_dNSpeed );
-    txPlayback->SetAttribute( "Metronome", m_eMetronome );
     return true;
 }
 
@@ -582,7 +518,6 @@ bool ViewSettings::SaveConfigValues( TiXmlElement *txRoot )
     txView->SetAttribute( "Library", m_bLibrary );
     txView->SetAttribute( "Controls", m_bControls );
     txView->SetAttribute( "Keyboard", m_bKeyboard );
-    txView->SetAttribute( "NoteLabels", m_bNoteLabels );
     txView->SetAttribute( "OnTop", m_bOnTop );
     txView->SetDoubleAttribute( "OffsetX", m_fOffsetX );
     txView->SetDoubleAttribute( "OffsetY", m_fOffsetY );

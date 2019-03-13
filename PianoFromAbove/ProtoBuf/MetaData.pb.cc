@@ -16,12 +16,10 @@ namespace PFAData {
 
 void protobuf_ShutdownFile_MetaData_2eproto() {
   delete Label::default_instance_;
-  delete Score::default_instance_;
   delete SongInfo::default_instance_;
   delete FileInfo::default_instance_;
   delete File::default_instance_;
   delete MetaData::default_instance_;
-  delete Registration::default_instance_;
 }
 
 #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
@@ -37,19 +35,15 @@ void protobuf_AddDesc_MetaData_2eproto() {
 
 #endif
   Label::default_instance_ = new Label();
-  Score::default_instance_ = new Score();
   SongInfo::default_instance_ = new SongInfo();
   FileInfo::default_instance_ = new FileInfo();
   File::default_instance_ = new File();
   MetaData::default_instance_ = new MetaData();
-  Registration::default_instance_ = new Registration();
   Label::default_instance_->InitAsDefaultInstance();
-  Score::default_instance_->InitAsDefaultInstance();
   SongInfo::default_instance_->InitAsDefaultInstance();
   FileInfo::default_instance_->InitAsDefaultInstance();
   File::default_instance_->InitAsDefaultInstance();
   MetaData::default_instance_->InitAsDefaultInstance();
-  Registration::default_instance_->InitAsDefaultInstance();
   ::google::protobuf::internal::OnShutdown(&protobuf_ShutdownFile_MetaData_2eproto);
 }
 
@@ -274,530 +268,6 @@ void Label::Swap(Label* other) {
 
 ::std::string Label::GetTypeName() const {
   return "PFAData.Label";
-}
-
-
-// ===================================================================
-
-#ifndef _MSC_VER
-const int Score::kScoreFieldNumber;
-const int Score::kMultFieldNumber;
-const int Score::kMissedFieldNumber;
-const int Score::kIncorrectFieldNumber;
-const int Score::kOkFieldNumber;
-const int Score::kGoodFieldNumber;
-const int Score::kGreatFieldNumber;
-const int Score::kCurStreakFieldNumber;
-const int Score::kGoodStreakFieldNumber;
-const int Score::kBadStreakFieldNumber;
-const int Score::kDateFieldNumber;
-#endif  // !_MSC_VER
-
-Score::Score()
-  : ::google::protobuf::MessageLite() {
-  SharedCtor();
-}
-
-void Score::InitAsDefaultInstance() {
-}
-
-Score::Score(const Score& from)
-  : ::google::protobuf::MessageLite() {
-  SharedCtor();
-  MergeFrom(from);
-}
-
-void Score::SharedCtor() {
-  _cached_size_ = 0;
-  score_ = 0;
-  mult_ = 10;
-  missed_ = 0;
-  incorrect_ = 0;
-  ok_ = 0;
-  good_ = 0;
-  great_ = 0;
-  curstreak_ = 0;
-  goodstreak_ = 0;
-  badstreak_ = 0;
-  date_ = 0;
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-}
-
-Score::~Score() {
-  SharedDtor();
-}
-
-void Score::SharedDtor() {
-  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  if (this != &default_instance()) {
-  #else
-  if (this != default_instance_) {
-  #endif
-  }
-}
-
-void Score::SetCachedSize(int size) const {
-  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
-  _cached_size_ = size;
-  GOOGLE_SAFE_CONCURRENT_WRITES_END();
-}
-const Score& Score::default_instance() {
-#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  protobuf_AddDesc_MetaData_2eproto();
-#else
-  if (default_instance_ == NULL) protobuf_AddDesc_MetaData_2eproto();
-#endif
-  return *default_instance_;
-}
-
-Score* Score::default_instance_ = NULL;
-
-Score* Score::New() const {
-  return new Score;
-}
-
-void Score::Clear() {
-  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    score_ = 0;
-    mult_ = 10;
-    missed_ = 0;
-    incorrect_ = 0;
-    ok_ = 0;
-    good_ = 0;
-    great_ = 0;
-    curstreak_ = 0;
-  }
-  if (_has_bits_[8 / 32] & (0xffu << (8 % 32))) {
-    goodstreak_ = 0;
-    badstreak_ = 0;
-    date_ = 0;
-  }
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-}
-
-bool Score::MergePartialFromCodedStream(
-    ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!(EXPRESSION)) return false
-  ::google::protobuf::uint32 tag;
-  while ((tag = input->ReadTag()) != 0) {
-    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // required sint32 score = 1;
-      case 1: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_SINT32>(
-                 input, &score_)));
-          set_has_score();
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(16)) goto parse_mult;
-        break;
-      }
-
-      // optional int32 mult = 2 [default = 10];
-      case 2: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-         parse_mult:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
-                 input, &mult_)));
-          set_has_mult();
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(24)) goto parse_missed;
-        break;
-      }
-
-      // optional int32 missed = 3;
-      case 3: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-         parse_missed:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
-                 input, &missed_)));
-          set_has_missed();
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(32)) goto parse_incorrect;
-        break;
-      }
-
-      // optional int32 incorrect = 4;
-      case 4: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-         parse_incorrect:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
-                 input, &incorrect_)));
-          set_has_incorrect();
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(40)) goto parse_ok;
-        break;
-      }
-
-      // optional int32 ok = 5;
-      case 5: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-         parse_ok:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
-                 input, &ok_)));
-          set_has_ok();
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(48)) goto parse_good;
-        break;
-      }
-
-      // optional int32 good = 6;
-      case 6: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-         parse_good:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
-                 input, &good_)));
-          set_has_good();
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(56)) goto parse_great;
-        break;
-      }
-
-      // optional int32 great = 7;
-      case 7: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-         parse_great:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
-                 input, &great_)));
-          set_has_great();
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(64)) goto parse_curStreak;
-        break;
-      }
-
-      // optional sint32 curStreak = 8;
-      case 8: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-         parse_curStreak:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_SINT32>(
-                 input, &curstreak_)));
-          set_has_curstreak();
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(72)) goto parse_goodStreak;
-        break;
-      }
-
-      // optional int32 goodStreak = 9;
-      case 9: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-         parse_goodStreak:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
-                 input, &goodstreak_)));
-          set_has_goodstreak();
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(80)) goto parse_badStreak;
-        break;
-      }
-
-      // optional int32 badStreak = 10;
-      case 10: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-         parse_badStreak:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
-                 input, &badstreak_)));
-          set_has_badstreak();
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(88)) goto parse_date;
-        break;
-      }
-
-      // optional int32 date = 11;
-      case 11: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-         parse_date:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
-                 input, &date_)));
-          set_has_date();
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectAtEnd()) return true;
-        break;
-      }
-
-      default: {
-      handle_uninterpreted:
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
-          return true;
-        }
-        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag));
-        break;
-      }
-    }
-  }
-  return true;
-#undef DO_
-}
-
-void Score::SerializeWithCachedSizes(
-    ::google::protobuf::io::CodedOutputStream* output) const {
-  // required sint32 score = 1;
-  if (has_score()) {
-    ::google::protobuf::internal::WireFormatLite::WriteSInt32(1, this->score(), output);
-  }
-
-  // optional int32 mult = 2 [default = 10];
-  if (has_mult()) {
-    ::google::protobuf::internal::WireFormatLite::WriteInt32(2, this->mult(), output);
-  }
-
-  // optional int32 missed = 3;
-  if (has_missed()) {
-    ::google::protobuf::internal::WireFormatLite::WriteInt32(3, this->missed(), output);
-  }
-
-  // optional int32 incorrect = 4;
-  if (has_incorrect()) {
-    ::google::protobuf::internal::WireFormatLite::WriteInt32(4, this->incorrect(), output);
-  }
-
-  // optional int32 ok = 5;
-  if (has_ok()) {
-    ::google::protobuf::internal::WireFormatLite::WriteInt32(5, this->ok(), output);
-  }
-
-  // optional int32 good = 6;
-  if (has_good()) {
-    ::google::protobuf::internal::WireFormatLite::WriteInt32(6, this->good(), output);
-  }
-
-  // optional int32 great = 7;
-  if (has_great()) {
-    ::google::protobuf::internal::WireFormatLite::WriteInt32(7, this->great(), output);
-  }
-
-  // optional sint32 curStreak = 8;
-  if (has_curstreak()) {
-    ::google::protobuf::internal::WireFormatLite::WriteSInt32(8, this->curstreak(), output);
-  }
-
-  // optional int32 goodStreak = 9;
-  if (has_goodstreak()) {
-    ::google::protobuf::internal::WireFormatLite::WriteInt32(9, this->goodstreak(), output);
-  }
-
-  // optional int32 badStreak = 10;
-  if (has_badstreak()) {
-    ::google::protobuf::internal::WireFormatLite::WriteInt32(10, this->badstreak(), output);
-  }
-
-  // optional int32 date = 11;
-  if (has_date()) {
-    ::google::protobuf::internal::WireFormatLite::WriteInt32(11, this->date(), output);
-  }
-
-}
-
-int Score::ByteSize() const {
-  int total_size = 0;
-
-  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    // required sint32 score = 1;
-    if (has_score()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::SInt32Size(
-          this->score());
-    }
-
-    // optional int32 mult = 2 [default = 10];
-    if (has_mult()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::Int32Size(
-          this->mult());
-    }
-
-    // optional int32 missed = 3;
-    if (has_missed()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::Int32Size(
-          this->missed());
-    }
-
-    // optional int32 incorrect = 4;
-    if (has_incorrect()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::Int32Size(
-          this->incorrect());
-    }
-
-    // optional int32 ok = 5;
-    if (has_ok()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::Int32Size(
-          this->ok());
-    }
-
-    // optional int32 good = 6;
-    if (has_good()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::Int32Size(
-          this->good());
-    }
-
-    // optional int32 great = 7;
-    if (has_great()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::Int32Size(
-          this->great());
-    }
-
-    // optional sint32 curStreak = 8;
-    if (has_curstreak()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::SInt32Size(
-          this->curstreak());
-    }
-
-  }
-  if (_has_bits_[8 / 32] & (0xffu << (8 % 32))) {
-    // optional int32 goodStreak = 9;
-    if (has_goodstreak()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::Int32Size(
-          this->goodstreak());
-    }
-
-    // optional int32 badStreak = 10;
-    if (has_badstreak()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::Int32Size(
-          this->badstreak());
-    }
-
-    // optional int32 date = 11;
-    if (has_date()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::Int32Size(
-          this->date());
-    }
-
-  }
-  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
-  _cached_size_ = total_size;
-  GOOGLE_SAFE_CONCURRENT_WRITES_END();
-  return total_size;
-}
-
-void Score::CheckTypeAndMergeFrom(
-    const ::google::protobuf::MessageLite& from) {
-  MergeFrom(*::google::protobuf::down_cast<const Score*>(&from));
-}
-
-void Score::MergeFrom(const Score& from) {
-  GOOGLE_CHECK_NE(&from, this);
-  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_score()) {
-      set_score(from.score());
-    }
-    if (from.has_mult()) {
-      set_mult(from.mult());
-    }
-    if (from.has_missed()) {
-      set_missed(from.missed());
-    }
-    if (from.has_incorrect()) {
-      set_incorrect(from.incorrect());
-    }
-    if (from.has_ok()) {
-      set_ok(from.ok());
-    }
-    if (from.has_good()) {
-      set_good(from.good());
-    }
-    if (from.has_great()) {
-      set_great(from.great());
-    }
-    if (from.has_curstreak()) {
-      set_curstreak(from.curstreak());
-    }
-  }
-  if (from._has_bits_[8 / 32] & (0xffu << (8 % 32))) {
-    if (from.has_goodstreak()) {
-      set_goodstreak(from.goodstreak());
-    }
-    if (from.has_badstreak()) {
-      set_badstreak(from.badstreak());
-    }
-    if (from.has_date()) {
-      set_date(from.date());
-    }
-  }
-}
-
-void Score::CopyFrom(const Score& from) {
-  if (&from == this) return;
-  Clear();
-  MergeFrom(from);
-}
-
-bool Score::IsInitialized() const {
-  if ((_has_bits_[0] & 0x00000001) != 0x00000001) return false;
-
-  return true;
-}
-
-void Score::Swap(Score* other) {
-  if (other != this) {
-    std::swap(score_, other->score_);
-    std::swap(mult_, other->mult_);
-    std::swap(missed_, other->missed_);
-    std::swap(incorrect_, other->incorrect_);
-    std::swap(ok_, other->ok_);
-    std::swap(good_, other->good_);
-    std::swap(great_, other->great_);
-    std::swap(curstreak_, other->curstreak_);
-    std::swap(goodstreak_, other->goodstreak_);
-    std::swap(badstreak_, other->badstreak_);
-    std::swap(date_, other->date_);
-    std::swap(_has_bits_[0], other->_has_bits_[0]);
-    std::swap(_cached_size_, other->_cached_size_);
-  }
-}
-
-::std::string Score::GetTypeName() const {
-  return "PFAData.Score";
 }
 
 
@@ -1190,7 +660,6 @@ void SongInfo::Swap(SongInfo* other) {
 #ifndef _MSC_VER
 const int FileInfo::kInfoFieldNumber;
 const int FileInfo::kLabelFieldNumber;
-const int FileInfo::kTop10FieldNumber;
 #endif  // !_MSC_VER
 
 FileInfo::FileInfo()
@@ -1260,7 +729,6 @@ void FileInfo::Clear() {
     }
   }
   label_.Clear();
-  top10_.Clear();
   ::memset(_has_bits_, 0, sizeof(_has_bits_));
 }
 
@@ -1294,21 +762,6 @@ bool FileInfo::MergePartialFromCodedStream(
           goto handle_uninterpreted;
         }
         if (input->ExpectTag(18)) goto parse_label;
-        if (input->ExpectTag(26)) goto parse_top10;
-        break;
-      }
-
-      // repeated .PFAData.Score top10 = 3;
-      case 3: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
-         parse_top10:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadMessageNoVirtual(
-                input, add_top10()));
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(26)) goto parse_top10;
         if (input->ExpectAtEnd()) return true;
         break;
       }
@@ -1342,12 +795,6 @@ void FileInfo::SerializeWithCachedSizes(
       2, this->label(i), output);
   }
 
-  // repeated .PFAData.Score top10 = 3;
-  for (int i = 0; i < this->top10_size(); i++) {
-    ::google::protobuf::internal::WireFormatLite::WriteMessage(
-      3, this->top10(i), output);
-  }
-
 }
 
 int FileInfo::ByteSize() const {
@@ -1370,14 +817,6 @@ int FileInfo::ByteSize() const {
         this->label(i));
   }
 
-  // repeated .PFAData.Score top10 = 3;
-  total_size += 1 * this->top10_size();
-  for (int i = 0; i < this->top10_size(); i++) {
-    total_size +=
-      ::google::protobuf::internal::WireFormatLite::MessageSizeNoVirtual(
-        this->top10(i));
-  }
-
   GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
   _cached_size_ = total_size;
   GOOGLE_SAFE_CONCURRENT_WRITES_END();
@@ -1392,7 +831,6 @@ void FileInfo::CheckTypeAndMergeFrom(
 void FileInfo::MergeFrom(const FileInfo& from) {
   GOOGLE_CHECK_NE(&from, this);
   label_.MergeFrom(from.label_);
-  top10_.MergeFrom(from.top10_);
   if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
     if (from.has_info()) {
       mutable_info()->::PFAData::SongInfo::MergeFrom(from.info());
@@ -1415,9 +853,6 @@ bool FileInfo::IsInitialized() const {
   for (int i = 0; i < label_size(); i++) {
     if (!this->label(i).IsInitialized()) return false;
   }
-  for (int i = 0; i < top10_size(); i++) {
-    if (!this->top10(i).IsInitialized()) return false;
-  }
   return true;
 }
 
@@ -1425,7 +860,6 @@ void FileInfo::Swap(FileInfo* other) {
   if (other != this) {
     std::swap(info_, other->info_);
     label_.Swap(&other->label_);
-    top10_.Swap(&other->top10_);
     std::swap(_has_bits_[0], other->_has_bits_[0]);
     std::swap(_cached_size_, other->_cached_size_);
   }
@@ -1876,296 +1310,6 @@ void MetaData::Swap(MetaData* other) {
 
 ::std::string MetaData::GetTypeName() const {
   return "PFAData.MetaData";
-}
-
-
-// ===================================================================
-
-#ifndef _MSC_VER
-const int Registration::kDisplaynameFieldNumber;
-const int Registration::kNameFieldNumber;
-const int Registration::kKeyFieldNumber;
-const int Registration::kDateFieldNumber;
-#endif  // !_MSC_VER
-
-Registration::Registration()
-  : ::google::protobuf::MessageLite() {
-  SharedCtor();
-}
-
-void Registration::InitAsDefaultInstance() {
-}
-
-Registration::Registration(const Registration& from)
-  : ::google::protobuf::MessageLite() {
-  SharedCtor();
-  MergeFrom(from);
-}
-
-void Registration::SharedCtor() {
-  _cached_size_ = 0;
-  displayname_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-  name_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-  key_ = const_cast< ::std::string*>(&::google::protobuf::internal::kEmptyString);
-  date_ = 0;
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-}
-
-Registration::~Registration() {
-  SharedDtor();
-}
-
-void Registration::SharedDtor() {
-  if (displayname_ != &::google::protobuf::internal::kEmptyString) {
-    delete displayname_;
-  }
-  if (name_ != &::google::protobuf::internal::kEmptyString) {
-    delete name_;
-  }
-  if (key_ != &::google::protobuf::internal::kEmptyString) {
-    delete key_;
-  }
-  #ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  if (this != &default_instance()) {
-  #else
-  if (this != default_instance_) {
-  #endif
-  }
-}
-
-void Registration::SetCachedSize(int size) const {
-  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
-  _cached_size_ = size;
-  GOOGLE_SAFE_CONCURRENT_WRITES_END();
-}
-const Registration& Registration::default_instance() {
-#ifdef GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER
-  protobuf_AddDesc_MetaData_2eproto();
-#else
-  if (default_instance_ == NULL) protobuf_AddDesc_MetaData_2eproto();
-#endif
-  return *default_instance_;
-}
-
-Registration* Registration::default_instance_ = NULL;
-
-Registration* Registration::New() const {
-  return new Registration;
-}
-
-void Registration::Clear() {
-  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (has_displayname()) {
-      if (displayname_ != &::google::protobuf::internal::kEmptyString) {
-        displayname_->clear();
-      }
-    }
-    if (has_name()) {
-      if (name_ != &::google::protobuf::internal::kEmptyString) {
-        name_->clear();
-      }
-    }
-    if (has_key()) {
-      if (key_ != &::google::protobuf::internal::kEmptyString) {
-        key_->clear();
-      }
-    }
-    date_ = 0;
-  }
-  ::memset(_has_bits_, 0, sizeof(_has_bits_));
-}
-
-bool Registration::MergePartialFromCodedStream(
-    ::google::protobuf::io::CodedInputStream* input) {
-#define DO_(EXPRESSION) if (!(EXPRESSION)) return false
-  ::google::protobuf::uint32 tag;
-  while ((tag = input->ReadTag()) != 0) {
-    switch (::google::protobuf::internal::WireFormatLite::GetTagFieldNumber(tag)) {
-      // optional string displayname = 1;
-      case 1: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
-          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
-                input, this->mutable_displayname()));
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(18)) goto parse_name;
-        break;
-      }
-
-      // optional string name = 2;
-      case 2: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
-         parse_name:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadString(
-                input, this->mutable_name()));
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(26)) goto parse_key;
-        break;
-      }
-
-      // optional bytes key = 3;
-      case 3: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
-         parse_key:
-          DO_(::google::protobuf::internal::WireFormatLite::ReadBytes(
-                input, this->mutable_key()));
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectTag(32)) goto parse_date;
-        break;
-      }
-
-      // optional int32 date = 4;
-      case 4: {
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT) {
-         parse_date:
-          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
-                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
-                 input, &date_)));
-          set_has_date();
-        } else {
-          goto handle_uninterpreted;
-        }
-        if (input->ExpectAtEnd()) return true;
-        break;
-      }
-
-      default: {
-      handle_uninterpreted:
-        if (::google::protobuf::internal::WireFormatLite::GetTagWireType(tag) ==
-            ::google::protobuf::internal::WireFormatLite::WIRETYPE_END_GROUP) {
-          return true;
-        }
-        DO_(::google::protobuf::internal::WireFormatLite::SkipField(input, tag));
-        break;
-      }
-    }
-  }
-  return true;
-#undef DO_
-}
-
-void Registration::SerializeWithCachedSizes(
-    ::google::protobuf::io::CodedOutputStream* output) const {
-  // optional string displayname = 1;
-  if (has_displayname()) {
-    ::google::protobuf::internal::WireFormatLite::WriteString(
-      1, this->displayname(), output);
-  }
-
-  // optional string name = 2;
-  if (has_name()) {
-    ::google::protobuf::internal::WireFormatLite::WriteString(
-      2, this->name(), output);
-  }
-
-  // optional bytes key = 3;
-  if (has_key()) {
-    ::google::protobuf::internal::WireFormatLite::WriteBytes(
-      3, this->key(), output);
-  }
-
-  // optional int32 date = 4;
-  if (has_date()) {
-    ::google::protobuf::internal::WireFormatLite::WriteInt32(4, this->date(), output);
-  }
-
-}
-
-int Registration::ByteSize() const {
-  int total_size = 0;
-
-  if (_has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    // optional string displayname = 1;
-    if (has_displayname()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::StringSize(
-          this->displayname());
-    }
-
-    // optional string name = 2;
-    if (has_name()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::StringSize(
-          this->name());
-    }
-
-    // optional bytes key = 3;
-    if (has_key()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::BytesSize(
-          this->key());
-    }
-
-    // optional int32 date = 4;
-    if (has_date()) {
-      total_size += 1 +
-        ::google::protobuf::internal::WireFormatLite::Int32Size(
-          this->date());
-    }
-
-  }
-  GOOGLE_SAFE_CONCURRENT_WRITES_BEGIN();
-  _cached_size_ = total_size;
-  GOOGLE_SAFE_CONCURRENT_WRITES_END();
-  return total_size;
-}
-
-void Registration::CheckTypeAndMergeFrom(
-    const ::google::protobuf::MessageLite& from) {
-  MergeFrom(*::google::protobuf::down_cast<const Registration*>(&from));
-}
-
-void Registration::MergeFrom(const Registration& from) {
-  GOOGLE_CHECK_NE(&from, this);
-  if (from._has_bits_[0 / 32] & (0xffu << (0 % 32))) {
-    if (from.has_displayname()) {
-      set_displayname(from.displayname());
-    }
-    if (from.has_name()) {
-      set_name(from.name());
-    }
-    if (from.has_key()) {
-      set_key(from.key());
-    }
-    if (from.has_date()) {
-      set_date(from.date());
-    }
-  }
-}
-
-void Registration::CopyFrom(const Registration& from) {
-  if (&from == this) return;
-  Clear();
-  MergeFrom(from);
-}
-
-bool Registration::IsInitialized() const {
-
-  return true;
-}
-
-void Registration::Swap(Registration* other) {
-  if (other != this) {
-    std::swap(displayname_, other->displayname_);
-    std::swap(name_, other->name_);
-    std::swap(key_, other->key_);
-    std::swap(date_, other->date_);
-    std::swap(_has_bits_[0], other->_has_bits_[0]);
-    std::swap(_cached_size_, other->_cached_size_);
-  }
-}
-
-::std::string Registration::GetTypeName() const {
-  return "PFAData.Registration";
 }
 
 

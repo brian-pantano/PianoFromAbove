@@ -47,14 +47,12 @@ LRESULT WINAPI WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                 {
                     HWND hWndLib = GetDlgItem( g_hWndLibDlg, IDC_LIBRARYFILES );
                     if ( GetFocus() == hWndLib )
-                        PlayLibrary( hWndLib, (int)SendMessage( hWndLib, LVM_GETNEXTITEM, -1, LVNI_SELECTED ), GameState::Practice );
+                        PlayLibrary( hWndLib, (int)SendMessage( hWndLib, LVM_GETNEXTITEM, -1, LVNI_SELECTED ) );
                     return 0;
                 }
-                case ID_FILE_LEARNSONG: case ID_FILE_PRACTICESONG: case ID_FILE_PRACTICESONGCUSTOM: case ID_FILE_PLAYSONG:
+                case ID_FILE_PRACTICESONG: case ID_FILE_PRACTICESONGCUSTOM:
                 {
                     CheckActivity( TRUE );
-                    GameState::State ePlayMode = ( iId == ID_FILE_PRACTICESONG || iId == ID_FILE_PRACTICESONGCUSTOM ? GameState::Practice :
-                                                   iId == ID_FILE_PLAYSONG ? GameState::Play : GameState::Learn );
                     // Get the file(s) to add
                     OPENFILENAME ofn = { 0 };
                     TCHAR sFilename[1024] = { 0 };
@@ -66,7 +64,7 @@ LRESULT WINAPI WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     ofn.lpstrTitle = TEXT( "Please select a song to play" );
                     ofn.Flags = OFN_EXPLORER | OFN_HIDEREADONLY | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
                     if ( GetOpenFileName( &ofn ) )
-                        PlayFile( sFilename, ePlayMode, iId == ID_FILE_PRACTICESONGCUSTOM, true );
+                        PlayFile( sFilename, iId == ID_FILE_PRACTICESONGCUSTOM, true );
                     return 0;
                 }
                 case ID_FILE_CLOSEFILE:
@@ -159,21 +157,16 @@ LRESULT WINAPI WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     PopulateLibrary( GetDlgItem( g_hWndLibDlg, IDC_LIBRARYFILES ) );
                     return 0;
                 }
-                case ID_LEARN_DEFAULT:
                 case ID_PRACTICE_DEFAULT:
                 case ID_PRACTICE_CUSTOM:
-                case ID_PLAY_DEFAULT:
                 case ID_PLAY_PLAY:
                     if ( cPlayback.GetPlayMode() && iId == ID_PLAY_PLAY )
                         cPlayback.SetPaused( false, true );
                     else
                     {
                         HWND hWndLib = GetDlgItem( g_hWndLibDlg, IDC_LIBRARYFILES );
-                        GameState::State ePlayMode = ( iId == ID_PLAY_DEFAULT ? GameState::Play :
-                                                       iId == ID_LEARN_DEFAULT ? GameState::Learn :
-                                                       GameState::Practice );
                         PlayLibrary( hWndLib, (int)SendMessage( hWndLib, LVM_GETNEXTITEM, -1, LVNI_SELECTED ),
-                            ePlayMode, iId == ID_PRACTICE_CUSTOM );
+                            iId == ID_PRACTICE_CUSTOM );
                     }
                     return 0;
                 case ID_PLAY_PAUSE:
@@ -186,33 +179,16 @@ LRESULT WINAPI WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     if ( cPlayback.GetPlayMode() ) HandOffMsg( msg, wParam, lParam );
                     return 0;
                 case ID_PLAY_SKIPFWD: case ID_PLAY_SKIPBACK:
-                    if ( cPlayback.GetPlayMode() && cPlayback.GetPlayMode() != GameState::Play )
-                        HandOffMsg( msg, wParam, lParam );
-                    return 0;
-                case ID_PLAY_LOOP:
-                    HandOffMsg( msg, ID_PLAY_LOOP, lParam );
-                    return 0;
-                case ID_LEARN_ADAPTIVE:
-                    cPlayback.SetLoop( true );
-                    cPlayback.SetLearnMode( GameState::Adaptive, true );
-                    return 0;
-                case ID_LEARN_WAITING:
-                    cPlayback.SetLearnMode( GameState::Waiting, true );
-                    return 0;
-                case ID_LEARN_NEXTTRACK:
-                    HandOffMsg( msg, wParam, lParam );
+                    if ( cPlayback.GetPlayMode() ) HandOffMsg( msg, wParam, lParam );
                     return 0;
                 case ID_PLAY_INCREASERATE:
-                    if ( cPlayback.GetPlayMode() != GameState::Play )
-                        cPlayback.SetSpeed( cPlayback.GetSpeed() * ( 1.0 + cControls.dSpeedUpPct / 100.0 ), true );
+                    cPlayback.SetSpeed( cPlayback.GetSpeed() * ( 1.0 + cControls.dSpeedUpPct / 100.0 ), true );
                     return 0;
                 case ID_PLAY_DECREASERATE:
-                    if ( cPlayback.GetPlayMode() != GameState::Play )
-                        cPlayback.SetSpeed( cPlayback.GetSpeed() / ( 1.0 + cControls.dSpeedUpPct / 100.0 ), true );
+                    cPlayback.SetSpeed( cPlayback.GetSpeed() / ( 1.0 + cControls.dSpeedUpPct / 100.0 ), true );
                     return 0;
                 case ID_PLAY_RESETRATE:
-                    if ( cPlayback.GetPlayMode() != GameState::Play )
-                        cPlayback.SetSpeed( 1.0, true );
+                    cPlayback.SetSpeed( 1.0, true );
                     return 0;
                 case ID_PLAY_NFASTER:
                     cPlayback.SetNSpeed( cPlayback.GetNSpeed() / ( 1.0 + cControls.dSpeedUpPct / 100.0 ), true );
@@ -241,9 +217,6 @@ LRESULT WINAPI WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                 case ID_VIEW_KEYBOARD:
                     cView.ToggleKeyboard( true );
                     return 0;
-                case ID_VIEW_NOTELABELS:
-                    cView.ToggleNoteLabels( true );
-                    return 0;
                 case ID_VIEW_ALWAYSONTOP:
                     cView.ToggleOnTop( true );
                     return 0;
@@ -264,16 +237,8 @@ LRESULT WINAPI WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     CheckActivity( TRUE );
                     DoPreferences( hWnd );
                     return 0;
-                case ID_HELP_ONLINEFAQ:
-                    if ( cView.GetOnTop() ) cView.SetOnTop( false, true );
-                    ShellExecute( hWnd, TEXT( "open" ), TEXT( "http://www.PianoFromAbove.com/faq.html" ), NULL, NULL, SW_SHOWNORMAL );
-                    return 0;
                 case ID_HELP_ABOUT:
                     DialogBox( g_hInstance, MAKEINTRESOURCE( IDD_ABOUT ), g_hWnd, AboutProc );
-                    return 0;
-                case IDC_METRONOME:
-                    if ( iCode == CBN_SELCHANGE )
-                        cPlayback.SetMetronome( ( PlaybackSettings::Metronome )SendMessage( ( HWND )lParam, CB_GETCURSEL, 0, 0 ) );
                     return 0;
                 case ID_GAMEERROR:
                     MessageBoxW( hWnd, GameState::Errors[lParam].c_str(), L"Error", MB_OK | MB_ICONEXCLAMATION );
@@ -404,23 +369,8 @@ LRESULT WINAPI GfxProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
         case WM_CREATE:
             hMenu = LoadMenu( g_hInstance, MAKEINTRESOURCE( IDR_CONTEXTMENU ) );
             ShowKeyboard( cView.GetKeyboard() );
-            ShowNoteLabels( cView.GetNoteLabels() );
             SetTimer( hWnd, IDC_INACTIVITYTIMER, 2500, NULL );
             return 0;
-        case WM_COMMAND:
-        {
-            int iId = LOWORD( wParam );
-            if ( iId == ID_SETLABEL )
-            {
-                TRACKMOUSEEVENT tme = { sizeof( TRACKMOUSEEVENT ), TME_LEAVE | TME_CANCEL, hWnd, HOVER_DEFAULT };
-                TrackMouseEvent( &tme );
-                bTrack = false;
-                if ( DialogBox( g_hInstance, MAKEINTRESOURCE( IDD_NOTELABEL ), hWnd, NoteLabelProc ) == IDOK )
-                    HandOffMsg( WM_COMMAND, ID_SETLABEL, lParam );
-                return 0;
-            }
-            break;
-        }
         case WM_LBUTTONDOWN: case WM_RBUTTONDOWN:
             SetFocus( hWnd );
             if ( !bTrackR && !bTrackL ) SetCapture( hWnd );
@@ -464,10 +414,8 @@ LRESULT WINAPI GfxProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             CopyMenuState( GetSubMenu( hMenuMain, 0 ), hMenuPopup );
             CopyMenuState( GetSubMenu( hMenuMain, 1 ), hMenuPopup );
             CopyMenuState( GetSubMenu( hMenuMain, 2 ), hMenuPopup );
-            CopyMenuState( GetSubMenu( GetSubMenu( hMenuMain, 1 ), 6 ), hMenuPopup );
-            CopyMenuItem( GetSubMenu( hMenuMain, 1 ), 6, hMenuPopup, 10, TRUE );
 
-            // Finally diaply the menu
+            // Finally display the menu
             CheckActivity( TRUE, NULL, TRUE );
             TrackPopupMenuEx( hMenuPopup, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON, ptContext.x, ptContext.y, g_hWnd, NULL );
             CheckActivity( TRUE, NULL, TRUE );
@@ -550,47 +498,6 @@ LRESULT WINAPI GfxProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
     return DefWindowProc( hWnd, msg, wParam, lParam );
 }
 
-INT_PTR WINAPI NoteLabelProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
-{
-    static ViewSettings &cView = Config::GetConfig().GetViewSettings();
-
-    switch ( msg )
-	{
-	    case WM_INITDIALOG:
-        {
-            SetWindowText( GetDlgItem( hWnd, IDC_NOTELABEL ), Util::StringToWstring( cView.GetCurLabel() ) );
-
-            // Center align to the graphic windows
-            RECT rcPos, rcGfx;
-            GetClientRect( hWnd, &rcPos );
-            GetWindowRect( g_hWndGfx, &rcGfx );
-            SetWindowPos( hWnd, NULL, rcGfx.left + ( rcGfx.right - rcGfx.left - rcPos.right ) / 2,
-                rcGfx.top + ( static_cast< int >( ( rcGfx.bottom - rcGfx.top ) * ( 1 - MainScreen::KBPercent ) ) - rcPos.bottom ) / 2,
-                0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOREDRAW | SWP_NOACTIVATE );
-
-            return TRUE;
-        }
-	    case WM_COMMAND:
-        {
-            int iId = LOWORD( wParam );
-            switch ( iId )
-            {
-                case IDOK:
-                {
-                    TCHAR buf[1024];
-                    GetWindowText( GetDlgItem( hWnd, IDC_NOTELABEL ), buf, sizeof( buf ) / sizeof( TCHAR ) );
-                    cView.SetCurLabel( Util::WstringToString( buf ) );
-                }
-                case IDCANCEL:
-			        EndDialog( hWnd, iId );
-			        return TRUE;
-            }
-		    break;
-        }
-	}
-    return FALSE;
-}
-
 VOID CopyMenuState( HMENU hMenuSrc, HMENU hMenuDest )
 {
     MENUITEMINFO mii;
@@ -600,15 +507,6 @@ VOID CopyMenuState( HMENU hMenuSrc, HMENU hMenuDest )
     for ( int i = 0; i < iCount; i++ )
         if ( GetMenuItemInfo( hMenuSrc, i, TRUE, &mii ) )
             SetMenuItemInfo( hMenuDest, mii.wID, FALSE, &mii );
-}
-
-VOID CopyMenuItem( HMENU hMenuSrc, INT iItemSrc, HMENU hMenuDest, INT iItemDest, BOOL bByPosition )
-{
-    MENUITEMINFO mii;
-    mii.cbSize = sizeof( MENUITEMINFO );
-    mii.fMask = MIIM_STATE | MIIM_CHECKMARKS;
-    if ( GetMenuItemInfo( hMenuSrc, iItemSrc, bByPosition, &mii ) )
-        SetMenuItemInfo( hMenuDest, iItemDest, bByPosition, &mii );
 }
 
 // Override of the toolbar proc to draw transparent controls
@@ -745,30 +643,17 @@ HWND CreateRebar( HWND hWndOwner )
     HWND hWndStatic2 = CreateWindowEx( 0, WC_STATIC, NULL, WS_CHILD | WS_VISIBLE | SS_WHITEFRAME,
                                        289, 2, 1, 25, hWndToolbar, NULL, g_hInstance, NULL );
 
-    HWND hWndStatic3 = CreateWindowEx( 0, WC_STATIC, TEXT( "Metronome:" ), WS_CHILD | WS_VISIBLE | SS_LEFT,
-                                       297, 8, 60, 13, hWndToolbar, NULL, g_hInstance, NULL );
-    HWND hWndMetronome = CreateWindowEx( 0, WC_COMBOBOX, NULL, WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL,
-                                       361, 4, 99, 100, hWndToolbar, ( HMENU )IDC_METRONOME, g_hInstance, NULL );
-    SendMessage( hWndMetronome, CB_ADDSTRING, 0, ( LPARAM )TEXT( "(Off)" ) );
-    SendMessage( hWndMetronome, CB_ADDSTRING, 0, ( LPARAM )TEXT( "Every Beat" ) );
-    SendMessage( hWndMetronome, CB_ADDSTRING, 0, ( LPARAM )TEXT( "Every Measure" ) );
-
-    HWND hWndStatic4 = CreateWindowEx( 0, WC_STATIC, NULL, WS_CHILD | WS_VISIBLE | SS_BLACKFRAME,
-                                       468, 2, 1, 25, hWndToolbar, NULL, g_hInstance, NULL );
-    HWND hWndStatic5 = CreateWindowEx( 0, WC_STATIC, NULL, WS_CHILD | WS_VISIBLE | SS_WHITEFRAME,
-                                       469, 2, 1, 25, hWndToolbar, NULL, g_hInstance, NULL );
-
-    HWND hWndStatic6 = CreateWindowEx( 0, WC_STATIC, TEXT( "Playback:" ), WS_CHILD | WS_VISIBLE | SS_LEFT,
-                                       477, 8, 44, 13, hWndToolbar, NULL, g_hInstance, NULL );
+    HWND hWndStatic3 = CreateWindowEx( 0, WC_STATIC, TEXT( "Playback:" ), WS_CHILD | WS_VISIBLE | SS_LEFT,
+                                       297, 8, 44, 13, hWndToolbar, NULL, g_hInstance, NULL );
     HWND hWndSpeed = CreateWindowEx( 0, TRACKBAR_CLASS, NULL, WS_CHILD | WS_VISIBLE | WS_TABSTOP | TBS_BOTH | TBS_NOTICKS,
-                                     522, 2, 100, 26, hWndToolbar, ( HMENU )IDC_SPEED, g_hInstance, NULL );
+                                     342, 2, 100, 26, hWndToolbar, ( HMENU )IDC_SPEED, g_hInstance, NULL );
     SendMessage( hWndSpeed, TBM_SETRANGE, FALSE, MAKELONG( 5, 195 ) );
     SendMessage( hWndSpeed, TBM_SETLINESIZE, 0, 10 ); 
 
-    HWND hWndStatic7 = CreateWindowEx( 0, WC_STATIC, TEXT( "Notes:" ), WS_CHILD | WS_VISIBLE | SS_LEFT,
-                                       629, 8, 35, 13, hWndToolbar, NULL, g_hInstance, NULL );
+    HWND hWndStatic4 = CreateWindowEx( 0, WC_STATIC, TEXT( "Notes:" ), WS_CHILD | WS_VISIBLE | SS_LEFT,
+                                       449, 8, 35, 13, hWndToolbar, NULL, g_hInstance, NULL );
     HWND hWndNSpeed = CreateWindowEx( 0, TRACKBAR_CLASS, NULL, WS_CHILD | WS_VISIBLE | WS_TABSTOP | TBS_BOTH | TBS_NOTICKS,
-                                      665, 2, 100, 26, hWndToolbar, ( HMENU )IDC_NSPEED, g_hInstance, NULL );
+                                      485, 2, 100, 26, hWndToolbar, ( HMENU )IDC_NSPEED, g_hInstance, NULL );
     SendMessage( hWndNSpeed, TBM_SETRANGE, FALSE, MAKELONG( 5, 195 ) );
     SendMessage( hWndNSpeed, TBM_SETLINESIZE, 0, 10 ); 
 
@@ -780,11 +665,7 @@ HWND CreateRebar( HWND hWndOwner )
     SendMessage( hWndStatic1, WM_SETFONT, ( WPARAM )hFont, FALSE );
     SendMessage( hWndStatic2, WM_SETFONT, ( WPARAM )hFont, FALSE );
     SendMessage( hWndStatic3, WM_SETFONT, ( WPARAM )hFont, FALSE );
-    SendMessage( hWndMetronome, WM_SETFONT, ( WPARAM )hFont, FALSE );
     SendMessage( hWndStatic4, WM_SETFONT, ( WPARAM )hFont, FALSE );
-    SendMessage( hWndStatic5, WM_SETFONT, ( WPARAM )hFont, FALSE );
-    SendMessage( hWndStatic6, WM_SETFONT, ( WPARAM )hFont, FALSE );
-    SendMessage( hWndStatic7, WM_SETFONT, ( WPARAM )hFont, FALSE );
     SendMessage( hWndSpeed, WM_SETFONT, ( WPARAM )hFont, FALSE );
 
     REBARBANDINFO rbbi;
@@ -808,12 +689,10 @@ HWND CreateRebar( HWND hWndOwner )
     Config &config = Config::GetConfig();
     const PlaybackSettings &cPlayback = config.GetPlaybackSettings();
     g_hWndBar = hWndRebar; // SetMute needs it :/
-    SetLearnMode( cPlayback.GetLearnMode() );
     SetMute( cPlayback.GetMute() );
     SendMessage( hWndSpeed, TBM_SETPOS, TRUE, ( LONG )( 100 * cPlayback.GetSpeed() + .5 ) );
     SendMessage( hWndNSpeed, TBM_SETPOS, TRUE, ( LONG )( 100 * (2.0 - cPlayback.GetNSpeed()) + .5 ) );
     SendMessage( hWndVolume, TBM_SETPOS, TRUE, ( LONG )( 100 * cPlayback.GetVolume() + .5 ) );
-    SendMessage( hWndMetronome, CB_SETCURSEL, cPlayback.GetMetronome(), 0 );
 
     return hWndRebar;
 }
@@ -856,7 +735,6 @@ LRESULT WINAPI PosnProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
     static HIMAGELIST hIml = NULL;
     static HBITMAP hBackbuffer = NULL;
     static HBITMAP hBackground = NULL;
-    static int iLoopStart = -1, iLoopEnd = -1;
 
     switch( msg )
     {
@@ -865,33 +743,6 @@ LRESULT WINAPI PosnProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                                         16, 20, CLR_DEFAULT, IMAGE_BITMAP, LR_CREATEDIBSECTION );
             bEnabled = ( ( GetWindowLongPtr( hWnd, GWL_STYLE ) & WS_DISABLED ) == 0 );
             return 0;
-        case WM_COMMAND:
-        {
-            int iId = LOWORD( wParam );
-            if ( iId == ID_PLAY_LOOP )
-            {
-                if ( iLoopEnd >= 0 )
-                {
-                    iLoopStart = iLoopEnd = -1;
-                    
-                    RECT rc;
-                    SendMessage( g_hWndBar, RB_GETRECT, 1, ( LPARAM )&rc );
-                    RedrawWindow( g_hWndBar, &rc, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_ALLCHILDREN );
-                }
-                else if ( iLoopStart < 0 || iPosition < iLoopStart )
-                    iLoopStart = iPosition;
-                else
-                    iLoopEnd = iPosition;
-            }
-            else if ( iId == ID_PLAY_CLEARLOOP )
-            {
-                iLoopStart = iLoopEnd = -1;
-                RECT rc;
-                SendMessage( g_hWndBar, RB_GETRECT, 1, ( LPARAM )&rc );
-                RedrawWindow( g_hWndBar, &rc, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_ALLCHILDREN );
-            }
-            return 0;
-        }
         case WM_ENABLE:
         {
             bEnabled = (BOOL)wParam;
@@ -953,15 +804,6 @@ LRESULT WINAPI PosnProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                 SetDCBrushColor( hDCMem, RGB( 255, 255, 255 ) );
                 HBRUSH hBrush = ( HBRUSH )GetStockObject( DC_BRUSH );
                 FillRect( hDCMem, &rcChannel, hBrush );
-                if ( iLoopStart >= 0 && ( iLoopEnd >= 0 || iPosition >= iLoopStart ) )
-                {
-                    SetDCBrushColor( hDCMem, RGB( 63, 72, 204 ) );
-                    HBRUSH hBrush = ( HBRUSH )GetStockObject( DC_BRUSH );
-                    int iStartPos = ( 2 * iLoopStart * ( rcChannel.right - rcChannel.left - 1 ) + 1000 ) / ( 2 * 1000 );
-                    int iEndPos = ( 2 * ( iLoopEnd >= 0 ? iLoopEnd : iPosition ) * ( rcChannel.right - rcChannel.left - 1 ) + 1000 ) / ( 2 * 1000 ) + 1;
-                    RECT rcLoop = { rcChannel.left + iStartPos, rcChannel.top, rcChannel.left + iEndPos, rcChannel.bottom };
-                    FillRect( hDCMem, &rcLoop, hBrush );
-                }
             }
             DrawEdge( hDCMem, &rcChannel, BDR_SUNKENOUTER, BF_RECT );
             ImageList_DrawEx( hIml, 7 + bEnabled, hDCMem, rcThumb.left, rcThumb.top, rcThumb.right - rcThumb.left, rcThumb.bottom - rcThumb.top,
@@ -1176,7 +1018,7 @@ INT_PTR WINAPI LibDlgProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     case LVN_ITEMACTIVATE:
                     {
                         LPNMLISTVIEW pnmv = ( LPNMLISTVIEW )lParam;
-                        PlayLibrary( lpnmhdr->hwndFrom, pnmv->iItem, GameState::Practice );
+                        PlayLibrary( lpnmhdr->hwndFrom, pnmv->iItem );
                         return 0;
                     }
                     case LVN_COLUMNCLICK:
@@ -1237,14 +1079,11 @@ INT_PTR WINAPI LibDlgProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             }
             
             // Only enable playing if an item is selected
-            CopyMenuItem( GetMainMenu(), ID_FILE_LEARNSONG, hMenuPopup, ID_LEARN_DEFAULT, FALSE );
             UINT uEnable = ( iItem >= 0 ? MF_ENABLED : MF_GRAYED );
             EnableMenuItem( hMenuPopup, ID_PRACTICE_DEFAULT, MF_BYCOMMAND | uEnable );
             EnableMenuItem( hMenuPopup, ID_PRACTICE_CUSTOM, MF_BYCOMMAND | uEnable );
-            EnableMenuItem( hMenuPopup, ID_PLAY_DEFAULT, MF_BYCOMMAND | uEnable );
-            EnableMenuItem( hMenuPopup, ID_LEARN_DEFAULT, MF_BYCOMMAND | uEnable );
 
-            // Finally diaply the menu
+            // Finally display the menu
             SetMenuDefaultItem( hMenuPopup, ID_PRACTICE_DEFAULT, FALSE );
             TrackPopupMenuEx( hMenuPopup, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON, ptContext.x, ptContext.y, g_hWnd, NULL );
             return 0;
@@ -1276,6 +1115,7 @@ INT_PTR WINAPI LibDlgProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     SetWindowPos( g_hWndGfx, NULL, iNewWidth, iBarHeight, iParentWidth - iNewWidth, iCurHeight, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER );
                 HandOffMsg( WM_COMMAND, ID_VIEW_RESETDEVICE, 0 );
             }
+            return 0;
         }
         case WM_LBUTTONDOWN:
         {
@@ -1516,7 +1356,7 @@ VOID AddSingleLibraryFile( HWND hWndLibrary, const wstring &sFile )
     SendMessage( hWndLibrary, LVM_INSERTITEM, 0, ( LPARAM )&lvi );
 }
 
-BOOL PlayLibrary( HWND hWndLibrary, int iItem, INT ePlayMode, bool bCustomSettings )
+BOOL PlayLibrary( HWND hWndLibrary, int iItem, bool bCustomSettings )
 {
     if ( iItem < 0 ) return FALSE;
 
@@ -1526,7 +1366,7 @@ BOOL PlayLibrary( HWND hWndLibrary, int iItem, INT ePlayMode, bool bCustomSettin
     SendMessage( hWndLibrary, LVM_GETITEM, 0, ( LPARAM )&lvi );
 
     PFAData::File* pmInfo = ( PFAData::File* )lvi.lParam;
-    BOOL bSuccess = PlayFile( Util::StringToWstring( pmInfo->filename() ), ePlayMode, bCustomSettings );
+    BOOL bSuccess = PlayFile( Util::StringToWstring( pmInfo->filename() ), bCustomSettings );
 
     if ( bSuccess ) SetFocus( g_hWndGfx );
     return bSuccess;
@@ -1620,12 +1460,6 @@ VOID ShowKeyboard( BOOL bShow )
     CheckMenuItem( hMenu, ID_VIEW_KEYBOARD, MF_BYCOMMAND | ( bShow ? MF_CHECKED : MF_UNCHECKED ) );
 }
 
-VOID ShowNoteLabels( BOOL bShow )
-{
-    HMENU hMenu = GetMainMenu();
-    CheckMenuItem( hMenu, ID_VIEW_NOTELABELS, MF_BYCOMMAND | ( bShow ? MF_CHECKED : MF_UNCHECKED ) );
-}
-
 VOID SetOnTop( BOOL bOnTop )
 {
     static const ViewSettings &cView = Config::GetConfig().GetViewSettings();
@@ -1715,19 +1549,6 @@ VOID SetPosition( INT iPosition )
     PostMessage( hWndPosn, TBM_SETPOS, 0, iPosition );
 }
 
-VOID SetLoop( BOOL bClear )
-{
-    HWND hWndPosn = GetDlgItem( g_hWndBar, IDC_POSNCTRL );
-    PostMessage( hWndPosn, WM_COMMAND, bClear ? ID_PLAY_CLEARLOOP : ID_PLAY_LOOP, 0 );
-}
-
-VOID SetMetronome( INT iMetronome )
-{
-    HWND hWndToolbar = GetDlgItem( g_hWndBar, IDC_TOPTOOLBAR );
-    HWND hWndMetronome = GetDlgItem( hWndToolbar, IDC_METRONOME );
-    SendMessage( hWndMetronome, CB_SETCURSEL, iMetronome, 0 );
-}
-
 VOID SetPlayable( BOOL bPlayable )
 {
     HWND hWndToolbar = GetDlgItem( g_hWndBar, IDC_TOPTOOLBAR );
@@ -1741,27 +1562,22 @@ VOID SetPlayMode( INT ePlayMode )
     HWND hWndToolbar = GetDlgItem( g_hWndBar, IDC_TOPTOOLBAR );
     HMENU hMenu = GetMainMenu();
     BOOL bSplash = ( ePlayMode == GameState::Splash );
-    BOOL bPlay = ( ePlayMode == GameState::Play );
     BOOL bPractice = ( ePlayMode == GameState::Practice );
-    BOOL bLearn = ( ePlayMode == GameState::Learn );
-    BOOL bWaiting = ( cPlayback.GetLearnMode() == GameState::Waiting );
 
     int iPlayButtons[] = { ID_PLAY_PLAY, ID_PLAY_PAUSE, ID_PLAY_STOP };
     for ( int i = 0; i < sizeof( iPlayButtons ) / sizeof( int ); i++ )
-        SendMessage( hWndToolbar, TB_ENABLEBUTTON, iPlayButtons[i], bPractice || bPlay || bLearn );
+        SendMessage( hWndToolbar, TB_ENABLEBUTTON, iPlayButtons[i], bPractice );
     int iPracticeButtons[] = { ID_PLAY_SKIPFWD, ID_PLAY_SKIPBACK };
     for ( int i = 0; i < sizeof( iPracticeButtons ) / sizeof( int ); i++ )
-        SendMessage( hWndToolbar, TB_ENABLEBUTTON, iPracticeButtons[i], bPractice || bLearn );
+        SendMessage( hWndToolbar, TB_ENABLEBUTTON, iPracticeButtons[i], bPractice );
 
     SendMessage( hWndToolbar, TB_PRESSBUTTON, ID_PLAY_PLAY, TRUE );
     SetZoomMove( FALSE );
 
-    int iMenuItems[][6] = { { 1, ePlayMode, ID_FILE_CLOSEFILE },
-                            { 3, bPlay || bPractice || bLearn, ID_PLAY_PLAYPAUSE, ID_PLAY_STOP, ID_VIEW_MOVEANDZOOM },
-                            { 2, bPractice || bLearn, ID_PLAY_SKIPFWD, ID_PLAY_SKIPBACK },
-                            { 1, bPractice || ( bLearn && bWaiting ), ID_PLAY_LOOP },
-                            { 3, !bPlay, ID_PLAY_INCREASERATE, ID_PLAY_DECREASERATE, ID_PLAY_RESETRATE },
-                            { 3, bLearn, ID_LEARN_ADAPTIVE, ID_LEARN_WAITING, ID_LEARN_NEXTTRACK } };
+    int iMenuItems[][5] = { { 1, ePlayMode, ID_FILE_CLOSEFILE },
+                            { 3, bPractice, ID_PLAY_PLAYPAUSE, ID_PLAY_STOP, ID_VIEW_MOVEANDZOOM },
+                            { 2, bPractice, ID_PLAY_SKIPFWD, ID_PLAY_SKIPBACK },
+                            { 3, true, ID_PLAY_INCREASERATE, ID_PLAY_DECREASERATE, ID_PLAY_RESETRATE } };
     for ( int i = 0; i < sizeof( iMenuItems ) / sizeof( iMenuItems[0] ); i++ )
     {
         UINT uEnable = ( iMenuItems[i][1] ? MF_ENABLED : MF_GRAYED );
@@ -1770,16 +1586,8 @@ VOID SetPlayMode( INT ePlayMode )
     }
 
     HWND hWndPosn = GetDlgItem( g_hWndBar, IDC_POSNCTRL );
-    EnableWindow( GetDlgItem( hWndToolbar, IDC_SPEED ), !bPlay );
-    EnableWindow( hWndPosn, bPractice || bLearn );
-}
-
-VOID SetLearnMode( INT eLearnMode )
-{
-    HMENU hMenu = GetMainMenu();
-    CheckMenuItem( hMenu, ID_LEARN_ADAPTIVE, MF_BYCOMMAND | ( eLearnMode == GameState::Adaptive ? MF_CHECKED : MF_UNCHECKED ) );
-    CheckMenuItem( hMenu, ID_LEARN_WAITING, MF_BYCOMMAND | ( eLearnMode == GameState::Waiting ? MF_CHECKED : MF_UNCHECKED ) );
-    EnableMenuItem( hMenu, ID_PLAY_LOOP, MF_BYCOMMAND | ( eLearnMode == GameState::Waiting ? MF_ENABLED : MF_GRAYED ) );
+    EnableWindow( GetDlgItem( hWndToolbar, IDC_SPEED ), true );
+    EnableWindow( hWndPosn, bPractice );
 }
 
 VOID SetPlayPauseStop( BOOL bPlay, BOOL bPause, BOOL bStop )
@@ -1790,7 +1598,7 @@ VOID SetPlayPauseStop( BOOL bPlay, BOOL bPause, BOOL bStop )
     SendMessage( hWndToolbar, TB_PRESSBUTTON, ID_PLAY_STOP, bStop );
 }
 
-BOOL PlayFile( const wstring &sFile, int ePlayMode, bool bCustomSettings, bool bLibraryEligible )
+BOOL PlayFile( const wstring &sFile, bool bCustomSettings, bool bLibraryEligible )
 {
     Config &config = Config::GetConfig();
     const VisualSettings &cVisual = config.GetVisualSettings();
@@ -1799,15 +1607,11 @@ BOOL PlayFile( const wstring &sFile, int ePlayMode, bool bCustomSettings, bool b
     ViewSettings &cView = config.GetViewSettings();
     SongLibrary &cLibrary = config.GetSongLibrary();
 
-    if ( ePlayMode != GameState::Practice && cAudio.iInDevice < 0 )
-    {
-        MessageBox( g_hWnd, TEXT( "This mode requires a MIDI input device. Plug one in!" ), TEXT( "Error" ), MB_OK | MB_ICONEXCLAMATION );
-        return FALSE;
-    }
+    const GameState::State ePlayMode = GameState::Practice;
 
     // Try loading the file
     MainScreen *pGameState = NULL;
-    pGameState = new MainScreen( sFile, static_cast< GameState::State >( ePlayMode ), NULL, NULL );
+    pGameState = new MainScreen( sFile, ePlayMode, NULL, NULL );
     if ( !pGameState->IsValid() )
     {
         MessageBox( g_hWnd, ( L"Was not able to load " + sFile ).c_str(), TEXT( "Error" ), MB_OK | MB_ICONEXCLAMATION );
@@ -1823,21 +1627,18 @@ BOOL PlayFile( const wstring &sFile, int ePlayMode, bool bCustomSettings, bool b
     else
     {
         int iNumChannels = pGameState->GetMIDI().GetInfo().iNumChannels;
-        pGameState->SetChannelSettings( 
-            ePlayMode == GameState::Play ? vector< bool >( iNumChannels, true ) : vector< bool >(),
-            ePlayMode == GameState::Play ? vector< bool >( iNumChannels, true ) : vector< bool >(),
+        pGameState->SetChannelSettings(
+            vector< bool >(),
             vector< bool >(),
             vector< unsigned >( cVisual.colors, cVisual.colors + sizeof( cVisual.colors ) / sizeof( cVisual.colors[0] ) ) );
     }
 
     // Success! Set up the GUI for playback
     if ( !cPlayback.GetPlayable() ) cPlayback.SetPlayable( true, true );
-    if ( cPlayback.GetPlayMode() != ePlayMode ) cPlayback.SetPlayMode( static_cast< GameState::State >( ePlayMode ), true );
+    if ( cPlayback.GetPlayMode() != ePlayMode ) cPlayback.SetPlayMode( ePlayMode, true );
     cPlayback.SetPaused( ePlayMode != GameState::Practice, true );
     cPlayback.SetPosition( 0 );
-    cPlayback.SetLoop( true );
     cView.SetZoomMove( false, true );
-    if ( ePlayMode == GameState::Play ) cPlayback.SetSpeed( 1.0, true );
     SetWindowText( g_hWnd, sFile.c_str() + ( sFile.find_last_of( L'\\' ) + 1 ) );
 
     // Add to the library

@@ -210,10 +210,9 @@ protected:
 class MIDIChannelEvent : public MIDIEvent
 {
 public:
-    MIDIChannelEvent() : m_pSister( NULL ), m_iSimultaneous( 0 ), m_sLabel( NULL ) { }
+    MIDIChannelEvent() : m_pSister( NULL ), m_iSimultaneous( 0 ) { }
 
     enum ChannelEventType { NoteOff = 0x8, NoteOn, NoteAftertouch, Controller, ProgramChange, ChannelAftertouch, PitchBend };
-    enum InputQuality { OnRadar, Waiting, Missed, Ok, Good, Great, Ignore };
     int ParseEvent( const unsigned char *pcData, int iMaxSize );
 
     //Accessors
@@ -221,26 +220,19 @@ public:
     unsigned char GetChannel() const { return m_cChannel; }
     unsigned char GetParam1() const { return m_cParam1; }
     unsigned char GetParam2() const { return m_cParam2; }
-    InputQuality GetInputQuality() const { return m_eInputQuality; }
     MIDIChannelEvent *GetSister() const { return m_pSister; }
     int GetSimultaneous() const { return m_iSimultaneous; }
-    const string *GetLabel() const { return m_sLabel; }
 
-    void SetInputQuality( InputQuality eInputQuality ) { m_eInputQuality = eInputQuality; }
     void SetSister( MIDIChannelEvent *pSister ) { m_pSister = pSister; pSister->m_pSister = this; }
     void SetSimultaneous( int iSimultaneous ) { m_iSimultaneous = iSimultaneous; }
-    void SetLabelPtr( string *sLabel ) { m_sLabel = sLabel; }
-    void SetLabel( const string &sLabel ) { if ( m_sLabel ) *m_sLabel = sLabel; }
 
 private:
     ChannelEventType m_eChannelEventType;
-    InputQuality m_eInputQuality;
     unsigned char m_cChannel;
     unsigned char m_cParam1;
     unsigned char m_cParam2;
     MIDIChannelEvent *m_pSister;
     int m_iSimultaneous;
-    string *m_sLabel;
 };
 
 //Meta Event: info about the notes and whatnot
@@ -330,33 +322,4 @@ private:
     static void CALLBACK MIDIOutProc( HMIDIOUT hmo, UINT wMsg, DWORD_PTR dwInstance,
                                       DWORD_PTR dwParam1, DWORD_PTR dwParam2 );
     HMIDIOUT m_hMIDIOut;
-};
-
-class MIDIInDevice : public MIDIDevice
-{
-public:
-    typedef void (*MIDIInCallback)( unsigned char cStatus, unsigned char cParam1, unsigned char cParam2,
-                                    int iMilliSecs, void *pUserData );
-
-    MIDIInDevice() : m_hMIDIIn( NULL ), m_pCallback( NULL ) { }
-    virtual ~MIDIInDevice() { Close(); }
-
-    void SetCallback( MIDIInCallback pCallback, void *pUserData ) { m_pCallback = pCallback; m_pUserData = pUserData; }
-    void CancelCallback() { SetCallback( NULL, NULL ); }
-    bool GetMIDIMessage( unsigned char &cStatus, unsigned char &cParam1, unsigned char &cParam2, int &iMilliSecs );
-
-    int GetNumDevs() const;
-    wstring GetDevName( int iDev ) const;
-    bool Open( int iDev );
-    void Close();
-
-private:
-    static void CALLBACK MIDIInProc( HMIDIIN hMidiIn, UINT wMsg, DWORD_PTR dwInstance,
-                                     DWORD_PTR dwParam1, DWORD_PTR dwParam2 );
-    struct MIDIInMessage { DWORD_PTR dwMsg, dwMilliSecs; };
-
-    HMIDIIN m_hMIDIIn;
-    MIDIInCallback m_pCallback;
-    void *m_pUserData;
-    TSQueue< MIDIInMessage > m_qMessages;
 };

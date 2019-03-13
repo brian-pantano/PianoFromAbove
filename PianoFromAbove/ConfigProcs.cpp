@@ -61,8 +61,6 @@ VOID Changed( HWND hWnd )
 
 INT_PTR WINAPI VisualProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
-    static bool bCanRead = false;
-
     switch (msg)
     {
         case WM_INITDIALOG:
@@ -76,13 +74,6 @@ INT_PTR WINAPI VisualProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                 SendMessage( hWndFirstKey, CB_ADDSTRING, i, ( LPARAM )MIDI::NoteName(i).c_str() );
                 SendMessage( hWndLastKey, CB_ADDSTRING, i, ( LPARAM )MIDI::NoteName(i).c_str() );
             }
-
-            RECT rcBtn, rcOwner;
-            HWND hWndBtn = GetDlgItem( hWnd, IDC_SETUSINGPIANO );
-            GetWindowRect( hWndBtn, &rcBtn );
-            GetWindowRect( hWnd, &rcOwner );
-            OffsetRect( &rcBtn, -rcOwner.left, -rcOwner.top - 1 );
-            SetWindowPos( hWndBtn, NULL, rcBtn.left, rcBtn.top, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOREDRAW | SWP_NOACTIVATE );
 
             // Config to fill out the form
             Config &config = Config::GetConfig();
@@ -110,26 +101,12 @@ INT_PTR WINAPI VisualProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     EnableWindow( GetDlgItem( hWnd, IDC_FIRSTKEY ), TRUE );
                     EnableWindow( GetDlgItem( hWnd, IDC_THROUGH ), TRUE );
                     EnableWindow( GetDlgItem( hWnd, IDC_LASTKEY ), TRUE );
-                    EnableWindow( GetDlgItem( hWnd, IDC_SETUSINGPIANO ), bCanRead );
                     return TRUE;
                 case IDC_SHOWALLKEYS: case IDC_SHOWSONGKEYS:
                     EnableWindow( GetDlgItem( hWnd, IDC_FIRSTKEY ), FALSE );
                     EnableWindow( GetDlgItem( hWnd, IDC_THROUGH ), FALSE );
                     EnableWindow( GetDlgItem( hWnd, IDC_LASTKEY ), FALSE );
-                    EnableWindow( GetDlgItem( hWnd, IDC_SETUSINGPIANO ), FALSE );
                     return TRUE;
-                case IDC_SETUSINGPIANO:
-                {
-                    INT_PTR iResult = DialogBoxParam( g_hInstance, MAKEINTRESOURCE( IDD_NOTESPAN ), hWnd,
-                                                      NoteSpanProc, ( LPARAM )hWnd );
-                    if ( iResult == -1 ) return TRUE;
-                    
-                    HWND hWndFirstKey = GetDlgItem( hWnd, IDC_FIRSTKEY );
-                    HWND hWndLastKey = GetDlgItem( hWnd, IDC_LASTKEY );
-                    SendMessage( hWndFirstKey, CB_SETCURSEL, ( iResult >> 8 ) - MIDI::A0, 0 );
-                    SendMessage( hWndLastKey, CB_SETCURSEL, ( iResult & 0xFF ) - MIDI::A0, 0 );
-                    return TRUE;
-                }
                 // Color buttons. Pop up color choose dialog and set color.
                 case IDC_COLOR1: case IDC_COLOR2: case IDC_COLOR3:
                 case IDC_COLOR4: case IDC_COLOR5: case IDC_COLOR6: 
@@ -172,18 +149,6 @@ INT_PTR WINAPI VisualProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             LPNMHDR lpnmhdr = ( LPNMHDR )lParam;
             switch (lpnmhdr->code)
             {
-                case PSN_SETACTIVE:
-                {
-                    const AudioSettings &cAudio = Config::GetConfig().GetAudioSettings();                    
-                    MIDIInDevice midiInDevice;
-                    bCanRead = ( cAudio.iInDevice >= 0 && midiInDevice.Open( cAudio.iInDevice ) );
-                    midiInDevice.Close();
-                    
-                    if ( IsDlgButtonChecked( hWnd, IDC_SHOWCUSTOMKEYS ) ) 
-                        EnableWindow( GetDlgItem( hWnd, IDC_SETUSINGPIANO ), bCanRead );
-
-                    return TRUE;
-                }
                 // OK or Apply button pressed
                 case PSN_APPLY:
                 {
@@ -241,95 +206,6 @@ VOID SetVisualProc( HWND hWnd, const VisualSettings &cVisual )
     SetWindowLongPtr( GetDlgItem( hWnd, IDC_BKGCOLOR ), GWLP_USERDATA, cVisual.iBkgColor );
 }
 
-INT_PTR WINAPI NoteSpanProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
-{
-    static MIDIInDevice midiInDevice;
-    static unsigned char cNote1;
-
-	switch ( msg )
-	{
-	    case WM_INITDIALOG:
-        {
-            Config &config = Config::GetConfig();
-            const AudioSettings &cAudio = config.GetAudioSettings();
-            cNote1 = 0xFF;
-            
-            if ( cAudio.vMIDIInDevices.size() == 0 )
-            {
-                MessageBox( hWnd, TEXT( "No input MIDI device available." ), TEXT( "Error" ), MB_OK | MB_ICONEXCLAMATION );
-			    EndDialog( hWnd, -1 );
-                return FALSE;
-            }
-
-            if ( cAudio.iInDevice < 0 )
-            {
-                MessageBox( hWnd, TEXT( "Please select an input MIDI device in the Audio tab." ), TEXT( "Error" ), MB_OK | MB_ICONEXCLAMATION );
-			    EndDialog( hWnd, -1 );
-                return FALSE;
-            }
-
-            // Center align to the property page
-            RECT rcPos, rcProp;
-            HWND hWndProp = ( HWND )lParam;
-            GetClientRect( hWnd, &rcPos );
-            GetWindowRect( hWndProp, &rcProp );
-            SetWindowPos( hWnd, NULL, rcProp.left + ( rcProp.right - rcProp.left - rcPos.right ) / 2,
-                rcProp.top + ( rcProp.bottom - rcProp.top - rcPos.bottom ) / 2,
-                0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOREDRAW | SWP_NOACTIVATE );
-
-            SetWindowText( GetDlgItem( hWnd, IDC_INSTRUCTIONS ), TEXT( "On your piano, please play the lowest note to display" ) );
-            midiInDevice.SetCallback( MIDIInProc, hWnd );
-            if ( !midiInDevice.Open( cAudio.iInDevice ) )
-            {
-                MessageBox( hWnd, TEXT( "Unable to open the MIDI input device." ), TEXT( "Error" ), MB_OK | MB_ICONEXCLAMATION );
-			    EndDialog( hWnd, -1 );
-                return FALSE;
-            }
-
-            return TRUE;
-        }
-	    case WM_COMMAND:
-        {
-            int iId = LOWORD( wParam );
-            switch ( iId )
-            {
-                case ID_MIDI_NOTEON:
-                    if ( cNote1 == 0xFF )
-                    {
-                        cNote1 = static_cast< unsigned char >( lParam & 0xFF );
-                        SetWindowText( GetDlgItem( hWnd, IDC_FIRSTNOTE ), MIDI::NoteName( cNote1 ).c_str() );
-                        SetWindowText( GetDlgItem( hWnd, IDC_INSTRUCTIONS ), TEXT( "Good! Now play the highest note to display" ) );
-                    }
-                    else
-                    {
-                        SetWindowText( GetDlgItem( hWnd, IDC_LASTNOTE ), MIDI::NoteName( lParam & 0xFF ).c_str() );
-                        SetWindowText( GetDlgItem( hWnd, IDC_INSTRUCTIONS ), TEXT( "All set" ) );
-                        midiInDevice.Close();
-                        Sleep( 500 );
-			            EndDialog( hWnd, ( cNote1 << 8 ) | ( lParam & 0xFF ) );
-                    }
-			        return TRUE;
-                case IDCANCEL:
-                    midiInDevice.Close();
-			        EndDialog( hWnd, -1 );
-			        return TRUE;
-            }
-		    break;
-        }
-	}
-
-	return FALSE;
-}
-
-void MIDIInProc( unsigned char cStatus, unsigned char cParam1, unsigned char cParam2, int iMilliSecs, void *pUserData )
-{
-    if ( static_cast< MIDIChannelEvent::ChannelEventType >( cStatus >> 4 ) != MIDIChannelEvent::NoteOn || cParam2 == 0 )
-        return;
-
-    // Send message will cause a deadlock when it shuts down the device
-    PostMessage( ( HWND )pUserData, WM_COMMAND, ID_MIDI_NOTEON, cParam1 );
-}
-
 INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
     switch (msg)
@@ -362,14 +238,11 @@ INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     AudioSettings cAudio = config.GetAudioSettings();
 
                     // Get the values
-                    cAudio.iInDevice = (int)SendDlgItemMessage( hWnd, IDC_MIDIIN, LB_GETCURSEL, 0, 0 );
-                    if ( cAudio.iInDevice >= 0 ) cAudio.sDesiredIn = cAudio.vMIDIInDevices[cAudio.iInDevice];
                     cAudio.iOutDevice = (int)SendDlgItemMessage( hWnd, IDC_MIDIOUT, LB_GETCURSEL, 0, 0 );
                     if ( cAudio.iOutDevice >= 0 ) cAudio.sDesiredOut = cAudio.vMIDIOutDevices[cAudio.iOutDevice];
 
                     // Set the values
-                    bool bChanged = ( cAudio.iOutDevice != config.GetAudioSettings().iOutDevice ||
-                                      cAudio.iInDevice != config.GetAudioSettings().iInDevice );
+                    bool bChanged = ( cAudio.iOutDevice != config.GetAudioSettings().iOutDevice );
                     config.SetAudioSettings( cAudio );
 
                     if ( bChanged )
@@ -395,12 +268,6 @@ VOID SetAudioProc( HWND hWnd, const AudioSettings &cAudio )
     for ( vector< wstring >::const_iterator it = cAudio.vMIDIOutDevices.begin(); it != cAudio.vMIDIOutDevices.end(); ++it )
         SendMessage( hWndOutDevs, LB_ADDSTRING, 0, ( LPARAM )( it->c_str() ) );
     SendMessage( hWndOutDevs, LB_SETCURSEL, cAudio.iOutDevice, 0 );
-
-    HWND hWndInDevs = GetDlgItem( hWnd, IDC_MIDIIN );
-    while( SendMessage( hWndInDevs, LB_DELETESTRING, 0, 0 ) > 0 );
-    for ( vector< wstring >::const_iterator it = cAudio.vMIDIInDevices.begin(); it != cAudio.vMIDIInDevices.end(); ++it )
-        SendMessage( hWndInDevs, LB_ADDSTRING, 0, ( LPARAM )( it->c_str() ) );
-    SendMessage( hWndInDevs, LB_SETCURSEL, cAudio.iInDevice, 0 );
 }
 
 INT_PTR WINAPI VideoProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
@@ -454,11 +321,6 @@ INT_PTR WINAPI VideoProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 
 INT_PTR WINAPI ControlsProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
-    static HWND hWndHotItem = NULL;
-    static MIDIInDevice midiInDevice;
-    static int pIds[] = { ID_PLAY_PLAYPAUSE, ID_PLAY_STOP, ID_PLAY_SKIPFWD, ID_PLAY_SKIPBACK,
-                          ID_PLAY_LOOP, ID_PLAY_INCREASERATE, ID_PLAY_DECREASERATE, ID_PLAY_RESETRATE };
-
     switch (msg)
     {
         case WM_INITDIALOG:
@@ -466,125 +328,17 @@ INT_PTR WINAPI ControlsProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             // Config to fill out the form
             Config &config = Config::GetConfig();
             const ControlsSettings &cControls = config.GetControlsSettings();
-            hWndHotItem = NULL;
-
-            // Turn them all off
-            for ( int i = 0; i < sizeof( pIds ) / sizeof( int ); i++ )
-                SetWindowLongPtr( GetDlgItem( hWnd, pIds[i] ), GWLP_USERDATA, -1 );
-
-            // Turn on those specified in settings
-            for ( int i = 0; i < 128; i++ )
-                if ( cControls.aKeyboardMap[i] > 0 )
-                    SetWindowLongPtr( GetDlgItem( hWnd, cControls.aKeyboardMap[i] + 33 ), GWLP_USERDATA, i );
 
             HWND hWndFwdBack = GetDlgItem( hWnd, IDC_LRARROWS );
             HWND hWndSpeedPct = GetDlgItem( hWnd, IDC_UDARROWS );
 
             // Edit boxes
             TCHAR buf[32];
-            _stprintf_s( buf, TEXT( "%g" ), cControls.dFwdBackSecs );
+            int len = _stprintf_s( buf, TEXT( "%g" ), cControls.dFwdBackSecs );
             SetWindowText( hWndFwdBack, buf );
             _stprintf_s( buf, TEXT( "%g" ), cControls.dSpeedUpPct );
             SetWindowText( hWndSpeedPct, buf );
-            
-            return TRUE;
-        }
-        case WM_COMMAND:
-        {
-            int iId = LOWORD( wParam );
-            int iCode = HIWORD( wParam );
-            if ( ( iId != IDC_LRARROWS && iId != IDC_UDARROWS ) || iCode == EN_CHANGE )
-                Changed( hWnd );
 
-            switch ( iId )
-            {
-                case ID_PLAY_PLAYPAUSE: case ID_PLAY_STOP: case ID_PLAY_SKIPFWD: case ID_PLAY_SKIPBACK:
-                case ID_PLAY_LOOP: case ID_PLAY_INCREASERATE: case ID_PLAY_DECREASERATE: case ID_PLAY_RESETRATE:
-                {
-                    HWND hWndBtn = ( HWND )lParam;
-                    if ( hWndHotItem && hWndBtn != hWndHotItem )
-                        InvalidateRect( hWndHotItem, NULL, TRUE );
-                   
-                    if ( hWndBtn == hWndHotItem )
-                        hWndHotItem = NULL;
-                    else
-                        hWndHotItem = hWndBtn;
-                    InvalidateRect( hWndBtn, NULL, TRUE );
-                    return TRUE;
-                }
-                case IDC_RESET:
-                {
-                    HWND hWndTemp = hWndHotItem;
-                    hWndHotItem = NULL;
-                    for ( int i = 0; i < sizeof( pIds ) / sizeof( int ); i++ )
-                    {
-                        HWND hWndBtn = GetDlgItem( hWnd, pIds[i] );
-                        if ( hWndBtn == hWndTemp || GetWindowLongPtr( hWndBtn, GWLP_USERDATA ) != -1 )
-                        {
-                            SetWindowLongPtr( hWndBtn, GWLP_USERDATA, -1 );
-                            InvalidateRect( hWndBtn, NULL, TRUE );
-                        }
-                    }
-                    return TRUE;
-                }
-                case ID_MIDI_NOTEON:
-                    if ( hWndHotItem )
-                    {
-                        // Get rid of any other controls already set to the note
-                        for ( int i = 0; i < sizeof( pIds ) / sizeof( int ); i++ )
-                        {
-                            HWND hWndBtn = GetDlgItem( hWnd, pIds[i] );
-                            if ( hWndBtn != hWndHotItem && GetWindowLongPtr( hWndBtn, GWLP_USERDATA ) == lParam )
-                            {
-                                SetWindowLongPtr( hWndBtn, GWLP_USERDATA, -1 );
-                                InvalidateRect( hWndBtn, NULL, TRUE );
-                            }
-                        }
-
-                        // Set the note and refresh
-                        SetWindowLongPtr( hWndHotItem, GWLP_USERDATA, lParam & 0xFF );
-                        HWND hWndTemp = hWndHotItem;
-                        hWndHotItem = NULL;
-                        InvalidateRect( hWndTemp, NULL, TRUE );
-                    }
-                    return TRUE;
-            }
-            break;
-        }
-        case WM_DRAWITEM:
-        {
-            LPDRAWITEMSTRUCT pdis = (LPDRAWITEMSTRUCT)lParam;
-
-            InflateRect( &pdis->rcItem, -1, -1 );
-            if ( pdis->hwndItem == hWndHotItem || pdis->itemState & ODS_SELECTED )
-                SetDCBrushColor( pdis->hDC, 0x00EAD999 );
-            else
-                SetDCBrushColor( pdis->hDC, 0x00FFFFFF );
-            FillRect( pdis->hDC, &pdis->rcItem, ( HBRUSH )GetStockObject( DC_BRUSH ) );
-            DrawEdge( pdis->hDC, &pdis->rcItem, EDGE_ETCHED, BF_RECT | BF_FLAT );
-
-            int iNote = (int)GetWindowLongPtr( pdis->hwndItem, GWLP_USERDATA );
-            const TCHAR *sBtnText;
-            if ( pdis->hwndItem == hWndHotItem )
-                sBtnText = TEXT( "Play a note..." );
-            else if ( iNote >= 0 && iNote < 128 )
-                sBtnText = MIDI::NoteName( iNote ).c_str();
-            else
-                sBtnText = TEXT( "Click to set..." );
-
-            SetBkMode( pdis->hDC, TRANSPARENT );
-            if ( pdis->itemState & ODS_DISABLED )
-            {
-                SetTextColor( pdis->hDC, GetSysColor( COLOR_BTNHIGHLIGHT ) );
-                OffsetRect( &pdis->rcItem, 1, 1 );
-                DrawText( pdis->hDC, sBtnText, -1, &pdis->rcItem, DT_SINGLELINE | DT_CENTER | DT_VCENTER );
-                OffsetRect( &pdis->rcItem, -1, -1 );
-                SetTextColor( pdis->hDC, GetSysColor( COLOR_GRAYTEXT ) );
-            }
-            else
-                SetTextColor( pdis->hDC, GetSysColor( COLOR_BTNTEXT ) );
-
-            DrawText( pdis->hDC, sBtnText, -1, &pdis->rcItem, DT_SINGLELINE | DT_CENTER | DT_VCENTER );
             return TRUE;
         }
         case WM_NOTIFY:
@@ -628,49 +382,12 @@ INT_PTR WINAPI ControlsProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                         }
                     }
                     break;
-                case PSN_RESET:
-                case PSN_KILLACTIVE:
-                    midiInDevice.Close();
-                    hWndHotItem = NULL;
-                    return TRUE;
-                case PSN_SETACTIVE:
-                {
-                    // Config to fill out the form
-                    Config &config = Config::GetConfig();
-                    const AudioSettings &cAudio = config.GetAudioSettings();
-                    
-                    bool bEnable = false;
-                    midiInDevice.SetCallback( MIDIInProc, hWnd );
-                    if ( cAudio.iInDevice >= 0 && midiInDevice.Open( cAudio.iInDevice ) )
-                        bEnable = true;
-
-                    for ( int i = 0; i < sizeof( pIds ) / sizeof( int ); i++ )
-                        EnableWindow( GetDlgItem( hWnd, pIds[i] ), bEnable );
-                    EnableWindow( GetDlgItem( hWnd, IDC_RESET ), bEnable );
-
-                    if ( cAudio.iInDevice < 0 )
-                        SetWindowText( GetDlgItem( hWnd, IDC_PIANOGROUP ), TEXT( "Keyboard controls (requires connected keyboard)" ) );
-                    else
-                        SetWindowText( GetDlgItem( hWnd, IDC_PIANOGROUP ), TEXT( "Keyboard controls" ) );
-
-                    return TRUE;
-                }
                 // OK or Apply button pressed
                 case PSN_APPLY:
                 {
-                    midiInDevice.Close();
-
                     // Get a copy of the config to overwrite the settings
                     Config &config = Config::GetConfig();
                     ControlsSettings cControls = config.GetControlsSettings();
-
-                    memset( cControls.aKeyboardMap, 0, sizeof( cControls.aKeyboardMap ) );
-                    for ( int i = 0; i < sizeof( pIds ) / sizeof( int ); i++ )
-                    {
-                        int iNote = (int)GetWindowLongPtr( GetDlgItem( hWnd, pIds[i] ), GWLP_USERDATA );
-                        if ( iNote >= 0 && iNote < 128 )
-                            cControls.aKeyboardMap[iNote] = pIds[i] - 33;
-                    }
 
                     // Edit boxes
                     TCHAR buf[32];
@@ -971,7 +688,7 @@ BOOL GetCustomSettings( MainScreen *pGameState )
 INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
     static const VisualSettings &cVisual = Config::GetConfig().GetVisualSettings();
-    static vector< bool > vScored, vMuted, vHidden; // Would rather be part of control, but no subitem lparam available
+    static vector< bool > vMuted, vHidden; // Would rather be part of control, but no subitem lparam available
     static vector< unsigned > vColors;
 
 	switch ( msg )
@@ -999,14 +716,13 @@ INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             SetWindowText( GetDlgItem( hWnd, IDC_LENGTH ), buf );
 
             // Initialize the state vars
-            vScored.resize( mInfo.iNumChannels );
             vMuted.resize( mInfo.iNumChannels );
             vHidden.resize( mInfo.iNumChannels );
             vColors.resize( mInfo.iNumChannels );
             int iMax = sizeof( cVisual.colors ) / sizeof ( cVisual.colors[0] );
             for ( int i = 0; i < mInfo.iNumChannels; i++ )
             {
-                vScored[i] = vMuted[i] = vHidden[i] = false;
+                vMuted[i] = vHidden[i] = false;
                 if ( i < iMax ) vColors[i] = cVisual.colors[i];
                 else vColors[i] = Util::RandColor();
             }
@@ -1014,9 +730,9 @@ INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             // Set up the columns of the list view
             RECT rcTracks;
             GetClientRect( hWndTracks, &rcTracks );
-            int aFmt[7] = { LVCFMT_LEFT, LVCFMT_LEFT, LVCFMT_RIGHT, LVCFMT_CENTER, LVCFMT_CENTER, LVCFMT_CENTER, LVCFMT_CENTER };
-            int aCx[7] = { 27, rcTracks.right - 27 - 55 - 50 - 50 - 50 - 50, 55, 50, 50, 50, 50 };
-            TCHAR *aText[7] = { TEXT( "Trk" ), TEXT( "Instrument" ), TEXT( "Notes" ), TEXT( "Scored" ), TEXT( "Muted" ), TEXT( "Hidden" ), TEXT( "Color" ) };
+            int aFmt[6] = { LVCFMT_LEFT, LVCFMT_LEFT, LVCFMT_RIGHT, LVCFMT_CENTER, LVCFMT_CENTER, LVCFMT_CENTER };
+            int aCx[6] = { 27, rcTracks.right - 27 - 55 - 50 - 50 - 50, 55, 50, 50, 50 };
+            TCHAR *aText[6] = { TEXT( "Trk" ), TEXT( "Instrument" ), TEXT( "Notes" ), TEXT( "Muted" ), TEXT( "Hidden" ), TEXT( "Color" ) };
 
             LVCOLUMN lvc = { 0 };
             lvc.mask = LVCF_FMT | LVCF_WIDTH | LVCF_TEXT;
@@ -1095,22 +811,16 @@ INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                         switch ( lpnmlv->iSubItem )
                         {
                             case 3:
-                                for ( size_t i = 0; i < vScored.size(); i++ ) bAllChecked &= vScored[i];
-                                for ( size_t i = 0; i < vScored.size(); i++ ) vScored[i] = !bAllChecked;
-                                if ( !bAllChecked ) for ( size_t i = 0; i < vScored.size(); i++ ) vMuted[i] = true;
-                                InvalidateRect( lpnmlv->hdr.hwndFrom, NULL, FALSE );
-                                return TRUE;
-                            case 4:
                                 for ( size_t i = 0; i < vMuted.size(); i++ ) bAllChecked &= vMuted[i];
                                 for ( size_t i = 0; i < vMuted.size(); i++ ) vMuted[i] = !bAllChecked;
                                 InvalidateRect( lpnmlv->hdr.hwndFrom, NULL, FALSE );
                                 return TRUE;
-                            case 5:
+                            case 4:
                                 for ( size_t i = 0; i < vHidden.size(); i++ ) bAllChecked &= vHidden[i];
                                 for ( size_t i = 0; i < vHidden.size(); i++ ) vHidden[i] = !bAllChecked;
                                 InvalidateRect( lpnmlv->hdr.hwndFrom, NULL, FALSE );
                                 return TRUE;
-                            case 6:
+                            case 5:
                                 for ( size_t i = 0; i < vColors.size(); i++ )
                                     if ( i < iMax ) vColors[i] = cVisual.colors[i];
                                     else vColors[i] = Util::RandColor();
@@ -1134,19 +844,14 @@ INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                         switch ( lvhti.iSubItem )
                         {
                             case 3:
-                                vScored[ lvhti.iItem ] = !vScored[ lvhti.iItem ];
-                                if ( vScored[ lvhti.iItem ] ) vMuted[ lvhti.iItem ] = true;
-                                InvalidateRect( lpnmia->hdr.hwndFrom, &rcItem, FALSE );
-                                return TRUE;
-                            case 4:
                                 vMuted[ lvhti.iItem ] = !vMuted[ lvhti.iItem ];
                                 InvalidateRect( lpnmia->hdr.hwndFrom, &rcItem, FALSE );
                                 return TRUE;
-                            case 5:
+                            case 4:
                                 vHidden[ lvhti.iItem ] = !vHidden[ lvhti.iItem ];
                                 InvalidateRect( lpnmia->hdr.hwndFrom, &rcItem, FALSE );
                                 return TRUE;
-                            case 6:
+                            case 5:
                             {
                                 static COLORREF acrCustClr[16] = { 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 
                                                                    0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF }; 
@@ -1175,7 +880,7 @@ INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                                 SetWindowLongPtr( hWnd, DWLP_MSGRESULT, CDRF_NOTIFYITEMDRAW );
                                 return TRUE;
                             case CDDS_SUBITEM | CDDS_ITEMPREPAINT:
-                                if ( lpnmlvcd->iSubItem >= 3 && lpnmlvcd->iSubItem <= 6 )
+                                if ( lpnmlvcd->iSubItem >= 3 && lpnmlvcd->iSubItem <= 5 )
                                 {
                                     // Figure out size. Too big a rect is fine: will be clipped
                                     RECT rcOut;
@@ -1188,11 +893,8 @@ INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                                     // Drawing. Checkbox, checkbox, color
                                     if ( lpnmlvcd->iSubItem == 3 )
                                         DrawFrameControl( lpnmcd->hdc, &rcOut, DFC_BUTTON,
-                                            DFCS_BUTTONCHECK | ( vScored[ lpnmcd->dwItemSpec ] ? DFCS_CHECKED : 0 ) );
-                                    else if ( lpnmlvcd->iSubItem == 4 )
-                                        DrawFrameControl( lpnmcd->hdc, &rcOut, DFC_BUTTON,
                                             DFCS_BUTTONCHECK | ( vMuted[ lpnmcd->dwItemSpec ] ? DFCS_CHECKED : 0 ) );
-                                    else if ( lpnmlvcd->iSubItem == 5 )
+                                    else if ( lpnmlvcd->iSubItem == 4 )
                                         DrawFrameControl( lpnmcd->hdc, &rcOut, DFC_BUTTON,
                                             DFCS_BUTTONCHECK | ( vHidden[ lpnmcd->dwItemSpec ] ? DFCS_CHECKED : 0 ) );
                                     else
@@ -1224,7 +926,7 @@ INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                 case IDOK:
                 {
                     MainScreen *pGameState = ( MainScreen* )GetWindowLongPtr( hWnd, GWLP_USERDATA );
-                    pGameState->SetChannelSettings( vScored, vMuted, vHidden, vColors );
+                    pGameState->SetChannelSettings( vMuted, vHidden, vColors );
                 }
                 case IDCANCEL:
 			        EndDialog( hWnd, iId );

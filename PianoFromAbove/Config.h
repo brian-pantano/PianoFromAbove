@@ -59,10 +59,9 @@ struct AudioSettings : public ISettings
     bool SaveConfigValues( TiXmlElement *txRoot );
 
     void LoadMIDIDevices();
-    vector< wstring > vMIDIInDevices;
     vector< wstring > vMIDIOutDevices;
-    int iInDevice, iOutDevice;
-    wstring sDesiredIn, sDesiredOut;
+    int iOutDevice;
+    wstring sDesiredOut;
 };
 
 struct VideoSettings : public ISettings
@@ -82,14 +81,11 @@ struct ControlsSettings : public ISettings
     bool SaveConfigValues( TiXmlElement *txRoot );
 
     double dFwdBackSecs, dSpeedUpPct;
-    int aKeyboardMap[128];
 };
 
 class PlaybackSettings : public ISettings
 {
 public:
-    enum Metronome { Off, EveryBeat, EveryMeasure };
-
     void LoadDefaultValues();
     void LoadConfigValues( TiXmlElement *txRoot );
     bool SaveConfigValues( TiXmlElement *txRoot );
@@ -97,11 +93,9 @@ public:
     void ToggleMute( bool bUpdateGUI = false ) { SetMute( !m_bMute, bUpdateGUI ); }
     void TogglePaused( bool bUpdateGUI = false ) { SetPaused( !m_bPaused, bUpdateGUI ); }
     void SetPosition( int iPosition ) { ::SetPosition( iPosition ); }
-    void SetLoop( bool bClear ) { ::SetLoop( bClear ); }
 
     // Set accessors. A bit more advanced because they optionally update the GUI
     void SetPlayMode( GameState::State ePlayMode, bool bUpdateGUI = false ) { if ( bUpdateGUI ) ::SetPlayMode( ePlayMode ); m_ePlayMode = ePlayMode; }
-    void SetLearnMode( GameState::LearnMode eLearnMode, bool bUpdateGUI = false ) { if ( bUpdateGUI ) ::SetLearnMode( eLearnMode ); m_eLearnMode = eLearnMode; }
     void SetPlayable( bool bPlayable, bool bUpdateGUI = false ) { if ( bUpdateGUI ) ::SetPlayable( bPlayable ); m_bPlayable = bPlayable; }
     void SetPaused( bool bPaused, bool bUpdateGUI = false ) { if ( bUpdateGUI ) ::SetPlayPauseStop( !bPaused, bPaused, false ); m_bPaused = bPaused; }
     void SetStopped( bool bUpdateGUI = false ) { if ( bUpdateGUI ) ::SetPlayPauseStop( false, false, true ); m_bPaused = true; }
@@ -109,26 +103,21 @@ public:
     void SetNSpeed( double dNSpeed, bool bUpdateGUI = false ) { dNSpeed = max(min(dNSpeed, 10.0), 0.005); if ( bUpdateGUI ) ::SetNSpeed( dNSpeed ); m_dNSpeed = dNSpeed; }
     void SetVolume( double dVolume, bool bUpdateGUI = false ) { if ( bUpdateGUI ) ::SetVolume( dVolume ); m_dVolume = dVolume; }
     void SetMute( bool bMute, bool bUpdateGUI = false ) { if ( bUpdateGUI ) ::SetMute( bMute ); m_bMute = bMute; }
-    void SetMetronome( Metronome eMetronome, bool bUpdateGUI = false ) { if ( bUpdateGUI ) ::SetMetronome( eMetronome ); m_eMetronome = eMetronome; }
 
     // Get accessors. Simple.
     GameState::State GetPlayMode() const { return m_ePlayMode; }
-    GameState::LearnMode GetLearnMode() const { return m_eLearnMode; }
     bool GetPlayable() const { return m_bPlayable; }
     bool GetPaused() const { return m_bPaused; }
     bool GetMute() const { return m_bMute; }
     double GetSpeed() const { return m_dSpeed; }
     double GetNSpeed() const { return m_dNSpeed; }
     double GetVolume() const { return m_dVolume; }
-    Metronome GetMetronome() const { return m_eMetronome; }
 
 private:
     GameState::State m_ePlayMode;
-    GameState::LearnMode m_eLearnMode;
     bool m_bPlayable, m_bPaused;
     bool m_bMute;
     double m_dSpeed, m_dNSpeed, m_dVolume;
-    Metronome m_eMetronome;
 };
 
 class ViewSettings : public ISettings
@@ -141,7 +130,6 @@ public:
     void ToggleLibrary( bool bUpdateGUI = false ) { SetLibrary( !m_bLibrary, bUpdateGUI ); }
     void ToggleControls( bool bUpdateGUI = false ) { SetControls( !m_bControls, bUpdateGUI ); }
     void ToggleKeyboard( bool bUpdateGUI = false ) { SetKeyboard( !m_bKeyboard, bUpdateGUI ); }
-    void ToggleNoteLabels( bool bUpdateGUI = false ) { SetNoteLabels( !m_bNoteLabels, bUpdateGUI ); }
     void ToggleOnTop( bool bUpdateGUI = false ) { SetOnTop( !m_bOnTop, bUpdateGUI ); }
     void ToggleFullScreen( bool bUpdateGUI = false ) { SetFullScreen( !m_bFullScreen, bUpdateGUI ); }
     void ToggleZoomMove( bool bUpdateGUI = false ) { SetZoomMove( !m_bZoomMove, bUpdateGUI ); }
@@ -155,11 +143,9 @@ public:
     void SetLibrary( bool bLibrary, bool bUpdateGUI = false ) { m_bLibrary = bLibrary; if ( bUpdateGUI ) ::ShowLibrary( bLibrary ); }
     void SetControls( bool bControls, bool bUpdateGUI = false ) { m_bControls = bControls; if ( bUpdateGUI ) ::ShowControls( bControls ); }
     void SetKeyboard( bool bKeyboard, bool bUpdateGUI = false ) { m_bKeyboard = bKeyboard; if ( bUpdateGUI ) ::ShowKeyboard( bKeyboard ); }
-    void SetNoteLabels( bool bNoteLabels, bool bUpdateGUI = false ) { m_bNoteLabels = bNoteLabels; if ( bUpdateGUI ) ::ShowNoteLabels( bNoteLabels ); }
     void SetOnTop( bool bOnTop, bool bUpdateGUI = false ) { m_bOnTop = bOnTop; if ( bUpdateGUI ) ::SetOnTop( bOnTop ); }
     void SetFullScreen( bool bFullScreen, bool bUpdateGUI = false ) { m_bFullScreen = bFullScreen; if ( bUpdateGUI ) ::SetFullScreen( bFullScreen ); }
     void SetZoomMove( bool bZoomMove, bool bUpdateGUI = false ) { m_bZoomMove = bZoomMove; if ( bUpdateGUI ) ::SetZoomMove( bZoomMove ); }
-    void SetCurLabel( const string &sCurLabel ) { m_sCurLabel = sCurLabel; }
 
     int GetMainLeft() const { return m_iMainLeft; }
     int GetMainTop() const { return m_iMainTop; }
@@ -172,17 +158,14 @@ public:
     bool GetLibrary() const { return m_bLibrary; }
     bool GetControls() const { return m_bControls; }
     bool GetKeyboard() const { return m_bKeyboard; }
-    bool GetNoteLabels() const { return m_bNoteLabels; }
     bool GetOnTop() const { return m_bOnTop; }
     bool GetFullScreen() const { return m_bFullScreen; }
     bool GetZoomMove() const { return m_bZoomMove; }
-    const string &GetCurLabel() const { return m_sCurLabel; }
 
 private:
-    bool m_bLibrary, m_bControls, m_bKeyboard, m_bNoteLabels, m_bOnTop, m_bFullScreen, m_bZoomMove;
+    bool m_bLibrary, m_bControls, m_bKeyboard, m_bOnTop, m_bFullScreen, m_bZoomMove;
     float m_fOffsetX, m_fOffsetY, m_fZoomX;
     int m_iMainLeft, m_iMainTop, m_iMainWidth, m_iMainHeight, m_iLibWidth;
-    string m_sCurLabel;
 };
 
 class SongLibrary : public ISettings
