@@ -31,6 +31,10 @@ And so I made it happen:
 
 https://github.com/brian-pantano/PianoFromAbove/releases
 
+## Viz branch
+
+There's now a viz branch which will house graphics and performance updates going forward (if there is a forward).
+
 ## How to build
 
 This is unfortunately very tricky. Hopefully I will simplify this in the future.
