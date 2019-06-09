@@ -990,19 +990,14 @@ void MainScreen::UpdateState( int iPos )
     {
         m_pNoteState[iNote] = -1;
         MIDIChannelEvent *pSearch = pEvent->GetSister();
-        // linear search and erase. No biggie given N is number of simultaneous notes being played
-        vector< int >::iterator it = m_vState.begin();
-        while ( it != m_vState.end() )
+        vector< int >::iterator it = std::remove_if(m_vState.begin(), m_vState.end(), [&](int x) {return m_vEvents[x] == pSearch; });
+        if (it != m_vState.end() - 1)
         {
-            if ( m_vEvents[*it] == pSearch )
-                it = m_vState.erase( it );
-            else
-            {
-                if ( it != m_vState.end() && m_vEvents[*it]->GetParam1() == iNote )
-                    m_pNoteState[iNote] = *it;
-                ++it;
-            }
+            std::swap(*it, m_vState.back());
+            m_vState.pop_back();
+            return;
         }
+        m_vState.pop_back();
     }
 }
 
