@@ -661,7 +661,7 @@ void MainScreen::SetChannelSettings( const vector< bool > &vMuted, const vector<
     bool bColor = vColor.size() > 0;
 
     size_t iPos = 0;
-    for ( int i = 0; i < mInfo.iNumTracks; i++ )
+    for ( int i = 0; i < vTracks.size(); i++ )
     {
         const MIDITrack::MIDITrackInfo &mTrackInfo = vTracks[i]->GetInfo();
         for ( int j = 0; j < 16; j++ )
