@@ -115,7 +115,8 @@ public:
         int iFormatType;
         int iNumTracks, iNumChannels;
         int iDivision;
-        int iMinNote, iMaxNote, iNoteCount, iEventCount;
+        int iMinNote, iMaxNote;
+        size_t iNoteCount, iEventCount;
         int iMaxVolume, iVolumeSum;
         int iTotalTicks, iTotalBeats;
         long long llTotalMicroSecs, llFirstNote;
@@ -161,7 +162,8 @@ public:
 
         int iSequenceNumber;
         string sSequenceName;
-        int iMinNote, iMaxNote, iNoteCount, iEventCount;
+        int iMinNote, iMaxNote;
+        size_t iNoteCount, iEventCount;
         int iMaxVolume, iVolumeSum;
         int iTotalTicks;
         long long llTotalMicroSecs;
