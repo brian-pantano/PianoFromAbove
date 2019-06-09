@@ -481,22 +481,6 @@ void MIDI::ConnectNotes()
                     if ( iSize > 0 )
                     {
                         if ( iSize <= StackSize ) pStacks[iChannel][iNote][iSize - 1]->SetSister( pEvent );
-                        else // Should never get here
-                        {
-                            int j = i - 1;
-                            while ( j >= 0 && !pEvent->GetSister() )
-                            {
-                                if ( vEvents[j]->GetEventType() == MIDIEvent::ChannelEvent )
-                                {
-                                    MIDIChannelEvent *pSister = reinterpret_cast< MIDIChannelEvent* >( vEvents[j] );
-                                    if ( !pSister->GetSister() &&
-                                         pSister->GetChannelEventType() == MIDIChannelEvent::NoteOn && 
-                                         pSister->GetParam1() == iNote && pSister->GetParam2() > 0 )
-                                        pEvent->SetSister( pSister );
-                                }
-                                j--;
-                            }
-                        }
                         iSize--;
                     }
                 }
