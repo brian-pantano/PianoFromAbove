@@ -945,9 +945,11 @@ GameState::GameError MainScreen::Logic( void )
             MIDIChannelEvent *pEvent = m_vEvents[m_iStartPos];
             if ( pEvent->GetChannelEventType() != MIDIChannelEvent::NoteOn )
                 m_OutDevice.PlayEvent( pEvent->GetEventCode(), pEvent->GetParam1(), pEvent->GetParam2() );
-            else if ( !m_bMute && !m_vTrackSettings[pEvent->GetTrack()].aChannels[pEvent->GetChannel()].bMuted )
-                m_OutDevice.PlayEvent( pEvent->GetEventCode(), pEvent->GetParam1(),
-                                       static_cast< int >( pEvent->GetParam2() * dVolumeCorrect + 0.5 ) );
+            else if (!m_bMute && !m_vTrackSettings[pEvent->GetTrack()].aChannels[pEvent->GetChannel()].bMuted) {
+                m_OutDevice.PlayEvent(pEvent->GetEventCode(), pEvent->GetParam1(),
+                    static_cast<int>(pEvent->GetParam2() * dVolumeCorrect + 0.5));
+                m_iNotesPlayed++;
+            }
             UpdateState( m_iStartPos );
             m_iStartPos++;
         }
@@ -1703,10 +1705,10 @@ void MainScreen::RenderBorder()
 
 void MainScreen::RenderText()
 {
-    int iLines = 2;
+    int iLines = 3;
 
     // Screen info
-    RECT rcStatus = { m_pRenderer->GetBufferWidth() - 156, 0, m_pRenderer->GetBufferWidth(), 6 + 16 * iLines };
+    RECT rcStatus = { m_pRenderer->GetBufferWidth() - 200, 0, m_pRenderer->GetBufferWidth(), 6 + 16 * iLines };
 
     int iMsgCY = 200;
     RECT rcMsg = { 0, static_cast< int >( m_pRenderer->GetBufferHeight() * ( 1.0f - KBPercent ) - iMsgCY ) / 2 };
@@ -1748,6 +1750,10 @@ void MainScreen::RenderStatus( LPRECT prcStatus )
     // Build the FPS text
     TCHAR sFPS[128];
     _stprintf_s( sFPS, TEXT( "%.1lf" ), m_dFPS );
+
+    // Build the notes text
+    TCHAR sNotes[128];
+    _stprintf_s(sNotes, TEXT("%llu/%llu"), m_iNotesPlayed, mInfo.iNoteCount);
     
 
     // Display the text
@@ -1766,6 +1772,13 @@ void MainScreen::RenderStatus( LPRECT prcStatus )
     OffsetRect( prcStatus, -2, -1 );
     m_pRenderer->DrawText( TEXT( "FPS:" ), Renderer::Small, prcStatus, 0, 0xFFFFFFFF );
     m_pRenderer->DrawText( sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF );
+
+    OffsetRect(prcStatus, 2, 16 + 1);
+    m_pRenderer->DrawText(TEXT("Notes:"), Renderer::Small, prcStatus, 0, 0xFF404040);
+    m_pRenderer->DrawText(sNotes, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
+    OffsetRect(prcStatus, -2, -1);
+    m_pRenderer->DrawText(TEXT("Notes:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
+    m_pRenderer->DrawText(sNotes, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
 }
 
 void MainScreen::RenderMessage( LPRECT prcMsg, TCHAR *sMsg )
