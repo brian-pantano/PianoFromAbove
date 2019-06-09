@@ -1703,8 +1703,7 @@ void MainScreen::RenderBorder()
 
 void MainScreen::RenderText()
 {
-    int iLines = 1;
-    if ( m_bShowFPS ) iLines++;
+    int iLines = 2;
 
     // Screen info
     RECT rcStatus = { m_pRenderer->GetBufferWidth() - 156, 0, m_pRenderer->GetBufferWidth(), 6 + 16 * iLines };
@@ -1761,15 +1760,12 @@ void MainScreen::RenderStatus( LPRECT prcStatus )
     m_pRenderer->DrawText( TEXT( "Time:" ), Renderer::Small, prcStatus, 0, 0xFFFFFFFF );
     m_pRenderer->DrawText( sTime, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF );
 
-    if ( m_bShowFPS )
-    {
-        OffsetRect( prcStatus, 2, 16 + 1 );
-        m_pRenderer->DrawText( TEXT( "FPS:" ), Renderer::Small, prcStatus, 0, 0xFF404040 );
-        m_pRenderer->DrawText( sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040 );
-        OffsetRect( prcStatus, -2, -1 );
-        m_pRenderer->DrawText( TEXT( "FPS:" ), Renderer::Small, prcStatus, 0, 0xFFFFFFFF );
-        m_pRenderer->DrawText( sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF );
-    }
+    OffsetRect( prcStatus, 2, 16 + 1 );
+    m_pRenderer->DrawText( TEXT( "FPS:" ), Renderer::Small, prcStatus, 0, 0xFF404040 );
+    m_pRenderer->DrawText( sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040 );
+    OffsetRect( prcStatus, -2, -1 );
+    m_pRenderer->DrawText( TEXT( "FPS:" ), Renderer::Small, prcStatus, 0, 0xFFFFFFFF );
+    m_pRenderer->DrawText( sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF );
 }
 
 void MainScreen::RenderMessage( LPRECT prcMsg, TCHAR *sMsg )
