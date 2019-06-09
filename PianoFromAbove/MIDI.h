@@ -216,7 +216,7 @@ public:
     int ParseEvent( const unsigned char *pcData, int iMaxSize );
 
     //Accessors
-    ChannelEventType GetChannelEventType() const { return m_eChannelEventType; }
+    ChannelEventType GetChannelEventType() const { return (ChannelEventType)m_eChannelEventType; }
     unsigned char GetChannel() const { return m_cChannel; }
     unsigned char GetParam1() const { return m_cParam1; }
     unsigned char GetParam2() const { return m_cParam2; }
@@ -227,7 +227,7 @@ public:
     void SetSimultaneous( int iSimultaneous ) { m_iSimultaneous = iSimultaneous; }
 
 private:
-    ChannelEventType m_eChannelEventType;
+    char m_eChannelEventType;
     unsigned char m_cChannel;
     unsigned char m_cParam1;
     unsigned char m_cParam2;
