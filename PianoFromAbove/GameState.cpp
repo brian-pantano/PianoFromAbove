@@ -996,8 +996,6 @@ void MainScreen::UpdateState( int iPos )
         if (it != m_vState.end() - 1)
         {
             std::swap(*it, m_vState.back());
-            m_vState.pop_back();
-            return;
         }
         m_vState.pop_back();
     }
