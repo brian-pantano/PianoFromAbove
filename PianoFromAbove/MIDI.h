@@ -286,7 +286,7 @@ class MIDIDevice
 public:
     virtual int GetNumDevs() const = 0;
     virtual wstring GetDevName( int iDev ) const = 0;
-    virtual bool Open( int iDev ) = 0;
+    virtual bool Open() = 0;
     virtual void Close() = 0;
 
     bool IsOpen() const { return m_bIsOpen; }
@@ -309,7 +309,7 @@ public:
 
     int GetNumDevs() const;
     wstring GetDevName( int iDev ) const;
-    bool Open( int iDev );
+    bool Open();
     void Close();
 
     void AllNotesOff();
@@ -321,7 +321,6 @@ public:
     bool PlayEvent( unsigned char bStatus, unsigned char bParam1, unsigned char bParam2 = 0 );
 
 private:
-    static void CALLBACK MIDIOutProc( HMIDIOUT hmo, UINT wMsg, DWORD_PTR dwInstance,
-                                      DWORD_PTR dwParam1, DWORD_PTR dwParam2 );
+    MMRESULT(WINAPI*OutShortMsg)(HMIDIOUT hmo, DWORD dwMsg) = nullptr;
     HMIDIOUT m_hMIDIOut;
 };

@@ -845,6 +845,7 @@ wstring MIDIOutDevice::GetDevName( int iDev ) const
     return wstring();
 }
 
+/*
 bool MIDIOutDevice::Open( int iDev )
 {
     if ( m_bIsOpen ) Close();
@@ -854,6 +855,46 @@ bool MIDIOutDevice::Open( int iDev )
     MMRESULT mmResult = midiOutOpen( &m_hMIDIOut, iDev, ( DWORD_PTR )MIDIOutProc, ( DWORD_PTR )this, CALLBACK_FUNCTION );
     m_bIsOpen = ( mmResult == MMSYSERR_NOERROR );
     return m_bIsOpen;
+}
+*/
+
+MMRESULT(WINAPI*KShortMsg)(DWORD msg) = nullptr;
+MMRESULT WINAPI _KOutShortMsg(HMIDIOUT hmo, DWORD msg) {
+    // Pass the MIDI event to the Keppy's Direct MIDI call, and return the WinMM result
+    return KShortMsg(msg);
+}
+
+bool MIDIOutDevice::Open() {
+    if (m_bIsOpen) return true;
+    m_bIsOpen = true;
+
+    BOOL(WINAPI*KDMInit)() = nullptr;
+    KDMInit = (BOOL(__stdcall*)())GetProcAddress(GetModuleHandle(L"OmniMIDI"), "InitializeKDMAPIStream");
+    KDMInit();
+
+    MMRESULT mmres = midiOutOpen(&m_hMIDIOut, 1, 0, 0, CALLBACK_NULL);
+    if (mmres != MMSYSERR_NOERROR) {
+        // Device 1 doesn't exist or failed to initialize, let's initialize Microsoft GS instead
+        mmres = midiOutOpen(&m_hMIDIOut, 0, 0, 0, CALLBACK_NULL);
+        if (mmres != MMSYSERR_NOERROR) {
+            // Microsoft GS also failed to initialize, close the app
+            MessageBox(NULL, L"Failed to initialize MIDI!", L"Error", MB_OK | MB_ICONERROR);
+            exit(1);
+        }
+        m_iDevice = 0;
+    }
+    else {
+        m_iDevice = 1;
+    }
+    m_sDevice = GetDevName(m_iDevice);
+
+    KShortMsg = (MMRESULT(__stdcall *)(DWORD msg))GetProcAddress(GetModuleHandle(L"OmniMIDI"), "SendDirectData");
+    if (KShortMsg) {
+        // Replace default WinMM function with the one from the application itself
+        puts("KDMAPI initialized.");
+        OutShortMsg = _KOutShortMsg;
+    }
+    return true;
 }
 
 void MIDIOutDevice::Close()
@@ -912,18 +953,5 @@ bool MIDIOutDevice::PlayEventAcrossChannels( unsigned char cStatus, unsigned cha
 bool MIDIOutDevice::PlayEvent( unsigned char cStatus, unsigned char cParam1, unsigned char cParam2 )
 {
     if ( !m_bIsOpen ) return false;
-    return midiOutShortMsg( m_hMIDIOut, ( cParam2 << 16 ) + ( cParam1 << 8 ) + cStatus ) == MMSYSERR_NOERROR;
-}
-
-void CALLBACK MIDIOutDevice::MIDIOutProc( HMIDIOUT hmo, UINT wMsg, DWORD_PTR dwInstance,
-                                          DWORD_PTR dwParam1, DWORD_PTR dwParam2 )
-{
-    MIDIOutDevice *pOutDevice = reinterpret_cast< MIDIOutDevice* >( dwInstance );
-
-    switch ( wMsg )
-    {
-        case MOM_CLOSE:
-        {
-        }
-    }
+    return OutShortMsg( m_hMIDIOut, ( cParam2 << 16 ) + ( cParam1 << 8 ) + cStatus ) == MMSYSERR_NOERROR;
 }
