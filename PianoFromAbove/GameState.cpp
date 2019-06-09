@@ -1295,8 +1295,8 @@ void MainScreen::RenderGlobals()
     const MIDI::MIDIInfo &mInfo = m_MIDI.GetInfo();
     if ( m_eKeysShown == VisualSettings::All )
     {
-        m_iStartNote = min( m_iStartNote, MIDI::A0 );
-        m_iEndNote = max( m_iEndNote, MIDI::C8 );
+        m_iStartNote = 0;
+        m_iEndNote = 127;
     }
     else if ( m_eKeysShown == VisualSettings::Song )
     {

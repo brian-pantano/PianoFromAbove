@@ -129,8 +129,8 @@ void VisualSettings::LoadDefaultValues()
     this->eKeysShown = All;
     this->bAlwaysShowControls = false;
     this->bAssociateFiles = false;
-    this->iFirstKey = MIDI::A0;
-    this->iLastKey = MIDI::C8;
+    this->iFirstKey = 0;
+    this->iLastKey = 127;
 
     iBkgColor = 0x00303030;
     int R, G, B, H = 0, S = 80, V = 100;
