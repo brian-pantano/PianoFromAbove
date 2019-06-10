@@ -75,6 +75,9 @@
     <ClInclude Include="ProtoBuf\MetaData.pb.h">
       <Filter>Header Files\ProtoBuf</Filter>
     </ClInclude>
+    <ClInclude Include="lodepng\lodepng.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PianoFromAbove.rc">
@@ -120,6 +123,9 @@
     </ClCompile>
     <ClCompile Include="ProtoBuf\MetaData.pb.cc">
       <Filter>Source Files\ProtoBuf</Filter>
+    </ClCompile>
+    <ClCompile Include="lodepng\lodepng.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

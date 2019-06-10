@@ -14,6 +14,7 @@
 #include "GameState.h"
 #include "Config.h"
 #include "resource.h"
+#include "lodepng/lodepng.h"
 
 const wstring GameState::Errors[] =
 {
@@ -583,6 +584,17 @@ void MainScreen::InitState()
     double dNSpeed = cPlayback.GetNSpeed();
     m_llTimeSpan = static_cast< long long >( 3.0 * dNSpeed * 1000000 );
 
+    if (m_bDumpFrames) {
+        m_hVideoPipe = CreateNamedPipe(TEXT("\\\\.\\pipe\\pfadump"),
+            PIPE_ACCESS_OUTBOUND,
+            PIPE_TYPE_BYTE | PIPE_WAIT,
+            PIPE_UNLIMITED_INSTANCES,
+            static_cast<DWORD>(1280 * 720 * 4 * 120),
+            0,
+            0,
+            nullptr);
+    }
+
     memset( m_pNoteState, -1, sizeof( m_pNoteState ) );
     
     AdvanceIterators( m_llStartTime, true );
@@ -596,6 +608,7 @@ GameState::GameError MainScreen::Init()
         m_OutDevice.Open();
 
     m_OutDevice.SetVolume( 1.0 );
+    m_Timer.SetFrameRate(60);
     return Success;
 }
 
@@ -967,6 +980,49 @@ GameState::GameError MainScreen::Logic( void )
     // Song's over
     if ( !m_bPaused && m_llStartTime >= llMaxTime )
         cPlayback.SetPaused( true, true );
+
+    m_Timer.IncrementFrame();
+
+    // Dump frame!!!!
+    if (m_bDumpFrames) {
+        const auto& device = m_pRenderer->m_pd3dDevice;
+        // Make a surface to store the data
+        IDirect3DSurface9* buffer_surface;
+        device->CreateOffscreenPlainSurface(
+            m_pRenderer->GetBufferWidth(),
+            m_pRenderer->GetBufferHeight(),
+            D3DFMT_A8R8G8B8,
+            D3DPOOL_SYSTEMMEM,
+            &buffer_surface,
+            nullptr);
+
+        // Copy the back buffer data
+        IDirect3DSurface9* temp_buffer_surface;
+        device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &temp_buffer_surface);
+        D3DXLoadSurfaceFromSurface(buffer_surface, nullptr, nullptr, temp_buffer_surface, nullptr, nullptr, D3DX_DEFAULT, 0);
+        temp_buffer_surface->Release();
+
+        // Copy to our own buffer
+        assert(((m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight()) % 4) == 0);
+        m_vImageData.resize(m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight() * 4);
+        D3DLOCKED_RECT buffer_locked_rect;
+        buffer_surface->LockRect(&buffer_locked_rect, nullptr, 0);
+        memcpy(&m_vImageData[0], buffer_locked_rect.pBits, m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight() * 4);
+        buffer_surface->UnlockRect();
+
+        // Save
+        /*
+        char filename[0x100];
+        snprintf(filename, sizeof(filename), "D:\\pfa\\screen_%llu.png", m_lluCurrentFrame);
+        lodepng::encode(filename, m_vImageData, m_pRenderer->GetBufferWidth(), m_pRenderer->GetBufferHeight());
+        buffer_surface->Release();
+        */
+
+        // Write to pipe
+        WriteFile(m_hVideoPipe, &m_vImageData[0], static_cast<DWORD>(m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight() * 4), nullptr, nullptr);
+        buffer_surface->Release();
+    }
+    m_lluCurrentFrame++;
     return Success;
 }
 

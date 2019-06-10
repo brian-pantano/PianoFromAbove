@@ -34,6 +34,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -72,8 +73,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(DXSDK_DIR)Include;C:\Users\Pantano\Dev\boost_1_55_0;C:\Users\Pantano\Dev\protobuf-2.5.0\vsprojects\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(DXSDK_DIR)Lib\x86;C:\Users\Pantano\Dev\protobuf-2.5.0\vsprojects\Release;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(DXSDK_DIR)Include;D:\boost_1_69_0;$(IncludePath)</IncludePath>
+    <LibraryPath>$(DXSDK_DIR)Lib\x64;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)\$(Configuration)\</OutDir>
     <IntDir>$(Configuration)\$(Platform)\</IntDir>
     <TargetName>PFA-1.1.0viz-x86_64</TargetName>
@@ -86,7 +87,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(DXSDK_DIR)Include;D:\boost_1_69_0;C:\Users\Pantano\Dev\protobuf-2.5.0\vsprojects\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(DXSDK_DIR)Include;D:\boost_1_69_0;$(IncludePath)</IncludePath>
     <LibraryPath>$(DXSDK_DIR)Lib\x64;$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)\$(Configuration)\</OutDir>
     <IntDir>$(Configuration)\$(Platform)\</IntDir>
@@ -117,13 +118,16 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;WINVER=0x0501;_WIN32_WINNT=0x0501;TIXML_USE_STL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalManifestDependencies>"type='Win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='X86' publicKeyToken='6595b64144ccf1df' language='*'";%(AdditionalManifestDependencies)</AdditionalManifestDependencies>
       <AdditionalDependencies>d3d9.lib;d3dx9d.lib;WinMM.lib;Comctl32.lib;UxTheme.lib;Advapi32.lib;Msimg32.lib;libprotobuf-lite.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <Version>1.1.0viz</Version>
+      <Version>
+      </Version>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -176,6 +180,7 @@
     <ClInclude Include="ConfigProcs.h" />
     <ClInclude Include="GameState.h" />
     <ClInclude Include="Globals.h" />
+    <ClInclude Include="lodepng\lodepng.h" />
     <ClInclude Include="MainProcs.h" />
     <ClInclude Include="MIDI.h" />
     <ClInclude Include="Misc.h" />
@@ -192,6 +197,7 @@
     <ClCompile Include="Config.cpp" />
     <ClCompile Include="ConfigProcs.cpp" />
     <ClCompile Include="GameState.cpp" />
+    <ClCompile Include="lodepng\lodepng.cpp" />
     <ClCompile Include="MainProcs.cpp" />
     <ClCompile Include="MIDI.cpp">
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">MultiThreadedDebug</RuntimeLibrary>

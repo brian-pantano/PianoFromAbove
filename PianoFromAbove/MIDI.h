@@ -79,20 +79,20 @@ public:
     static int WhiteCount( int iMinNote, int iMaxNote );
 
     //Generally usefull static parsing functions
-    static int ParseVarNum( const unsigned char *pcData, int iMaxSize, int *piOut );
-    static int Parse32Bit( const unsigned char *pcData, int iMaxSize, int *piOut );
-    static int Parse24Bit( const unsigned char *pcData, int iMaxSize, int *piOut );
-    static int Parse16Bit( const unsigned char *pcData, int iMaxSize, int *piOut );
-    static int ParseNChars( const unsigned char *pcData, int iNChars, int iMaxSize, char *pcOut );
+    static int ParseVarNum( const unsigned char *pcData, size_t iMaxSize, int *piOut );
+    static int Parse32Bit( const unsigned char *pcData, size_t iMaxSize, int *piOut );
+    static int Parse24Bit( const unsigned char *pcData, size_t iMaxSize, int *piOut );
+    static int Parse16Bit( const unsigned char *pcData, size_t iMaxSize, int *piOut );
+    static int ParseNChars( const unsigned char *pcData, int iNChars, size_t iMaxSize, char *pcOut );
 
     MIDI( void ) {};
     MIDI( const wstring &sFilename );
     ~MIDI( void );
 
     //Parsing functions that load data into the instance
-    int ParseMIDI( const unsigned char *pcData, int iMaxSize );
-    int ParseTracks( const unsigned char *pcData, int iMaxSize );
-    int ParseEvents( const unsigned char *pcData, int iMaxSize );
+    int ParseMIDI( const unsigned char *pcData, size_t iMaxSize );
+    int ParseTracks( const unsigned char *pcData, size_t iMaxSize );
+    int ParseEvents( const unsigned char *pcData, size_t iMaxSize );
     bool IsValid() const { return ( m_vTracks.size() > 0 && m_Info.iNoteCount > 0 && m_Info.iDivision > 0 ); }
 
     void PostProcess() { PostProcess( NULL ); } 
@@ -143,8 +143,8 @@ public:
     ~MIDITrack( void );
 
     //Parsing functions that load data into the instance
-    int ParseTrack( const unsigned char *pcData, int iMaxSize, int iTrack );
-    int ParseEvents( const unsigned char *pcData, int iMaxSize, int iTrack );
+    int ParseTrack( const unsigned char *pcData, size_t iMaxSize, int iTrack );
+    int ParseEvents( const unsigned char *pcData, size_t iMaxSize, int iTrack );
     void clear( void );
 
     friend class MIDIPos;
@@ -187,8 +187,8 @@ public:
     static EventType DecodeEventType( int iEventCode );
 
     //Parsing functions that load data into the instance
-    static int MakeNextEvent( const unsigned char *pcData, int iMaxSize, int iTrack, MIDIEvent **pOutEvent );
-    virtual int ParseEvent( const unsigned char *pcData, int iMaxSize ) = 0;
+    static int MakeNextEvent( const unsigned char *pcData, size_t iMaxSize, int iTrack, MIDIEvent **pOutEvent );
+    virtual int ParseEvent( const unsigned char *pcData, size_t iMaxSize ) = 0;
 
     //Accessors
     EventType GetEventType() const { return m_eEventType; }
@@ -215,7 +215,7 @@ public:
     MIDIChannelEvent() : m_pSister( NULL ), m_iSimultaneous( 0 ) { }
 
     enum ChannelEventType { NoteOff = 0x8, NoteOn, NoteAftertouch, Controller, ProgramChange, ChannelAftertouch, PitchBend };
-    int ParseEvent( const unsigned char *pcData, int iMaxSize );
+    int ParseEvent( const unsigned char *pcData, size_t iMaxSize );
 
     //Accessors
     ChannelEventType GetChannelEventType() const { return (ChannelEventType)m_eChannelEventType; }
@@ -247,7 +247,7 @@ public:
     enum MetaEventType { SequenceNumber, TextEvent, Copyright, SequenceName, InstrumentName, Lyric, Marker,
                          CuePoint, ChannelPrefix = 0x20, PortPrefix = 0x21, EndOfTrack = 0x2F, SetTempo = 0x51,
                          SMPTEOffset = 0x54, TimeSignature = 0x58, KeySignature = 0x59, Proprietary = 0x7F };
-    int ParseEvent( const unsigned char *pcData, int iMaxSize );
+    int ParseEvent( const unsigned char *pcData, size_t iMaxSize );
 
     //Accessors
     MetaEventType GetMetaEventType() const { return m_eMetaEventType; }
@@ -267,7 +267,7 @@ public:
     MIDISysExEvent() : m_pcData( 0 ) { }
     ~MIDISysExEvent() { if ( m_pcData ) delete[] m_pcData; }
 
-    int ParseEvent( const unsigned char *pcData, int iMaxSize );
+    int ParseEvent( const unsigned char *pcData, size_t iMaxSize );
 
 private:
     int m_iSysExCode;

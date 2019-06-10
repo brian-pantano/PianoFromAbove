@@ -45,6 +45,9 @@ public:
     int GetBufferWidth() const { return m_iBufferWidth; }
     int GetBufferHeight() const { return m_iBufferHeight; }
 
+    // TODO: required for screenshots, figure out a better way to do this
+    LPDIRECT3DDEVICE9 m_pd3dDevice = nullptr;
+
 protected:
     int m_iBufferWidth, m_iBufferHeight;
     bool m_bLimitFPS;
@@ -64,7 +67,7 @@ public:
     static const int MaxTriangles = 200;
     static const int VertexBufferSize = sizeof( SCREEN_VERTEX ) * 3 * MaxTriangles;
 
-    D3D9Renderer() : m_pD3D( NULL ), m_pd3dDevice( NULL ), m_pTextSprite( NULL ),
+    D3D9Renderer() : m_pD3D( NULL ), m_pTextSprite( NULL ),
                      m_pVertexBuffer( NULL ), m_pStaticVertexBuffer( NULL ),
                      m_pSmallFont( NULL ), m_pSmallBoldFont( NULL ), m_pSmallComicFont( NULL ),
                      m_pMediumFont( NULL ), m_pLargeFont( NULL ),
@@ -92,13 +95,12 @@ public:
     HRESULT BeginStaticBuffer( int iTriangles );
     HRESULT EndStaticBuffer();
     HRESULT DrawStaticBuffer();
+    //LPDIRECT3DDEVICE9 m_pd3dDevice; // The rendering device
 
 private:
     HRESULT RestoreDeviceObjects();
     void DestroyDeviceObjects();
-
     LPDIRECT3D9 m_pD3D; // Used to create the D3DDevice
-    LPDIRECT3DDEVICE9 m_pd3dDevice; // The rendering device
     LPD3DXSPRITE m_pTextSprite;
     LPD3DXFONT m_pSmallFont;
     LPD3DXFONT m_pSmallBoldFont;

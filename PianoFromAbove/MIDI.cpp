@@ -144,7 +144,7 @@ MIDI::MIDI ( const wstring &sFilename )
         return;
 
     // Read it all in
-    int iSize = static_cast<int>( ifs.tellg() );
+    size_t iSize = ifs.tellg();
     unsigned char *pcMemBlock = new unsigned char[iSize];
     ifs.seekg( 0, ios::beg );
     ifs.read( reinterpret_cast< char* >( pcMemBlock ), iSize );
@@ -285,10 +285,11 @@ void MIDI::clear( void )
     m_Info.clear();
 }
 
-int MIDI::ParseMIDI( const unsigned char *pcData, int iMaxSize )
+int MIDI::ParseMIDI( const unsigned char *pcData, size_t iMaxSize )
 {
     char pcBuf[4];
-    int iTotal, iHdrSize;
+    size_t iTotal;
+    int iHdrSize;
 
     // Reset first. This is the only parsing function that resets/clears first.
     clear();
@@ -315,9 +316,9 @@ int MIDI::ParseMIDI( const unsigned char *pcData, int iMaxSize )
     return iTotal + ParseTracks( pcData + iTotal, iMaxSize - iTotal );
 }
 
-int MIDI::ParseTracks( const unsigned char *pcData, int iMaxSize )
+int MIDI::ParseTracks( const unsigned char *pcData, size_t iMaxSize )
 {
-    int iTotal = 0, iCount = 0, iTrack = static_cast< int >( m_vTracks.size() );
+    size_t iTotal = 0, iCount = 0, iTrack = m_vTracks.size();
     do
     {
         // Create and parse the track
@@ -340,7 +341,7 @@ int MIDI::ParseTracks( const unsigned char *pcData, int iMaxSize )
     return iTotal;
 }
 
-int MIDI::ParseEvents( const unsigned char *pcData, int iMaxSize )
+int MIDI::ParseEvents( const unsigned char *pcData, size_t iMaxSize )
 {
     // Create and parse the track
     MIDITrack *track = new MIDITrack();
@@ -506,26 +507,30 @@ void MIDITrack::clear( void )
     m_TrackInfo.clear();
 }
 
-int MIDITrack::ParseTrack( const unsigned char *pcData, int iMaxSize, int iTrack )
+int MIDITrack::ParseTrack( const unsigned char *pcData, size_t iMaxSize, int iTrack )
 {
     char pcBuf[4];
-    int iTotal, iTrkSize;
+    size_t iTotal;
+    int iTrkSize;
 
     // Reset first
     clear();
 
     // Read header
-    if ( MIDI::ParseNChars( pcData, 4, iMaxSize, pcBuf ) != 4 ) return 0;
-    if ( MIDI::Parse32Bit( pcData + 4, iMaxSize - 4, &iTrkSize) != 4 ) return 0;
+    if ( MIDI::ParseNChars( pcData, 4, iMaxSize, pcBuf ) != 4 )
+        return 0;
+    if ( MIDI::Parse32Bit( pcData + 4, iMaxSize - 4, &iTrkSize) != 4 )
+        return 0;
     iTotal = 8;
 
     // Check header
-    if ( strncmp( pcBuf, "MTrk", 4 ) != 0 ) return 0;
+    if ( strncmp( pcBuf, "MTrk", 4 ) != 0 )
+        return 0;
 
     return iTotal + ParseEvents( pcData + iTotal, iMaxSize - iTotal, iTrack );
 }
 
-int MIDITrack::ParseEvents( const unsigned char *pcData, int iMaxSize, int iTrack )
+int MIDITrack::ParseEvents( const unsigned char *pcData, size_t iMaxSize, int iTrack )
 {
     int iTotal = 0, iDTCode = 0, iCount = 0;
     MIDIEvent *pEvent = NULL;
@@ -648,7 +653,7 @@ MIDIEvent::EventType MIDIEvent::DecodeEventType( int iEventCode )
     return MetaEvent;
 }
 
-int MIDIEvent::MakeNextEvent( const unsigned char *pcData, int iMaxSize, int iTrack, MIDIEvent **pOutEvent )
+int MIDIEvent::MakeNextEvent( const unsigned char *pcData, size_t iMaxSize, int iTrack, MIDIEvent **pOutEvent )
 {
     MIDIEvent *pPrevEvent = *pOutEvent;
 
@@ -688,7 +693,7 @@ int MIDIEvent::MakeNextEvent( const unsigned char *pcData, int iMaxSize, int iTr
     return iTotal;
 }
 
-int MIDIChannelEvent::ParseEvent( const unsigned char *pcData, int iMaxSize )
+int MIDIChannelEvent::ParseEvent( const unsigned char *pcData, size_t iMaxSize )
 {
     // Split up the event code
     m_eChannelEventType = static_cast< ChannelEventType >( m_iEventCode >> 4 );
@@ -712,7 +717,7 @@ int MIDIChannelEvent::ParseEvent( const unsigned char *pcData, int iMaxSize )
     }
 }
 
-int MIDIMetaEvent::ParseEvent( const unsigned char *pcData, int iMaxSize )
+int MIDIMetaEvent::ParseEvent( const unsigned char *pcData, size_t iMaxSize )
 {
     if ( iMaxSize < 1 ) return 0;
 
@@ -733,7 +738,7 @@ int MIDIMetaEvent::ParseEvent( const unsigned char *pcData, int iMaxSize )
 
 // NOTE: this is INCOMPLETE. Data is parsed but not fully interpreted:
 // divided messages don't know about each other
-int MIDISysExEvent::ParseEvent( const unsigned char *pcData, int iMaxSize )
+int MIDISysExEvent::ParseEvent( const unsigned char *pcData, size_t iMaxSize )
 {
     if ( iMaxSize < 1 ) return 0;
 
@@ -759,7 +764,7 @@ int MIDISysExEvent::ParseEvent( const unsigned char *pcData, int iMaxSize )
 //-----------------------------------------------------------------------------
 
 //Parse a variable length number from MIDI data
-int MIDI::ParseVarNum( const unsigned char *pcData, int iMaxSize, int *piOut )
+int MIDI::ParseVarNum( const unsigned char *pcData, size_t iMaxSize, int *piOut )
 {
     if ( !pcData || !piOut || iMaxSize <= 0 )
         return 0;
@@ -777,7 +782,7 @@ int MIDI::ParseVarNum( const unsigned char *pcData, int iMaxSize, int *piOut )
 }
 
 //Parse 32 bits of data. Big Endian.
-int MIDI::Parse32Bit( const unsigned char *pcData, int iMaxSize, int *piOut )
+int MIDI::Parse32Bit( const unsigned char *pcData, size_t iMaxSize, int *piOut )
 {
     if ( !pcData || !piOut || iMaxSize < 4 )
         return 0;
@@ -791,7 +796,7 @@ int MIDI::Parse32Bit( const unsigned char *pcData, int iMaxSize, int *piOut )
 }
 
 //Parse 24 bits of data. Big Endian.
-int MIDI::Parse24Bit( const unsigned char *pcData, int iMaxSize, int *piOut )
+int MIDI::Parse24Bit( const unsigned char *pcData, size_t iMaxSize, int *piOut )
 {
     if ( !pcData || !piOut || iMaxSize < 3 )
         return 0;
@@ -804,7 +809,7 @@ int MIDI::Parse24Bit( const unsigned char *pcData, int iMaxSize, int *piOut )
 }
 
 //Parse 16 bits of data. Big Endian.
-int MIDI::Parse16Bit( const unsigned char *pcData, int iMaxSize, int *piOut )
+int MIDI::Parse16Bit( const unsigned char *pcData, size_t iMaxSize, int *piOut )
 {
     if ( !pcData || !piOut || iMaxSize < 2 )
         return 0;
@@ -816,12 +821,12 @@ int MIDI::Parse16Bit( const unsigned char *pcData, int iMaxSize, int *piOut )
 }
 
 //Parse a bunch of characters
-int MIDI::ParseNChars( const unsigned char *pcData, int iNChars, int iMaxSize, char *pcOut )
+int MIDI::ParseNChars( const unsigned char *pcData, int iNChars, size_t iMaxSize, char *pcOut )
 {
     if ( !pcData || !pcOut || iMaxSize <= 0 )
         return 0;
 
-    int iSize = min( iNChars, iMaxSize );
+    size_t iSize = min( iNChars, iMaxSize );
     memcpy( pcOut, pcData, iSize );
 
     return iSize;
@@ -863,6 +868,8 @@ MMRESULT WINAPI _KOutShortMsg(HMIDIOUT hmo, DWORD msg) {
     // Pass the MIDI event to the Keppy's Direct MIDI call, and return the WinMM result
     return KShortMsg(msg);
 }
+
+bool g_bIsOpen = false;
 
 bool MIDIOutDevice::Open() {
     if (m_bIsOpen) return true;
