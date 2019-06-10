@@ -159,7 +159,7 @@ void SplashScreen::InitState()
         vector< unsigned >( cVisual.colors, cVisual.colors + sizeof( cVisual.colors ) / sizeof( cVisual.colors[0] ) ) );
 
     if ( cAudio.iOutDevice >= 0 )
-        m_OutDevice.Open();
+        m_OutDevice.Open( cAudio.iOutDevice );
     m_OutDevice.SetVolume( 1.0 );
 }
 
@@ -220,7 +220,7 @@ GameState::GameError SplashScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, 
         }
         case WM_DEVICECHANGE:
             if ( cAudio.iOutDevice >= 0 && m_OutDevice.GetDevice() != cAudio.vMIDIOutDevices[cAudio.iOutDevice] )
-                m_OutDevice.Open();
+                m_OutDevice.Open( cAudio.iOutDevice );
             break;
         case WM_KEYDOWN:
         {
@@ -605,7 +605,7 @@ GameState::GameError MainScreen::Init()
 {
     static const AudioSettings &cAudio = Config::GetConfig().GetAudioSettings();
     if ( cAudio.iOutDevice >= 0 )
-        m_OutDevice.Open();
+        m_OutDevice.Open( cAudio.iOutDevice );
 
     m_OutDevice.SetVolume( 1.0 );
     m_Timer.SetFrameRate(60);
@@ -803,7 +803,7 @@ GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LP
         }
         case WM_DEVICECHANGE:
             if ( cAudio.iOutDevice >= 0 && m_OutDevice.GetDevice() != cAudio.vMIDIOutDevices[cAudio.iOutDevice] )
-                m_OutDevice.Open();
+                m_OutDevice.Open( cAudio.iOutDevice );
             break;
         case TBM_SETPOS:
         {
@@ -1050,7 +1050,9 @@ void MainScreen::UpdateState( int iPos )
         MIDIChannelEvent *pSearch = pEvent->GetSister();
         vector< int >::iterator it = std::remove_if(m_vState.begin(), m_vState.end(), [&](int x) {return m_vEvents[x] == pSearch; });
         if (it != m_vState.end() - 1)
+        {
             std::swap(*it, m_vState.back());
+        }
         m_vState.pop_back();
     }
 }
