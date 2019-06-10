@@ -507,7 +507,7 @@ void MIDITrack::clear( void )
     m_TrackInfo.clear();
 }
 
-int MIDITrack::ParseTrack( const unsigned char *pcData, size_t iMaxSize, int iTrack )
+size_t MIDITrack::ParseTrack( const unsigned char *pcData, size_t iMaxSize, int iTrack )
 {
     char pcBuf[4];
     size_t iTotal;
@@ -527,12 +527,15 @@ int MIDITrack::ParseTrack( const unsigned char *pcData, size_t iMaxSize, int iTr
     if ( strncmp( pcBuf, "MTrk", 4 ) != 0 )
         return 0;
 
-    return iTotal + ParseEvents( pcData + iTotal, iMaxSize - iTotal, iTrack );
+    //return iTotal + ParseEvents( pcData + iTotal, iMaxSize - iTotal, iTrack );
+    ParseEvents(pcData + iTotal, iMaxSize - iTotal, iTrack);
+    return iTotal + iTrkSize;
 }
 
-int MIDITrack::ParseEvents( const unsigned char *pcData, size_t iMaxSize, int iTrack )
+size_t MIDITrack::ParseEvents( const unsigned char *pcData, size_t iMaxSize, int iTrack )
 {
-    int iTotal = 0, iDTCode = 0, iCount = 0;
+    int iDTCode = 0;
+    size_t iTotal = 0, iCount = 0;
     MIDIEvent *pEvent = NULL;
     m_TrackInfo.iSequenceNumber = iTrack;
 
