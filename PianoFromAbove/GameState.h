@@ -262,7 +262,7 @@ private:
     long long m_llRndStartTime; // Rounded start time to make stuff drop at the same time
     
     // Frame dumping stuff
-    bool m_bDumpFrames = false;
+    bool m_bDumpFrames = true;
     std::vector<unsigned char> m_vImageData;
     size_t m_lluCurrentFrame;
     HANDLE m_hVideoPipe;

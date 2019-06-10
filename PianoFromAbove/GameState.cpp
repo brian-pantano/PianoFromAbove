@@ -579,7 +579,7 @@ void MainScreen::InitState()
     m_fZoomX = cView.GetZoomX();
     m_fOffsetX = cView.GetOffsetX();
     m_fOffsetY = cView.GetOffsetY();
-    m_bPaused = false;
+    m_bPaused = true;
     m_bMute = cPlayback.GetMute();
     double dNSpeed = cPlayback.GetNSpeed();
     m_llTimeSpan = static_cast< long long >( 3.0 * dNSpeed * 1000000 );
