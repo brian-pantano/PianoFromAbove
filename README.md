@@ -1,19 +1,17 @@
 # PianoFromAbove
 
-Welcome to the viz branch. This version removes all learning and scoring logic. It plays midis. This simplifies rendering such that performance optimizations and graphics upgrades should be a lot easier to implement going forward.
+Welcome to my viz branch. This includes all the changes of upstream's viz branch, but with other hacky tweaks included!
 
-As of right now, this is not faster nor slower than master.
+This is currently faster than upstream viz.
 
 ## How to build
 
-Almost the same as the main branch, except boost is no longer used.
-
 * clone this repo
-* Download and install VisualStudio 2010
+* Download and install Visual Studio 2019
 * Download and install Direct X SDK
-* Download and extract Google Protocol Buffers 2.5
-  * Build libprotobuf-lite.vcproj
-* Open the .sln and edit the VC++ Directories from the project properties so that the Include Directories and Library Directories point to the location of your protocol buffers download
+* Install protobuf:x64-windows through vcpkg
+ * Copy `\buildtrees\protobuf\x64-windows-rel\libprotobuf-lite.lib` to `\installed\x64-windows\lib\`
+ * Copy  `\buildtrees\protobuf\x64-windows-rel\libprotobuf-lite.dll` to `\installed\x64-windows\bin\`
 * Cross fingers
 * Build! (Release, x64)
 
