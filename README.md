@@ -10,8 +10,8 @@ This is currently faster than upstream viz.
 * Download and install Visual Studio 2019
 * Download and install Direct X SDK
 * Install protobuf:x64-windows through vcpkg
- * Copy `\buildtrees\protobuf\x64-windows-rel\libprotobuf-lite.lib` to `\installed\x64-windows\lib\`
- * Copy  `\buildtrees\protobuf\x64-windows-rel\libprotobuf-lite.dll` to `\installed\x64-windows\bin\`
+  * Copy `\buildtrees\protobuf\x64-windows-rel\libprotobuf-lite.lib` to `\installed\x64-windows\lib\`
+  * Copy  `\buildtrees\protobuf\x64-windows-rel\libprotobuf-lite.dll` to `\installed\x64-windows\bin\`
 * Cross fingers
 * Build! (Release, x64)
 
