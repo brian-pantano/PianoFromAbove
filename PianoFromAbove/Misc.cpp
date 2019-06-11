@@ -24,7 +24,7 @@ Timer::Timer()
 {
     // Get the frequency. This should be done in a static constructor. Oh well.
     LARGE_INTEGER liFreq = { 0 };
-    m_bManualTimer = true;
+    m_bManualTimer = false;
     m_llManualTicks = 0;
     if (!m_bManualTimer) {
         timeBeginPeriod(1);
@@ -107,9 +107,7 @@ double Timer::GetSecs()
 long long Timer::GetRawTicks()
 {
     if ( m_bManualTimer )
-    {
         return m_llManualTicks;
-    }
     else
         return timeGetTime();
 }
@@ -121,7 +119,7 @@ void Timer::AddManualTime(long long time)
 
 void Timer::SetFrameRate(unsigned rate)
 {
-    m_llTicksPerSec = rate * 100;
+    m_llTicksPerSec = (long long)rate * 100;
 }
 
 void Timer::IncrementFrame()

@@ -39,6 +39,7 @@ public:
     void AddManualTime(long long time);
     void SetFrameRate(unsigned rate);
     void IncrementFrame();
+    bool m_bManualTimer;
 
 private:
     static const long long m_llPrecisionLimit = 1000000000ll;
@@ -51,7 +52,6 @@ private:
     bool m_bTooPrecise;
 
     // More manual timer stuff
-    bool m_bManualTimer;
     long long m_llManualTicks;
     long long m_llManualTicksPerFrame;
 

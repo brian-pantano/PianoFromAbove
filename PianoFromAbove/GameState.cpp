@@ -608,7 +608,8 @@ GameState::GameError MainScreen::Init()
         m_OutDevice.Open( cAudio.iOutDevice );
 
     m_OutDevice.SetVolume( 1.0 );
-    m_Timer.SetFrameRate(60);
+    if (m_Timer.m_bManualTimer)
+        m_Timer.SetFrameRate(60);
     return Success;
 }
 
@@ -981,7 +982,8 @@ GameState::GameError MainScreen::Logic( void )
     if ( !m_bPaused && m_llStartTime >= llMaxTime )
         cPlayback.SetPaused( true, true );
 
-    m_Timer.IncrementFrame();
+    if (m_Timer.m_bManualTimer)
+        m_Timer.IncrementFrame();
 
     // Dump frame!!!!
     if (m_bDumpFrames) {
