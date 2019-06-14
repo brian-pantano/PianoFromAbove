@@ -14,7 +14,6 @@
 #include "GameState.h"
 #include "Config.h"
 #include "resource.h"
-#include "lodepng/lodepng.h"
 
 const wstring GameState::Errors[] =
 {
@@ -1011,14 +1010,6 @@ GameState::GameError MainScreen::Logic( void )
         buffer_surface->LockRect(&buffer_locked_rect, nullptr, 0);
         memcpy(&m_vImageData[0], buffer_locked_rect.pBits, m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight() * 4);
         buffer_surface->UnlockRect();
-
-        // Save
-        /*
-        char filename[0x100];
-        snprintf(filename, sizeof(filename), "D:\\pfa\\screen_%llu.png", m_lluCurrentFrame);
-        lodepng::encode(filename, m_vImageData, m_pRenderer->GetBufferWidth(), m_pRenderer->GetBufferHeight());
-        buffer_surface->Release();
-        */
 
         // Write to pipe
         WriteFile(m_hVideoPipe, &m_vImageData[0], static_cast<DWORD>(m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight() * 4), nullptr, nullptr);

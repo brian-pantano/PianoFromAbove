@@ -182,7 +182,6 @@
     <ClInclude Include="ConfigProcs.h" />
     <ClInclude Include="GameState.h" />
     <ClInclude Include="Globals.h" />
-    <ClInclude Include="lodepng\lodepng.h" />
     <ClInclude Include="MainProcs.h" />
     <ClInclude Include="MIDI.h" />
     <ClInclude Include="Misc.h" />
@@ -199,7 +198,6 @@
     <ClCompile Include="Config.cpp" />
     <ClCompile Include="ConfigProcs.cpp" />
     <ClCompile Include="GameState.cpp" />
-    <ClCompile Include="lodepng\lodepng.cpp" />
     <ClCompile Include="MainProcs.cpp" />
     <ClCompile Include="MIDI.cpp">
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">MultiThreadedDebug</RuntimeLibrary>
