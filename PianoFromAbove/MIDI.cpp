@@ -454,50 +454,34 @@ void MIDI::ConnectNotes()
 {
     const int StackSize = 10;
     int pSize[16][128];
-    MIDIChannelEvent* pStacks[16][128][StackSize];
+    MIDIChannelEvent *pStacks[16][128][StackSize];
 
-    for (vector< MIDITrack* >::iterator itTrack = m_vTracks.begin(); itTrack != m_vTracks.end(); ++itTrack)
+    for ( vector< MIDITrack* >::iterator itTrack = m_vTracks.begin(); itTrack != m_vTracks.end(); ++itTrack )
     {
-        memset(pSize, 0, sizeof(pSize));
-        vector< MIDIEvent* >& vEvents = (*itTrack)->m_vEvents;
+        memset( pSize, 0, sizeof( pSize ) );
+        vector< MIDIEvent* > &vEvents = ( *itTrack )->m_vEvents;
         int iEvents = (int)vEvents.size();
-        for (int i = 0; i < iEvents; i++)
-            if (vEvents[i]->GetEventType() == MIDIEvent::ChannelEvent)
+        for ( int i = 0; i < iEvents; i++ )
+            if ( vEvents[i]->GetEventType() == MIDIEvent::ChannelEvent )
             {
-                MIDIChannelEvent* pEvent = reinterpret_cast<MIDIChannelEvent*>(vEvents[i]);
+                MIDIChannelEvent *pEvent = reinterpret_cast< MIDIChannelEvent* >( vEvents[i] );
                 MIDIChannelEvent::ChannelEventType eEventType = pEvent->GetChannelEventType();
                 int iChannel = pEvent->GetChannel();
                 int iNote = pEvent->GetParam1();
                 int iVelocity = pEvent->GetParam2();
-
-                if (eEventType == MIDIChannelEvent::NoteOn && iVelocity > 0)
+                
+                if ( eEventType == MIDIChannelEvent::NoteOn && iVelocity > 0 )
                 {
-                    int& iSize = pSize[iChannel][iNote];
-                    if (iSize < StackSize) pStacks[iChannel][iNote][iSize] = pEvent;
+                    int &iSize = pSize[iChannel][iNote];
+                    if ( iSize < StackSize ) pStacks[iChannel][iNote][iSize] = pEvent;
                     iSize++;
                 }
-                else if (eEventType == MIDIChannelEvent::NoteOff || eEventType == MIDIChannelEvent::NoteOn)
+                else if ( eEventType == MIDIChannelEvent::NoteOff || eEventType == MIDIChannelEvent::NoteOn )
                 {
-                    int& iSize = pSize[iChannel][iNote];
-                    if (iSize > 0)
+                    int &iSize = pSize[iChannel][iNote];
+                    if ( iSize > 0 )
                     {
-                        if (iSize <= StackSize) pStacks[iChannel][iNote][iSize - 1]->SetSister(pEvent);
-                        else // Should never get here
-                        {
-                            int j = i - 1;
-                            while (j >= 0 && !pEvent->GetSister())
-                            {
-                                if (vEvents[j]->GetEventType() == MIDIEvent::ChannelEvent)
-                                {
-                                    MIDIChannelEvent* pSister = reinterpret_cast<MIDIChannelEvent*>(vEvents[j]);
-                                    if (!pSister->GetSister() &&
-                                        pSister->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
-                                        pSister->GetParam1() == iNote && pSister->GetParam2() > 0)
-                                        pEvent->SetSister(pSister);
-                                }
-                                j--;
-                            }
-                        }
+                        if ( iSize <= StackSize ) pStacks[iChannel][iNote][iSize - 1]->SetSister( pEvent );
                         iSize--;
                     }
                 }
