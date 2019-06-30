@@ -1050,12 +1050,7 @@ void MainScreen::UpdateState( int iPos )
     {
         m_pNoteState[iNote] = -1;
         MIDIChannelEvent *pSearch = pEvent->GetSister();
-        vector< int >::iterator it = std::remove_if(m_vState.begin(), m_vState.end(), [&](int x) {return m_vEvents[x] == pSearch; });
-        if (it != m_vState.end() - 1)
-        {
-            std::swap(*it, m_vState.back());
-        }
-        m_vState.pop_back();
+        m_vState.erase(std::remove_if(m_vState.begin(), m_vState.end(), [&](int x) {return m_vEvents[x] == pSearch; }));
     }
 }
 
