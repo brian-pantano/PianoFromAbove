@@ -452,9 +452,11 @@ void MIDI::PostProcess( vector< MIDIEvent* > *vEvents )
 
 void MIDI::ConnectNotes()
 {
-    const int StackSize = 10;
+    //const int StackSize = 10;
     int pSize[16][128];
-    MIDIChannelEvent *pStacks[16][128][StackSize];
+    //MIDIChannelEvent *pStacks[16][128][StackSize];
+    const auto track_count = GetInfo().iNumTracks;
+    MIDIChannelEvent** pStacks = new MIDIChannelEvent*[16 * 128 * track_count];
 
     for ( vector< MIDITrack* >::iterator itTrack = m_vTracks.begin(); itTrack != m_vTracks.end(); ++itTrack )
     {
@@ -473,7 +475,7 @@ void MIDI::ConnectNotes()
                 if ( eEventType == MIDIChannelEvent::NoteOn && iVelocity > 0 )
                 {
                     int &iSize = pSize[iChannel][iNote];
-                    if ( iSize < StackSize ) pStacks[iChannel][iNote][iSize] = pEvent;
+                    if ( iSize < track_count) pStacks[(((iSize * track_count) + iChannel) * 16) + iNote] = pEvent;
                     iSize++;
                 }
                 else if ( eEventType == MIDIChannelEvent::NoteOff || eEventType == MIDIChannelEvent::NoteOn )
@@ -481,12 +483,14 @@ void MIDI::ConnectNotes()
                     int &iSize = pSize[iChannel][iNote];
                     if ( iSize > 0 )
                     {
-                        if ( iSize <= StackSize ) pStacks[iChannel][iNote][iSize - 1]->SetSister( pEvent );
+                        if ( iSize <= track_count) pStacks[((((iSize - 1) * track_count) + iChannel) * 16) + iNote]->SetSister( pEvent );
                         iSize--;
                     }
                 }
             }
     }
+
+    delete[] pStacks;
 }
 
 
