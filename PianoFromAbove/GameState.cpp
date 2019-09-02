@@ -8,6 +8,7 @@
 * Copyright (c) 2010 Brian Pantano. All rights reserved.
 *
 *************************************************************************************************/
+#include <algorithm>
 #include <tchar.h>
 
 #include "Globals.h"

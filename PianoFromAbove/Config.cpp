@@ -30,7 +30,6 @@ Config::Config()
 {
     LoadDefaultValues();
     LoadConfigValues();
-    m_SongLibrary.ExpandSources();
 }
 
 string Config::GetFolder()
@@ -54,7 +53,6 @@ void Config::LoadDefaultValues()
     m_AudioSettings.LoadDefaultValues();
     m_VideoSettings.LoadDefaultValues();
     m_ControlsSettings.LoadDefaultValues();
-    m_SongLibrary.LoadDefaultValues();
     m_PlaybackSettings.LoadDefaultValues();
     m_ViewSettings.LoadDefaultValues();
 }
@@ -82,7 +80,6 @@ void Config::LoadConfigValues( TiXmlElement *txRoot )
     m_AudioSettings.LoadConfigValues( txRoot );
     m_VideoSettings.LoadConfigValues( txRoot );
     m_ControlsSettings.LoadConfigValues( txRoot );
-    m_SongLibrary.LoadConfigValues( txRoot );
     m_PlaybackSettings.LoadConfigValues( txRoot );
     m_ViewSettings.LoadConfigValues( txRoot );
 }
@@ -114,7 +111,6 @@ bool Config::SaveConfigValues( TiXmlElement *txRoot )
     bSaved &= m_AudioSettings.SaveConfigValues( txRoot );
     bSaved &= m_VideoSettings.SaveConfigValues( txRoot );
     bSaved &= m_ControlsSettings.SaveConfigValues( txRoot );
-    bSaved &= m_SongLibrary.SaveConfigValues( txRoot );
     bSaved &= m_PlaybackSettings.SaveConfigValues( txRoot );
     bSaved &= m_ViewSettings.SaveConfigValues( txRoot );
     return bSaved;
@@ -162,21 +158,6 @@ void ControlsSettings::LoadDefaultValues()
     this->dSpeedUpPct = 10.0;
 }
 
-void SongLibrary::LoadDefaultValues()
-{
-    TCHAR sPath[MAX_PATH];
-    if ( SUCCEEDED( SHGetFolderPath( NULL, CSIDL_MYDOCUMENTS, NULL, SHGFP_TYPE_CURRENT, sPath ) ) )
-        AddSource( sPath, Folder, false );
-    if ( SUCCEEDED( SHGetFolderPath( NULL, CSIDL_MYMUSIC, NULL, SHGFP_TYPE_CURRENT, sPath ) ) )
-        AddSource( sPath, Folder, false );
-    _tcscat_s( sPath, TEXT( "\\Piano From Above" ) );
-    AddSource( sPath, FolderWSubdirs, false );
-    if ( SUCCEEDED( SHGetFolderPath( NULL, CSIDL_DESKTOP, NULL, SHGFP_TYPE_CURRENT, sPath ) ) )
-        AddSource( sPath, Folder, false );
-    m_bAlwaysAdd = false;
-    m_iSortCol = 1; // File
-}
-
 void PlaybackSettings::LoadDefaultValues()
 {
     this->m_ePlayMode = GameState::Splash;
@@ -190,7 +171,6 @@ void PlaybackSettings::LoadDefaultValues()
 
 void ViewSettings::LoadDefaultValues()
 {
-    this->m_bLibrary = true;
     this->m_bControls = true;
     this->m_bKeyboard = true;
     this->m_bOnTop = false;
@@ -305,65 +285,6 @@ void ControlsSettings::LoadConfigValues( TiXmlElement *txRoot )
     txControls->QueryDoubleAttribute( "SpeedUpPct", &this->dSpeedUpPct );
 }
 
-void SongLibrary::LoadConfigValues( TiXmlElement *txRoot )
-{
-    LoadMetaData();
-
-    TiXmlElement *txLibrary = txRoot->FirstChildElement( "Library" );
-    if ( !txLibrary ) return;
-
-    int iAttrVal;
-    if ( txLibrary->QueryIntAttribute( "AlwaysAdd", &iAttrVal ) == TIXML_SUCCESS )
-        m_bAlwaysAdd = ( iAttrVal != 0 );
-    txLibrary->QueryIntAttribute( "SortCol", &m_iSortCol );
-
-    TiXmlElement *txSources = txLibrary->FirstChildElement( "Sources" );
-    if ( txSources )
-    {
-        m_mSources.clear();
-        int iSourceType;
-        string sSource;
-        for ( TiXmlElement *txSource = txSources->FirstChildElement( "Source" ); txSource;
-              txSource = txSource->NextSiblingElement( "Source" ) )
-            if ( txSource->QueryStringAttribute( "Name", &sSource ) == TIXML_SUCCESS &&
-                 txSource->QueryIntAttribute( "Type", &iSourceType ) == TIXML_SUCCESS )
-                AddSource( Util::StringToWstring( sSource ), static_cast< Source >( iSourceType ), false );
-    }
-}
-
-void SongLibrary::LoadMetaData()
-{
-    string sPath = Config::GetFolder();
-    if ( sPath.length() == 0 ) return;
-
-    // Open the file
-    ifstream ifs( sPath + "\\MetaData.pb", ios::in | ios::binary | ios::ate );
-    if ( !ifs.is_open() )
-        return;
-
-    // Read it all in
-    int iSize = static_cast<int>( ifs.tellg() );
-    char *pcMemBlock = new char[iSize];
-    ifs.seekg( 0, ios::beg );
-    ifs.read( pcMemBlock, iSize );
-    ifs.close();
-
-    m_Data.ParseFromArray( pcMemBlock, iSize );
-    delete[] pcMemBlock;
-
-    // Create the file maps
-    for ( int i = 0; i < m_Data.file_size(); i++ )
-    {
-        PFAData::File *file = m_Data.mutable_file( i );
-        m_mMD5s[ pair< string, int >( file->filename(), file->filesize() ) ] = file;
-    }
-    for ( int i = 0; i < m_Data.fileinfo_size(); i++ )
-    {
-        PFAData::FileInfo *fileInfo = m_Data.mutable_fileinfo( i );
-        m_mFileInfos[ fileInfo->info().md5() ] = i;
-    }
-}
-
 void PlaybackSettings::LoadConfigValues( TiXmlElement *txRoot )
 {
     TiXmlElement *txPlayback = txRoot->FirstChildElement( "Playback" );
@@ -382,8 +303,6 @@ void ViewSettings::LoadConfigValues( TiXmlElement *txRoot )
     if ( !txView ) return;
 
     int iAttrVal;
-    if ( txView->QueryIntAttribute( "Library", &iAttrVal ) == TIXML_SUCCESS )
-        m_bLibrary = ( iAttrVal != 0 );
     if ( txView->QueryIntAttribute( "Controls", &iAttrVal ) == TIXML_SUCCESS )
         m_bControls = ( iAttrVal != 0 );
     if ( txView->QueryIntAttribute( "Keyboard", &iAttrVal ) == TIXML_SUCCESS )
@@ -464,43 +383,6 @@ bool ControlsSettings::SaveConfigValues( TiXmlElement *txRoot )
     return true;
 }
 
-bool SongLibrary::SaveConfigValues( TiXmlElement *txRoot )
-{
-    bool bSaved = SaveMetaData();
-
-    TiXmlElement *txLibrary = new TiXmlElement( "Library" );
-    txRoot->LinkEndChild( txLibrary );
-    txLibrary->SetAttribute( "AlwaysAdd", m_bAlwaysAdd );
-    txLibrary->SetAttribute( "SortCol", m_iSortCol );
-
-    TiXmlElement *txSources = new TiXmlElement( "Sources" );
-    txLibrary->LinkEndChild( txSources );
-    for ( map< wstring, Source >::const_iterator it = m_mSources.begin(); it != m_mSources.end(); ++it )
-    {
-        TiXmlElement *txSource = new TiXmlElement( "Source" );
-        txSources->LinkEndChild( txSource );
-        txSource->SetAttribute( "Name", Util::WstringToString( it->first ) );
-        txSource->SetAttribute( "Type", it->second );
-    }
-    return bSaved;
-}
-
-bool SongLibrary::SaveMetaData()
-{
-    string sPath = Config::GetFolder();
-    if ( sPath.length() == 0 ) return false;
-
-    string sData;
-    m_Data.SerializeToString( &sData );
-
-    ofstream ofs( sPath + "\\MetaData.pb", ios::out | ios::binary );
-    if ( !ofs.is_open() ) return false;
-
-    ofs << sData;
-    ofs.close();
-    return true;
-}
-
 bool PlaybackSettings::SaveConfigValues( TiXmlElement *txRoot )
 {
     TiXmlElement *txPlayback = new TiXmlElement( "Playback" );
@@ -515,7 +397,6 @@ bool ViewSettings::SaveConfigValues( TiXmlElement *txRoot )
 {
     TiXmlElement *txView = new TiXmlElement( "View" );
     txRoot->LinkEndChild( txView );
-    txView->SetAttribute( "Library", m_bLibrary );
     txView->SetAttribute( "Controls", m_bControls );
     txView->SetAttribute( "Keyboard", m_bKeyboard );
     txView->SetAttribute( "OnTop", m_bOnTop );
@@ -528,193 +409,4 @@ bool ViewSettings::SaveConfigValues( TiXmlElement *txRoot )
     txView->SetAttribute( "MainHeight", m_iMainHeight );
     txView->SetAttribute( "LibWidth", m_iLibWidth );
     return true;
-}
-
-//-----------------------------------------------------------------------------
-// Library functions
-//-----------------------------------------------------------------------------
-
-int SongLibrary::AddSource( const wstring &sSource, Source eSource, bool bExpand )
-{
-    int iChanged = 0;
-    map< wstring, Source >::iterator pos = m_mSources.find( sSource );
-    if ( pos != m_mSources.end() )
-    {
-        if ( pos->second == eSource ) return 0;
-        else iChanged = RemoveSource( sSource );
-    }
-
-    if ( bExpand ) iChanged += ExpandSource( sSource, eSource );
-    m_mSources[sSource] = eSource;
-
-    return iChanged;
-}
-
-int SongLibrary::RemoveSource( const wstring &sSource )
-{
-    int iRemoved = 0;
-    map< wstring, vector< PFAData::File* >* >::iterator itSource = m_mFiles.find( sSource );
-    if ( itSource != m_mFiles.end() )
-    {
-        vector< PFAData::File* > *pvFiles = itSource->second;
-        iRemoved = (int)pvFiles->size();
-        pvFiles->clear();
-        m_mFiles.erase( itSource );
-        delete pvFiles;
-    }
-
-    m_mSources.erase( sSource );
-    return iRemoved;
-}
-
-int SongLibrary::ExpandSources()
-{
-    int iExpanded = 0;
-    for ( map< wstring, Source >::const_iterator it = m_mSources.begin(); it != m_mSources.end(); ++it )
-        iExpanded += ExpandSource( it->first, it->second );
-    return iExpanded;
-}
-
-void SongLibrary::clear()
-{
-    for ( map< wstring, vector< PFAData::File* >* >::iterator itSource = m_mFiles.begin(); itSource != m_mFiles.end(); ++itSource )
-    {
-        vector< PFAData::File* > *pvFiles = itSource->second;
-        pvFiles->clear();
-        delete pvFiles;
-    }
-    m_mFiles.clear();
-    m_mSources.clear();
-    m_mMD5s.clear();
-    m_mFileInfos.clear();
-    m_Data.Clear();
-}
-
-int SongLibrary::ExpandSource( const wstring &sSource, Source eSource )
-{
-    TCHAR buf[1024];
-    vector< PFAData::File* > *pvFiles = new vector< PFAData::File* >();
-
-    int iExpanded = ExpandSource( TEXT( "\\\\?\\" ) + sSource, eSource, pvFiles, buf );
-    if ( iExpanded > 0 ) m_mFiles[sSource] = pvFiles;
-    else delete pvFiles;
-
-    return iExpanded;
-}
-
-// Passing the buffer around avoids having to put it on the recursive stack
-int SongLibrary::ExpandSource( const wstring &sPath, Source eSource, vector< PFAData::File* > *pvFiles, wchar_t buf[1024] )
-{
-    if ( eSource == File )
-    {
-        PFAData::File *pInfo = AddFile( sPath );
-        if ( !pInfo ) return 0;
-        pvFiles->push_back( pInfo );
-        return 1;
-    }
-    else
-    {
-        // Copy the file to the buffer
-        if ( sPath.length() + 7 > 1024 ) return 0;
-        memcpy( buf, sPath.c_str(), sPath.length() * sizeof( wchar_t ) );
-        memcpy( buf + sPath.length(), L"\\*.mid", 7 * sizeof( wchar_t ) );
-
-        int iExpanded = 0;
-        WIN32_FIND_DATA ffd;
-        HANDLE hFind = FindFirstFile( buf, &ffd );
-        if ( hFind != INVALID_HANDLE_VALUE )
-        {
-            do
-            {
-                PFAData::File *pInfo = AddFile( sPath + L'\\' + ffd.cFileName );
-                if ( pInfo )
-                {
-                    pvFiles->push_back( pInfo );
-                    iExpanded++;
-                }
-            }
-            while ( FindNextFile( hFind, &ffd ) );
-            FindClose( hFind );
-        }
-
-        if ( eSource == FolderWSubdirs )
-        {
-            buf[sPath.length() + 2] = L'\0';
-            hFind = FindFirstFile( buf, &ffd );
-            if ( hFind == INVALID_HANDLE_VALUE ) return iExpanded;
-
-            do
-            {
-                if ( ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY &&
-                     wcscmp( ffd.cFileName, TEXT( ".." ) ) && wcscmp( ffd.cFileName, TEXT( "." ) ) )
-                    iExpanded += ExpandSource( sPath + L'\\' + ffd.cFileName, eSource, pvFiles, buf );
-            }
-            while ( FindNextFile( hFind, &ffd ) );
-            FindClose( hFind );
-        }
-    
-        return iExpanded;
-    }
-}
-
-PFAData::File* SongLibrary::AddFile( const wstring &wsFilename, MIDI *pMidi )
-{
-    // Does it exist? Prob should remove from map if it's there.
-    WIN32_FILE_ATTRIBUTE_DATA fad;
-    GetFileAttributesEx( wsFilename.c_str(), GetFileExInfoStandard, &fad );
-    if ( fad.dwFileAttributes == INVALID_FILE_ATTRIBUTES ) return NULL;
-
-    // Protocol buffers don't take wstrings...
-    string sFilename = Util::WstringToString( wsFilename.substr( 4 ) );
-
-    // Is it already there?
-    pair< string, int > fileLookup( sFilename, fad.nFileSizeLow );
-    map< pair< string, int >, PFAData::File* >::const_iterator itFile =
-        m_mMD5s.find( fileLookup );
-    if ( itFile != m_mMD5s.end() ) return itFile->second;
-
-    // No meta data for the file exists yet. Parse the file, unless already parsed
-    bool bIsNew = false;
-    if ( !pMidi )
-    {
-        pMidi = new MIDI( wsFilename );
-        bIsNew = true;
-    }
-    if ( !pMidi->IsValid() )
-    {
-        if ( bIsNew ) delete pMidi;
-        return NULL;
-    }
-
-    // Create file info
-    PFAData::File *file = m_Data.add_file();
-    file->set_filename( sFilename );
-    file->set_filesize( fad.nFileSizeLow );
-    m_mMD5s[ fileLookup ] = file;
-
-    // Do we already have data for this file
-    const MIDI::MIDIInfo &mInfo = pMidi->GetInfo();
-    map< string, int >::const_iterator itFileInfo = m_mFileInfos.find( mInfo.sMd5 );
-    if ( itFileInfo != m_mFileInfos.end() ) 
-    {
-        file->set_infopos( itFileInfo->second );
-        if ( bIsNew ) delete pMidi;
-        return file;
-    }
-
-    // We don't. Add the data to the lookup and the buffer
-    if ( bIsNew ) pMidi->PostProcess();
-    PFAData::FileInfo* fileInfo = m_Data.add_fileinfo();
-    PFAData::SongInfo* songInfo = fileInfo->mutable_info();
-    songInfo->set_md5( mInfo.sMd5 );
-    songInfo->set_division( mInfo.iDivision );
-    songInfo->set_notes( mInfo.iNoteCount );
-    songInfo->set_beats( mInfo.iTotalBeats );
-    songInfo->set_seconds( static_cast< int >( mInfo.llTotalMicroSecs / 1000000 ) );
-    songInfo->set_tracks( mInfo.iNumChannels );
-    m_mFileInfos[ mInfo.sMd5 ] = m_Data.fileinfo_size() - 1;
-
-    file->set_infopos( m_Data.fileinfo_size() - 1 );
-    if ( bIsNew ) delete pMidi;
-    return file;
 }

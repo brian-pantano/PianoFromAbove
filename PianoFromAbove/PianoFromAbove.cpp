@@ -29,7 +29,6 @@ DWORD WINAPI GameThread( LPVOID lpParameter );
 HINSTANCE g_hInstance = NULL;
 HWND g_hWnd = NULL;
 HWND g_hWndBar = NULL;
-HWND g_hWndLibDlg = NULL;
 HWND g_hWndGfx = NULL;
 TSQueue< MSG > g_MsgQueue; // Producer/consumer to hold events for our game thread
 
@@ -101,12 +100,6 @@ INT WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdL
     g_hWndBar = CreateRebar( g_hWnd );
     if ( !g_hWndBar ) return 1;
 
-    // Create the library window
-    g_hWndLibDlg = CreateDialog( hInstance, MAKEINTRESOURCE( IDD_LIBDLG ), g_hWnd, LibDlgProc );
-    if ( !g_hWndLibDlg ) return 1;
-    SetWindowLongPtr( g_hWndLibDlg, GWL_EXSTYLE,
-                      GetWindowLongPtr( g_hWndLibDlg, GWL_EXSTYLE ) | WS_EX_CONTROLPARENT );
-
     // Create the graphics window
     g_hWndGfx = CreateWindowEx( 0, GFXCLASSNAME, NULL, WS_CHILD | WS_TABSTOP | WS_CLIPSIBLINGS,
                                 0, 0, 800, 600, g_hWnd, NULL, wc.hInstance, NULL );
@@ -123,7 +116,6 @@ INT WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdL
     SetPlayMode( GameState::Splash );
     SetOnTop( cView.GetOnTop() );
     ShowControls( cView.GetControls() );
-    ShowLibrary( cView.GetLibrary() );
     ShowWindow( g_hWndGfx, SW_SHOW );
     ShowWindow( g_hWnd, nCmdShow );
     UpdateWindow( g_hWnd );

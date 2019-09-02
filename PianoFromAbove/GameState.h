@@ -14,7 +14,7 @@
 #include <string>
 using namespace std;
 
-#include "ProtoBuf\MetaData.pb.h"
+//#include "ProtoBuf\MetaData.pb.h"
 #include "Renderer.h"
 #include "MIDI.h"
 #include "Misc.h"

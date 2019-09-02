@@ -32,17 +32,9 @@ VOID GetThumbRect( HWND hWnd, int iPosition, const RECT *rcChannel, RECT *rcThum
 INT GetThumbPosition( short iXPos, RECT *rcChannel );
 VOID MoveThumbPosition( int iPositionNew, int &iPosition, HWND hWnd, RECT *rcChannel, RECT *rcThumbOld, BOOL bUpdateGame = TRUE );
 
-INT_PTR WINAPI LibDlgProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
-VOID PopulateLibrary( HWND hWndLibrary );
-VOID SortLibrary( HWND hWndLibrary, INT iSortCol );
-INT CALLBACK CompareLibrary( LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort );
-VOID AddSingleLibraryFile( HWND hWndLibrary, const wstring &sFile );
-BOOL PlayLibrary( HWND hWndLibrary, int iItem, bool bCustomSettings = false );
-
 INT_PTR WINAPI AboutProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 
 VOID HandOffMsg( UINT msg, WPARAM wParam, LPARAM lParam );
-VOID ShowLibrary( BOOL bShow );
 VOID ShowControls( BOOL bShow );
 VOID ShowKeyboard( BOOL bShow );
 VOID SetOnTop( BOOL bOnTop );

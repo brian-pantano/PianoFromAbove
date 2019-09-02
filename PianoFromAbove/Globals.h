@@ -15,7 +15,6 @@
 extern HINSTANCE g_hInstance;
 extern HWND g_hWnd;
 extern HWND g_hWndBar;
-extern HWND g_hWndLibDlg;
 extern HWND g_hWndGfx;
 extern TSQueue< MSG > g_MsgQueue; // Producer/consumer to hold events for our game thread
 
