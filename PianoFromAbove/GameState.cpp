@@ -551,7 +551,7 @@ void MainScreen::InitColors()
 {
     m_csBackground.SetColor( 0x00464646, 0.7f, 1.3f );
     m_csKBBackground.SetColor( 0x00999999, 0.4f, 0.0f );
-    m_csKBRed.SetColor( 0x000D0A98, 0.5f );
+    m_csKBRed.SetColor( 0x0000E6E6, 0.5f ); // "red"
     m_csKBWhite.SetColor( 0x00FFFFFF, 0.8f, 0.6f );
     m_csKBSharp.SetColor( 0x00404040, 0.5f, 0.0f );
 }
@@ -1042,10 +1042,20 @@ void MainScreen::UpdateState( int iPos )
     {
         m_pNoteState[iNote] = -1;
         MIDIChannelEvent *pSearch = pEvent->GetSister();
-        m_vState.erase(std::remove_if(m_vState.begin(), m_vState.end(), [&](int x) {return m_vEvents[x] == pSearch; }));
+        for (auto& x : m_vState) {
+            if (m_vEvents[x] == pSearch) {
+                x = std::move(m_vState.back());
+                m_vState.pop_back();
+                break;
+            }
+        }
         vector<int>::reverse_iterator it = m_vState.rbegin();
         while (it != m_vState.rend())
         {
+            if (*it == -1) {
+                ++it;
+                continue;
+            }
             if (m_vEvents[*it]->GetParam1() == iNote) {
                 m_pNoteState[iNote] = *it;
                 break;
@@ -1757,96 +1767,85 @@ void MainScreen::RenderBorder()
 
 void MainScreen::RenderText()
 {
-    int iLines = 3;
+    int iLines = 2;
 
     // Screen info
-    RECT rcStatus = { m_pRenderer->GetBufferWidth() - 200, 0, m_pRenderer->GetBufferWidth(), 6 + 16 * iLines };
+    RECT rcStatus = { m_pRenderer->GetBufferWidth() - 156, 0, m_pRenderer->GetBufferWidth(), 6 + 16 * iLines };
 
     int iMsgCY = 200;
-    RECT rcMsg = { 0, static_cast< int >( m_pRenderer->GetBufferHeight() * ( 1.0f - KBPercent ) - iMsgCY ) / 2 };
+    RECT rcMsg = { 0, static_cast<int>(m_pRenderer->GetBufferHeight() * (1.0f - KBPercent) - iMsgCY) / 2 };
     rcMsg.right = m_pRenderer->GetBufferWidth();
     rcMsg.bottom = rcMsg.top + iMsgCY;
 
     // Draw the backgrounds
     unsigned iBkgColor = 0x40000000;
-    m_pRenderer->DrawRect( static_cast< float >( rcStatus.left ), static_cast< float >( rcStatus.top ), 
-        static_cast< float >( rcStatus.right - rcStatus.left ), static_cast< float >( rcStatus.bottom - rcStatus.top ), 0x80000000 );
-    if ( m_bZoomMove )
-        m_pRenderer->DrawRect( static_cast< float >( rcMsg.left ), static_cast< float >( rcMsg.top ), 
-            static_cast< float >( rcMsg.right - rcMsg.left ), static_cast< float >( rcMsg.bottom - rcMsg.top ), iBkgColor );
+    m_pRenderer->DrawRect(static_cast<float>(rcStatus.left), static_cast<float>(rcStatus.top),
+        static_cast<float>(rcStatus.right - rcStatus.left), static_cast<float>(rcStatus.bottom - rcStatus.top), 0x80000000);
+    if (m_bZoomMove)
+        m_pRenderer->DrawRect(static_cast<float>(rcMsg.left), static_cast<float>(rcMsg.top),
+            static_cast<float>(rcMsg.right - rcMsg.left), static_cast<float>(rcMsg.bottom - rcMsg.top), iBkgColor);
 
     // Draw the text
     m_pRenderer->BeginText();
 
-    RenderStatus( &rcStatus );    
-    if ( m_bZoomMove )
-        RenderMessage( &rcMsg, TEXT( "- Left-click and drag to move the screen\n- Right-click and drag to zoom horizontally\n- Press Escape to abort changes\n- Press Ctrl+V to save changes" ) );
-    
+    RenderStatus(&rcStatus);
+    if (m_bZoomMove)
+        RenderMessage(&rcMsg, TEXT("- Left-click and drag to move the screen\n- Right-click and drag to zoom horizontally\n- Press Escape to abort changes\n- Press Ctrl+V to save changes"));
+
     m_pRenderer->EndText();
 }
 
-void MainScreen::RenderStatus( LPRECT prcStatus )
+void MainScreen::RenderStatus(LPRECT prcStatus)
 {
     // Build the time text
     TCHAR sTime[128];
-    const MIDI::MIDIInfo &mInfo = m_MIDI.GetInfo();
-    if ( m_llStartTime >= 0 )
-        _stprintf_s( sTime, TEXT( "%lld:%04.1lf / %lld:%04.1lf" ),
-            m_llStartTime / 60000000, ( m_llStartTime % 60000000 ) / 1000000.0,
-            mInfo.llTotalMicroSecs / 60000000, ( mInfo.llTotalMicroSecs % 60000000 ) / 1000000.0 );
+    const MIDI::MIDIInfo& mInfo = m_MIDI.GetInfo();
+    if (m_llStartTime >= 0)
+        _stprintf_s(sTime, TEXT("%lld:%04.1lf / %lld:%04.1lf"),
+            m_llStartTime / 60000000, (m_llStartTime % 60000000) / 1000000.0,
+            mInfo.llTotalMicroSecs / 60000000, (mInfo.llTotalMicroSecs % 60000000) / 1000000.0);
     else
-        _stprintf_s( sTime, TEXT( "\t-%lld:%04.1lf / %lld:%04.1lf" ),
-            -m_llStartTime / 60000000, ( -m_llStartTime % 60000000 ) / 1000000.0,
-            mInfo.llTotalMicroSecs / 60000000, ( mInfo.llTotalMicroSecs % 60000000 ) / 1000000.0 );
+        _stprintf_s(sTime, TEXT("\t-%lld:%04.1lf / %lld:%04.1lf"),
+            -m_llStartTime / 60000000, (-m_llStartTime % 60000000) / 1000000.0,
+            mInfo.llTotalMicroSecs / 60000000, (mInfo.llTotalMicroSecs % 60000000) / 1000000.0);
 
     // Build the FPS text
     TCHAR sFPS[128];
-    _stprintf_s( sFPS, TEXT( "%.1lf" ), m_dFPS );
+    _stprintf_s(sFPS, TEXT("%.1lf"), m_dFPS);
 
-    // Build the notes text
-    TCHAR sNotes[128];
-    _stprintf_s(sNotes, TEXT("%llu/%llu"), m_iNotesPlayed, mInfo.iNoteCount);
-    
 
     // Display the text
-    InflateRect( prcStatus, -6, -3 );
+    InflateRect(prcStatus, -6, -3);
 
-    OffsetRect( prcStatus, 2, 1 );
-    m_pRenderer->DrawText( TEXT( "Time:" ), Renderer::Small, prcStatus, 0, 0xFF404040 );
-    m_pRenderer->DrawText( sTime, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040 );
-    OffsetRect( prcStatus, -2, -1 );
-    m_pRenderer->DrawText( TEXT( "Time:" ), Renderer::Small, prcStatus, 0, 0xFFFFFFFF );
-    m_pRenderer->DrawText( sTime, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF );
-
-    OffsetRect( prcStatus, 2, 16 + 1 );
-    m_pRenderer->DrawText( TEXT( "FPS:" ), Renderer::Small, prcStatus, 0, 0xFF404040 );
-    m_pRenderer->DrawText( sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040 );
-    OffsetRect( prcStatus, -2, -1 );
-    m_pRenderer->DrawText( TEXT( "FPS:" ), Renderer::Small, prcStatus, 0, 0xFFFFFFFF );
-    m_pRenderer->DrawText( sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF );
+    OffsetRect(prcStatus, 2, 1);
+    m_pRenderer->DrawText(TEXT("Time:"), Renderer::Small, prcStatus, 0, 0xFF404040);
+    m_pRenderer->DrawText(sTime, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
+    OffsetRect(prcStatus, -2, -1);
+    m_pRenderer->DrawText(TEXT("Time:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
+    m_pRenderer->DrawText(sTime, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
 
     OffsetRect(prcStatus, 2, 16 + 1);
-    m_pRenderer->DrawText(TEXT("Notes:"), Renderer::Small, prcStatus, 0, 0xFF404040);
-    m_pRenderer->DrawText(sNotes, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
+    m_pRenderer->DrawText(TEXT("FPS:"), Renderer::Small, prcStatus, 0, 0xFF404040);
+    m_pRenderer->DrawText(sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
     OffsetRect(prcStatus, -2, -1);
-    m_pRenderer->DrawText(TEXT("Notes:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
-    m_pRenderer->DrawText(sNotes, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
+    m_pRenderer->DrawText(TEXT("FPS:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
+    m_pRenderer->DrawText(sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
 }
 
-void MainScreen::RenderMessage( LPRECT prcMsg, TCHAR *sMsg )
+void MainScreen::RenderMessage(LPRECT prcMsg, TCHAR* sMsg)
 {
     RECT rcMsg = { 0 };
     Renderer::FontSize eFontSize = Renderer::Medium;
-    m_pRenderer->DrawText( sMsg, eFontSize, &rcMsg, DT_CALCRECT, 0xFF000000 );
-    if ( rcMsg.right > m_pRenderer->GetBufferWidth() )
+    m_pRenderer->DrawText(sMsg, eFontSize, &rcMsg, DT_CALCRECT, 0xFF000000);
+    if (rcMsg.right > m_pRenderer->GetBufferWidth())
     {
         eFontSize = Renderer::Small;
-        m_pRenderer->DrawText( sMsg, eFontSize, &rcMsg, DT_CALCRECT, 0xFF000000 );
+        m_pRenderer->DrawText(sMsg, eFontSize, &rcMsg, DT_CALCRECT, 0xFF000000);
     }
-    
-    OffsetRect( &rcMsg, 2 + prcMsg->left + ( prcMsg->right - prcMsg->left - rcMsg.right ) / 2,
-                2 + prcMsg->top + ( prcMsg->bottom - prcMsg->top - rcMsg.bottom ) / 2 );
-    m_pRenderer->DrawText( sMsg, eFontSize, &rcMsg, 0, 0xFF404040 );
-    OffsetRect( &rcMsg, -2, -2 );
-    m_pRenderer->DrawText( sMsg, eFontSize, &rcMsg, 0, 0xFFFFFFFF );
+
+    OffsetRect(&rcMsg, 2 + prcMsg->left + (prcMsg->right - prcMsg->left - rcMsg.right) / 2,
+        2 + prcMsg->top + (prcMsg->bottom - prcMsg->top - rcMsg.bottom) / 2);
+    m_pRenderer->DrawText(sMsg, eFontSize, &rcMsg, 0, 0xFF404040);
+    OffsetRect(&rcMsg, -2, -2);
+    m_pRenderer->DrawText(sMsg, eFontSize, &rcMsg, 0, 0xFFFFFFFF);
 }
