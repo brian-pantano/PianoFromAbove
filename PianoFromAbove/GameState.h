@@ -12,6 +12,7 @@
 #include <Windows.h>
 #include <map>
 #include <string>
+#include <unordered_map>
 using namespace std;
 
 //#include "ProtoBuf\MetaData.pb.h"
@@ -173,8 +174,6 @@ private:
 
     // Logic
     void UpdateState( int iPos );
-    void JumpTo( long long llStartTime, bool bUpdateGUI = true );
-    void PlaySkippedEvents( eventvec_t::const_iterator itOldProgramChange );
     void AdvanceIterators( long long llTime, bool bIsJump );
     MIDIMetaEvent* GetPrevious( eventvec_t::const_iterator &itCurrent,
                                 const eventvec_t &vEventMap, int iDataLen );
@@ -223,6 +222,7 @@ private:
     long long m_llStartTime, m_llTimeSpan;  // Times of the start and end events of the current window
     int m_iStartTick; // Tick that corresponds with m_llStartTime. Used to help with beat and metronome detection
     vector< int > m_vState;  // The notes that are on at time m_llStartTime.
+    unordered_map<int, int> state_map;
     int m_pNoteState[128]; // The last note that was turned on
     double m_dSpeed; // Speed multiplier
     bool m_bPaused; // Paused state

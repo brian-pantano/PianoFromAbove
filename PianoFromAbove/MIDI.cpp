@@ -403,6 +403,7 @@ void MIDI::PostProcess( vector< MIDIEvent* > *vEvents )
     MIDIEvent *pEvent = NULL;
     long long llFirstNote = -1;
     long long llTime = 0;
+    int i = 0;
     for ( midiPos.GetNextEvent( -1, &pEvent ); pEvent; midiPos.GetNextEvent( -1, &pEvent ) )
     {
         // Compute the exact time (off by at most a micro second... I don't feel like rounding)
@@ -416,7 +417,6 @@ void MIDI::PostProcess( vector< MIDIEvent* > *vEvents )
         if ( pEvent->GetEventType() == MIDIEvent::ChannelEvent )
         {
             MIDIChannelEvent *pChannelEvent = reinterpret_cast< MIDIChannelEvent* >( pEvent );
-            pChannelEvent->SetSimultaneous( iSimultaneous );
             if ( pChannelEvent->GetSister() )
             {
                 if ( pChannelEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
@@ -444,6 +444,7 @@ void MIDI::PostProcess( vector< MIDIEvent* > *vEvents )
         }
 
         if ( vEvents ) vEvents->push_back( pEvent );
+        i++;
     }
 
     m_Info.llTotalMicroSecs = llTime;
@@ -693,7 +694,6 @@ int MIDIEvent::MakeNextEvent( const unsigned char *pcData, size_t iMaxSize, int 
     (*pOutEvent)->m_eEventType = eEventType;
     (*pOutEvent)->m_iEventCode = iEventCode;
     (*pOutEvent)->m_iTrack = iTrack;
-    (*pOutEvent)->m_iDT = iDT;
     (*pOutEvent)->m_iAbsT = iDT;
     if ( pPrevEvent ) (*pOutEvent)->m_iAbsT += pPrevEvent->m_iAbsT;
 

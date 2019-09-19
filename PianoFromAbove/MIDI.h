@@ -194,7 +194,6 @@ public:
     EventType GetEventType() const { return m_eEventType; }
     int GetEventCode() const { return m_iEventCode; }
     int GetTrack() const { return m_iTrack; }
-    int GetDT() const { return m_iDT; }
     int GetAbsT() const { return m_iAbsT; }
     long long GetAbsMicroSec() const { return m_llAbsMicroSec; }
     void SetAbsMicroSec( long long llAbsMicroSec ) { m_llAbsMicroSec = llAbsMicroSec; }
@@ -203,7 +202,6 @@ protected:
     EventType m_eEventType;
     int m_iEventCode;
     int m_iTrack;
-    int m_iDT;
     int m_iAbsT;
     long long m_llAbsMicroSec;
 };
@@ -212,7 +210,7 @@ protected:
 class MIDIChannelEvent : public MIDIEvent
 {
 public:
-    MIDIChannelEvent() : m_pSister( NULL ), m_iSimultaneous( 0 ) { }
+    MIDIChannelEvent() : m_pSister( NULL ) { }
 
     enum ChannelEventType { NoteOff = 0x8, NoteOn, NoteAftertouch, Controller, ProgramChange, ChannelAftertouch, PitchBend };
     int ParseEvent( const unsigned char *pcData, size_t iMaxSize );
@@ -223,10 +221,11 @@ public:
     unsigned char GetParam1() const { return m_cParam1; }
     unsigned char GetParam2() const { return m_cParam2; }
     MIDIChannelEvent *GetSister() const { return m_pSister; }
-    int GetSimultaneous() const { return m_iSimultaneous; }
 
     void SetSister( MIDIChannelEvent *pSister ) { m_pSister = pSister; pSister->m_pSister = this; }
-    void SetSimultaneous( int iSimultaneous ) { m_iSimultaneous = iSimultaneous; }
+
+    // too lazy to write accessor
+    int sister_idx = -1;
 
 private:
     char m_eChannelEventType;
@@ -234,7 +233,6 @@ private:
     unsigned char m_cParam1;
     unsigned char m_cParam2;
     MIDIChannelEvent *m_pSister;
-    int m_iSimultaneous;
 };
 
 //Meta Event: info about the notes and whatnot
