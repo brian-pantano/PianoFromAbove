@@ -13,6 +13,7 @@
 #include <map>
 #include <string>
 #include <unordered_map>
+#include <functional>
 using namespace std;
 
 //#include "ProtoBuf\MetaData.pb.h"
@@ -136,6 +137,20 @@ public:
     GameError Render();
 };
 
+class CustomHashFunc {
+public:
+    int operator() (int key) const {
+        return key;
+    }
+};
+
+class CustomKeyEqualFunc {
+public:
+    int operator() (int a, int b) const {
+        return a == b;
+    }
+};
+
 class MainScreen : public GameState
 {
 public:
@@ -193,6 +208,7 @@ private:
     void RenderLines();
     void RenderNotes();
     void RenderNote( int iPos );
+    void GenNoteXTable();
     float GetNoteX( int iNote );
     void RenderKeys();
     void RenderBorder();
@@ -204,7 +220,6 @@ private:
     MIDI m_MIDI; // The song to display
     vector< MIDIChannelEvent* > m_vEvents; // The channel events of the song
     vector< MIDIMetaEvent* > m_vMetaEvents; // The meta events of the song
-    eventvec_t m_vNoteOns; // Map: note->time->Event pos. Used for fast(er) random access to the song.
     eventvec_t m_vNonNotes; // Tracked for jumping
     eventvec_t m_vProgramChange; // Tracked so we don't jump over them during random access
     eventvec_t m_vTempo; // Tracked for drawing measure lines
@@ -222,7 +237,7 @@ private:
     long long m_llStartTime, m_llTimeSpan;  // Times of the start and end events of the current window
     int m_iStartTick; // Tick that corresponds with m_llStartTime. Used to help with beat and metronome detection
     vector< int > m_vState;  // The notes that are on at time m_llStartTime.
-    unordered_map<int, int> state_map;
+    unordered_map<int, int, CustomHashFunc, CustomKeyEqualFunc> state_map;
     int m_pNoteState[128]; // The last note that was turned on
     double m_dSpeed; // Speed multiplier
     bool m_bPaused; // Paused state
@@ -253,6 +268,8 @@ private:
     float m_fTempZoomX, m_fTempOffsetX, m_fTempOffsetY;
     bool m_bZoomMove, m_bTrackPos, m_bTrackZoom;
     POINT m_ptStartZoom, m_ptLastPos;
+
+    float notex_table[128];
 
     // Computed in RenderGlobal
     int m_iStartNote, m_iEndNote; // Start and end notes of the songs

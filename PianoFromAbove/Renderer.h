@@ -12,6 +12,7 @@
 #include <Windows.h>
 #include <d3d9.h>
 #include <d3dx9.h>
+#include <vector>
 
 class Renderer
 {
@@ -33,11 +34,15 @@ public:
     virtual HRESULT DrawTextA( const CHAR *sText, FontSize fsFont, LPRECT rcPos, DWORD dwFormat, DWORD dwColor, INT iChars = -1 ) = 0;
     virtual HRESULT EndText() = 0;
     virtual HRESULT DrawRect( float x, float y, float cx, float cy, DWORD color ) = 0;
+    virtual HRESULT DrawRectBatch(float x, float y, float cx, float cy, DWORD color) = 0;
     virtual HRESULT DrawRect( float x, float y, float cx, float cy,
                               DWORD c1, DWORD c2, DWORD c3, DWORD c4 ) = 0;
+    virtual HRESULT DrawRectBatch(float x, float y, float cx, float cy,
+                                  DWORD c1, DWORD c2, DWORD c3, DWORD c4) = 0;
     virtual HRESULT DrawSkew( float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, DWORD color ) = 0;
     virtual HRESULT DrawSkew( float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4,
                               DWORD c1, DWORD c2, DWORD c3, DWORD c4 ) = 0;
+    virtual HRESULT RenderBatch() = 0;
 
     bool GetLimitFPS() const { return m_bLimitFPS; }
     HRESULT SetLimitFPS( bool bLimitFPS );
@@ -64,7 +69,7 @@ public:
         const static DWORD FVF = D3DFVF_XYZRHW | D3DFVF_DIFFUSE;
     };
 
-    static const int MaxTriangles = 200;
+    static const int MaxTriangles = 2000001;
     static const int VertexBufferSize = sizeof( SCREEN_VERTEX ) * 3 * MaxTriangles;
 
     D3D9Renderer() : m_pD3D( NULL ), m_pTextSprite( NULL ),
@@ -87,14 +92,18 @@ public:
     HRESULT DrawTextA( const CHAR *sText, FontSize fsFont, LPRECT rcPos, DWORD dwFormat, DWORD dwColor, INT iChars = -1 );
     HRESULT EndText();
     HRESULT DrawRect( float x, float y, float cx, float cy, DWORD color );
+    HRESULT DrawRectBatch(float x, float y, float cx, float cy, DWORD color);
     HRESULT DrawRect( float x, float y, float cx, float cy,
                       DWORD c1, DWORD c2, DWORD c3, DWORD c4 );
+    HRESULT DrawRectBatch(float x, float y, float cx, float cy,
+                          DWORD c1, DWORD c2, DWORD c3, DWORD c4);
     HRESULT DrawSkew( float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, DWORD color );
     HRESULT DrawSkew( float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4,
                       DWORD c1, DWORD c2, DWORD c3, DWORD c4 );
     HRESULT BeginStaticBuffer( int iTriangles );
     HRESULT EndStaticBuffer();
     HRESULT DrawStaticBuffer();
+    HRESULT RenderBatch();
     //LPDIRECT3DDEVICE9 m_pd3dDevice; // The rendering device
 
 private:
@@ -113,7 +122,7 @@ private:
     HRESULT PrepBuffer( int iTriangles );
     HRESULT FlushBuffer();
     LPDIRECT3DVERTEXBUFFER9 m_pVertexBuffer;
-    int m_iTriangle;
+    unsigned m_iTriangle;
     unsigned char *m_pVertexData;
 
     HRESULT ReleaseStaticBuffer();
@@ -123,4 +132,6 @@ private:
     bool m_bStatic;
 
     HRESULT Blit( SCREEN_VERTEX *data, int iTriangles );
+
+    std::vector<SCREEN_VERTEX> batch_vertices;
 };

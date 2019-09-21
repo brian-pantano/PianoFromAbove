@@ -416,6 +416,8 @@ void SplashScreen::RenderNotes()
                 RenderNote( i );                
         }
     }
+
+    m_pRenderer->RenderBatch();
 }
 
 void SplashScreen::RenderNote( int iPos )
@@ -467,10 +469,10 @@ void SplashScreen::RenderNote( int iPos )
     iAlpha <<= 24;
     iAlpha1 <<= 24;
     iAlpha2 <<= 24;
-    m_pRenderer->DrawRect( x, y - cy, cx, cy, csTrack.iVeryDarkRGB | iAlpha );
-    m_pRenderer->DrawRect( x + fDeflate, y - cy + fDeflate,
-                            cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
-                            csTrack.iPrimaryRGB | iAlpha1, csTrack.iDarkRGB | iAlpha1, csTrack.iDarkRGB | iAlpha2, csTrack.iPrimaryRGB | iAlpha2 );
+    m_pRenderer->DrawRectBatch( x, y - cy, cx, cy, csTrack.iVeryDarkRGB | iAlpha );
+    m_pRenderer->DrawRectBatch( x + fDeflate, y - cy + fDeflate,
+                                cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
+                                csTrack.iPrimaryRGB | iAlpha1, csTrack.iDarkRGB | iAlpha1, csTrack.iDarkRGB | iAlpha2, csTrack.iPrimaryRGB | iAlpha2 );
 }
 
 float SplashScreen::GetNoteX( int iNote )
@@ -514,23 +516,12 @@ void MainScreen::InitNoteMap( const vector< MIDIEvent* > &vEvents )
 {
     //Get only the channel events
     m_vEvents.reserve( vEvents.size() );
-    m_vNoteOns.reserve( vEvents.size() / 2 );
     for ( vector< MIDIEvent* >::const_iterator it = vEvents.begin(); it != vEvents.end(); ++it )
         if ( (*it)->GetEventType() == MIDIEvent::ChannelEvent )
         {
             MIDIChannelEvent *pEvent = reinterpret_cast< MIDIChannelEvent* >( *it );
             m_vEvents.push_back( pEvent );
 
-            // Makes random access to the song faster, but unsure if it's worth it
-            MIDIChannelEvent::ChannelEventType eEventType = pEvent->GetChannelEventType();
-            if ( eEventType == MIDIChannelEvent::NoteOn && pEvent->GetParam2() > 0 && pEvent->GetSister() )
-                m_vNoteOns.push_back( pair< long long, int >( pEvent->GetAbsMicroSec(), m_vEvents.size() - 1 ) );
-            else
-            {
-                m_vNonNotes.push_back( pair< long long, int >( pEvent->GetAbsMicroSec(), m_vEvents.size() - 1 ) );
-                if ( eEventType == MIDIChannelEvent::ProgramChange || eEventType == MIDIChannelEvent::Controller )
-                   m_vProgramChange.push_back( pair< long long, int >( pEvent->GetAbsMicroSec(), m_vEvents.size() - 1 ) );
-            }
             if (pEvent->GetSister())
                 pEvent->GetSister()->sister_idx = m_vEvents.size() - 1;
         }
@@ -886,6 +877,8 @@ GameState::GameError MainScreen::Logic( void )
     m_pRenderer->SetLimitFPS( cVideo.bLimitFPS );
     if ( cVisual.iBkgColor != m_csBackground.iOrigBGR ) m_csBackground.SetColor( cVisual.iBkgColor, 0.7f, 1.3f );
 
+    GenNoteXTable();
+
     double dMaxCorrect = ( mInfo.iMaxVolume > 0 ? 127.0 / mInfo.iMaxVolume : 1.0 );
     double dVolumeCorrect = ( mInfo.iVolumeSum > 0 ? ( m_dVolume * 127.0 * mInfo.iNoteCount ) / mInfo.iVolumeSum : 1.0 );
     dVolumeCorrect = min( dVolumeCorrect, dMaxCorrect );
@@ -1017,24 +1010,16 @@ void MainScreen::UpdateState( int iPos )
     else
     {
         m_pNoteState[iNote] = -1;
-        /*
-        MIDIChannelEvent *pSearch = pEvent->GetSister();
-        for (auto& x : m_vState) {
-            if (m_vEvents[x] == pSearch) {
-                x = std::move(m_vState.back());
-                m_vState.pop_back();
-                break;
-            }
-        }
-        */
+
         if (m_vState.size() == 1)
             m_vState.clear();
         else {
             state_map[m_vState.back()] = state_map[pEvent->sister_idx];
-            m_vState[state_map[pEvent->sister_idx]] = std::move(m_vState.back());
+            m_vState[state_map[pEvent->sister_idx]] = m_vState.back();
             m_vState.pop_back();
         }
         state_map.erase(iPos);
+
         vector<int>::reverse_iterator it = m_vState.rbegin();
         while (it != m_vState.rend())
         {
@@ -1389,6 +1374,8 @@ void MainScreen::RenderNotes()
                 RenderNote( i );                
         }
     }
+
+    m_pRenderer->RenderBatch();
 }
 
 void MainScreen::RenderNote( int iPos )
@@ -1430,23 +1417,28 @@ void MainScreen::RenderNote( int iPos )
         y = fMinY + cy;
     }
 
-    m_pRenderer->DrawRect( x, y - cy, cx, cy, csTrack.iVeryDarkRGB );
-    m_pRenderer->DrawRect( x + fDeflate, y - cy + fDeflate,
-                            cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
-                            csTrack.iPrimaryRGB, csTrack.iDarkRGB, csTrack.iDarkRGB, csTrack.iPrimaryRGB );
+    m_pRenderer->DrawRectBatch( x, y - cy, cx, cy, csTrack.iVeryDarkRGB );
+    m_pRenderer->DrawRectBatch( x + fDeflate, y - cy + fDeflate,
+                                cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
+                                csTrack.iPrimaryRGB, csTrack.iDarkRGB, csTrack.iDarkRGB, csTrack.iPrimaryRGB );
 }
 
-float MainScreen::GetNoteX( int iNote )
-{
-    int iWhiteKeys = MIDI::WhiteCount( m_iStartNote, iNote );
-    float fStartX = ( MIDI::IsSharp( m_iStartNote ) - MIDI::IsSharp( iNote ) ) * SharpRatio / 2.0f;
-    if ( MIDI::IsSharp( iNote ) )
-    {
-        MIDI::Note eNote = MIDI::NoteVal( iNote );
-        if ( eNote == MIDI::CS || eNote == MIDI::FS ) fStartX -= SharpRatio / 5.0f;
-        else if ( eNote == MIDI::AS || eNote == MIDI::DS ) fStartX += SharpRatio / 5.0f;
+void MainScreen::GenNoteXTable() {
+    for (int i = 0; i < 128; i++) {
+        int iWhiteKeys = MIDI::WhiteCount(m_iStartNote, i);
+        float fStartX = (MIDI::IsSharp(m_iStartNote) - MIDI::IsSharp(i)) * SharpRatio / 2.0f;
+        if (MIDI::IsSharp(i))
+        {
+            MIDI::Note eNote = MIDI::NoteVal(i);
+            if (eNote == MIDI::CS || eNote == MIDI::FS) fStartX -= SharpRatio / 5.0f;
+            else if (eNote == MIDI::AS || eNote == MIDI::DS) fStartX += SharpRatio / 5.0f;
+        }
+        notex_table[i] = m_fNotesX + m_fWhiteCX * (iWhiteKeys + fStartX);
     }
-    return m_fNotesX + m_fWhiteCX * ( iWhiteKeys + fStartX );
+}
+
+float MainScreen::GetNoteX(int iNote) {
+    return notex_table[iNote];
 }
 
 void MainScreen::RenderKeys()

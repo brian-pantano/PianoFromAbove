@@ -244,6 +244,11 @@ HRESULT D3D9Renderer::DrawRect( float x, float y, float cx, float cy, DWORD colo
     return DrawRect( x, y, cx, cy, color, color, color, color );
 }
 
+HRESULT D3D9Renderer::DrawRectBatch(float x, float y, float cx, float cy, DWORD color)
+{
+    return DrawRectBatch(x, y, cx, cy, color, color, color, color);
+}
+
 HRESULT D3D9Renderer::DrawRect( float x, float y, float cx, float cy,
                                 DWORD c1, DWORD c2, DWORD c3, DWORD c4 )
 {
@@ -261,6 +266,27 @@ HRESULT D3D9Renderer::DrawRect( float x, float y, float cx, float cy,
     };
 
     return Blit( vertices, 2 );
+}
+
+HRESULT D3D9Renderer::DrawRectBatch(float x, float y, float cx, float cy,
+    DWORD c1, DWORD c2, DWORD c3, DWORD c4)
+{
+    x -= 0.5f;
+    y -= 0.5f;
+
+    SCREEN_VERTEX vertices[6] =
+    {
+        x,  y,            0.5f, 1.0f, c1,
+        x + cx, y,        0.5f, 1.0f, c2,
+        x + cx, y + cy,   0.5f, 1.0f, c3,
+        x,  y,            0.5f, 1.0f, c1,
+        x + cx, y + cy,   0.5f, 1.0f, c3,
+        x,  y + cy,       0.5f, 1.0f, c4
+    };
+
+    batch_vertices.insert(batch_vertices.end(), vertices, std::end(vertices));
+
+    return S_OK;
 }
 
 HRESULT D3D9Renderer::DrawSkew( float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, DWORD color )
@@ -323,6 +349,22 @@ HRESULT D3D9Renderer::FlushBuffer()
     HRESULT hr = m_pd3dDevice->DrawPrimitive( D3DPT_TRIANGLELIST, 0, m_iTriangle );
     m_iTriangle = 0;
     return hr;
+}
+
+HRESULT D3D9Renderer::RenderBatch() {
+    FlushBuffer();
+    const auto vertex_limit = (MaxTriangles - 1) * 3;
+    size_t vertices_left = batch_vertices.size();
+    for (unsigned i = 0; i < batch_vertices.size(); i += vertex_limit) {
+        const size_t vertices_processed = min(vertices_left, vertex_limit);
+        PrepBuffer(vertices_processed);
+        memcpy(m_pVertexData, batch_vertices.data() + (batch_vertices.size() - vertices_left), vertices_processed * sizeof(SCREEN_VERTEX));
+        m_iTriangle += vertices_processed / 3;
+        vertices_left -= vertices_processed;
+        FlushBuffer();
+    }
+    batch_vertices.clear();
+    return S_OK;
 }
 
 HRESULT D3D9Renderer::BeginStaticBuffer( int iTriangles )
