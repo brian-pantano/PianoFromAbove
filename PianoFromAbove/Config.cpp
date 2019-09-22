@@ -224,8 +224,6 @@ void VisualSettings::LoadConfigValues( TiXmlElement *txRoot )
         this->bAlwaysShowControls = ( iAttrVal != 0 );
     if ( txVisual->QueryIntAttribute( "AssociateFiles", &iAttrVal ) == TIXML_SUCCESS )
         this->bAssociateFiles = ( iAttrVal != 0 );
-    txVisual->QueryIntAttribute( "FirstKey", &this->iFirstKey );
-    txVisual->QueryIntAttribute( "LastKey", &this->iLastKey );
 
     //Colors
     int r, g, b, i = 0;

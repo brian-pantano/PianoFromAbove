@@ -10,6 +10,8 @@
 #include "MIDI.h"
 #include <fstream>
 
+std::map<int, std::pair<std::vector<MIDIEvent*>::iterator, std::vector<MIDIEvent*>>> midi_map;
+
 //-----------------------------------------------------------------------------
 // MIDIPos functions
 //-----------------------------------------------------------------------------
@@ -21,8 +23,9 @@ MIDIPos::MIDIPos( MIDI &midi ) : m_MIDI( midi )
 
     // Init track positions
     size_t iTracks = m_MIDI.m_vTracks.size();
-    for ( size_t i = 0; i < iTracks; i++ )
-        m_vTrackPos.push_back( 0 );
+    for (size_t i = 0; i < iTracks; i++) {
+        m_vTrackPos.push_back(0);
+    }
 
     // Init SMPTE tempo
     if ( m_MIDI.m_Info.iDivision & 0x8000 )
@@ -54,17 +57,12 @@ int MIDIPos::GetNextEvent( int iMicroSecs, MIDIEvent **pOutEvent )
 
     // Get the next closest event
     MIDIEvent *pMinEvent = NULL;
-    size_t iMinPos = 0;
-    size_t iTracks = m_vTrackPos.size();
-    for ( size_t i = 0; i < iTracks; i++ )
-    {
-        size_t pos = m_vTrackPos[i];
-        if ( pos < m_MIDI.m_vTracks[i]->m_vEvents.size() &&
-             ( !pMinEvent || m_MIDI.m_vTracks[i]->m_vEvents[pos]->GetAbsT() < pMinEvent->GetAbsT() ) )
-        {
-            pMinEvent = m_MIDI.m_vTracks[i]->m_vEvents[pos];
-            iMinPos = i;
-        }
+
+    if (map_it != midi_map.end()) {
+        auto& pair = map_it->second;
+        pMinEvent = *pair.first;
+        if (++pair.first == pair.second.end())
+            map_it++;
     }
 
     // No min found. We're at the end of file
@@ -89,7 +87,7 @@ int MIDIPos::GetNextEvent( int iMicroSecs, MIDIEvent **pOutEvent )
             iSpan = ( 1000000LL * iSpan ) / m_iTicksPerSecond - m_iCurrMicroSec;
         m_iCurrTick = pMinEvent->GetAbsT();
         m_iCurrMicroSec = 0;
-        m_vTrackPos[iMinPos]++;
+        //m_vTrackPos[iMinPos]++;
 
         // Change the tempo going forward if we're at a SetTempo event
         if ( pMinEvent->GetEventType() == MIDIEvent::MetaEvent )
@@ -283,6 +281,7 @@ void MIDI::clear( void )
         delete *it;
     m_vTracks.clear();
     m_Info.clear();
+    midi_map.clear();
 }
 
 int MIDI::ParseMIDI( const unsigned char *pcData, size_t iMaxSize )
@@ -449,6 +448,8 @@ void MIDI::PostProcess( vector< MIDIEvent* > *vEvents )
 
     m_Info.llTotalMicroSecs = llTime;
     m_Info.llFirstNote = max( 0LL, llFirstNote );
+
+    midi_map.clear();
 }
 
 void MIDI::ConnectNotes()
@@ -696,6 +697,10 @@ int MIDIEvent::MakeNextEvent( const unsigned char *pcData, size_t iMaxSize, int 
     (*pOutEvent)->m_iTrack = iTrack;
     (*pOutEvent)->m_iAbsT = iDT;
     if ( pPrevEvent ) (*pOutEvent)->m_iAbsT += pPrevEvent->m_iAbsT;
+
+    auto& key = midi_map[(*pOutEvent)->m_iAbsT];
+    key.second.push_back(*pOutEvent);
+    key.first = midi_map[(*pOutEvent)->m_iAbsT].second.begin();
 
     return iTotal;
 }

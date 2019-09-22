@@ -9,6 +9,8 @@
 *************************************************************************************************/
 #include "Renderer.h"
 
+std::vector<SCREEN_VERTEX> batch_vertices;
+
 HRESULT Renderer::SetLimitFPS( bool bLimitFPS )
 {
     if ( bLimitFPS != m_bLimitFPS )
@@ -69,7 +71,7 @@ HRESULT D3D9Renderer::Init( HWND hWnd, bool bLimitFPS )
     
     // Create the D3DDevice
     if( FAILED( hr = m_pD3D->CreateDevice( D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, //D3DDEVTYPE_REF
-                                           D3DCREATE_SOFTWARE_VERTEXPROCESSING,
+                                           D3DCREATE_HARDWARE_VERTEXPROCESSING,
                                            &m_d3dPP, &m_pd3dDevice ) ) )
         return hr;
 
@@ -244,11 +246,6 @@ HRESULT D3D9Renderer::DrawRect( float x, float y, float cx, float cy, DWORD colo
     return DrawRect( x, y, cx, cy, color, color, color, color );
 }
 
-HRESULT D3D9Renderer::DrawRectBatch(float x, float y, float cx, float cy, DWORD color)
-{
-    return DrawRectBatch(x, y, cx, cy, color, color, color, color);
-}
-
 HRESULT D3D9Renderer::DrawRect( float x, float y, float cx, float cy,
                                 DWORD c1, DWORD c2, DWORD c3, DWORD c4 )
 {
@@ -266,27 +263,6 @@ HRESULT D3D9Renderer::DrawRect( float x, float y, float cx, float cy,
     };
 
     return Blit( vertices, 2 );
-}
-
-HRESULT D3D9Renderer::DrawRectBatch(float x, float y, float cx, float cy,
-    DWORD c1, DWORD c2, DWORD c3, DWORD c4)
-{
-    x -= 0.5f;
-    y -= 0.5f;
-
-    SCREEN_VERTEX vertices[6] =
-    {
-        x,  y,            0.5f, 1.0f, c1,
-        x + cx, y,        0.5f, 1.0f, c2,
-        x + cx, y + cy,   0.5f, 1.0f, c3,
-        x,  y,            0.5f, 1.0f, c1,
-        x + cx, y + cy,   0.5f, 1.0f, c3,
-        x,  y + cy,       0.5f, 1.0f, c4
-    };
-
-    batch_vertices.insert(batch_vertices.end(), vertices, std::end(vertices));
-
-    return S_OK;
 }
 
 HRESULT D3D9Renderer::DrawSkew( float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, DWORD color )

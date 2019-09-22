@@ -49,6 +49,7 @@ GameState::GameError GameState::ChangeState( GameState *pNextState, GameState **
         return iResult;
     }
 
+
     return Success;
 }
 
@@ -469,10 +470,11 @@ void SplashScreen::RenderNote( int iPos )
     iAlpha <<= 24;
     iAlpha1 <<= 24;
     iAlpha2 <<= 24;
-    m_pRenderer->DrawRectBatch( x, y - cy, cx, cy, csTrack.iVeryDarkRGB | iAlpha );
-    m_pRenderer->DrawRectBatch( x + fDeflate, y - cy + fDeflate,
-                                cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
-                                csTrack.iPrimaryRGB | iAlpha1, csTrack.iDarkRGB | iAlpha1, csTrack.iDarkRGB | iAlpha2, csTrack.iPrimaryRGB | iAlpha2 );
+    // this is forced to be interpreted as d3d9 so the function can be inlined
+    reinterpret_cast<D3D9Renderer*>(m_pRenderer)->DrawRectBatch(x, y - cy, cx, cy, csTrack.iVeryDarkRGB);
+    reinterpret_cast<D3D9Renderer*>(m_pRenderer)->DrawRectBatch(x + fDeflate, y - cy + fDeflate,
+        cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
+        csTrack.iPrimaryRGB, csTrack.iDarkRGB, csTrack.iDarkRGB, csTrack.iPrimaryRGB);
 }
 
 float SplashScreen::GetNoteX( int iNote )
@@ -505,6 +507,7 @@ MainScreen::MainScreen( wstring sMIDIFile, State eGameMode, HWND hWnd, Renderer 
     // Allocate
     m_vTrackSettings.resize( m_MIDI.GetInfo().iNumTracks );
     m_vState.reserve( 128 );
+    state_map.reserve(32768);
 
     // Initialize
     InitNoteMap( vEvents ); // Longish
@@ -603,6 +606,7 @@ GameState::GameError MainScreen::Init()
     m_OutDevice.SetVolume( 1.0 );
     if (m_Timer.m_bManualTimer)
         m_Timer.SetFrameRate(60);
+    batch_vertices.reserve(m_MIDI.GetInfo().iNoteCount * 4);
     return Success;
 }
 
@@ -1014,19 +1018,17 @@ void MainScreen::UpdateState( int iPos )
         if (m_vState.size() == 1)
             m_vState.clear();
         else {
-            state_map[m_vState.back()] = state_map[pEvent->sister_idx];
-            m_vState[state_map[pEvent->sister_idx]] = m_vState.back();
-            m_vState.pop_back();
+            if (!m_vState.empty()) {
+                state_map[m_vState.back()] = state_map[pEvent->sister_idx];
+                m_vState[state_map[pEvent->sister_idx]] = m_vState.back();
+                m_vState.pop_back();
+            }
         }
-        state_map.erase(iPos);
+        state_map.erase(pEvent->sister_idx);
 
         vector<int>::reverse_iterator it = m_vState.rbegin();
         while (it != m_vState.rend())
         {
-            if (*it == -1) {
-                ++it;
-                continue;
-            }
             if (m_vEvents[*it]->GetParam1() == iNote) {
                 m_pNoteState[iNote] = *it;
                 break;
@@ -1248,8 +1250,8 @@ void MainScreen::RenderGlobals()
 
     // Round down start time. This is only used for rendering purposes
     long long llMicroSecsPP = static_cast< long long >( m_llTimeSpan / m_fNotesCY + 0.5f );
-    m_llRndStartTime = m_llStartTime - ( m_llStartTime < 0 ? llMicroSecsPP : 0 );
-    m_llRndStartTime = ( m_llRndStartTime / llMicroSecsPP ) * llMicroSecsPP;
+    m_fRndStartTime = m_llStartTime - ( m_llStartTime < 0 ? llMicroSecsPP : 0 );
+    m_fRndStartTime = ( m_fRndStartTime / llMicroSecsPP ) * llMicroSecsPP;
 }
 
 void MainScreen::RenderLines()
@@ -1319,7 +1321,7 @@ void MainScreen::RenderLines()
             int iNextBeat = GetBeat( iNextBeatTick, iBeatType, iLastSignatureTick );
             bool bIsMeasure = !( ( iNextBeat < 0 ? -iNextBeat : iNextBeat ) % iBeatsPerMeasure );
             llNextBeatTime = GetTickTime( iNextBeatTick, iLastTempoTick, llLastTempoTime, iMicroSecsPerBeat ); 
-            float y = m_fNotesY + m_fNotesCY * ( 1.0f - static_cast< float >( llNextBeatTime - m_llRndStartTime ) / m_llTimeSpan );
+            float y = m_fNotesY + m_fNotesCY * ( 1.0f - ( (float)llNextBeatTime - m_fRndStartTime ) / m_llTimeSpan );
             y = floor( y + 0.5f );
             if ( bIsMeasure && y + 1.0f > m_fNotesY )
                 m_pRenderer->DrawRect( m_fNotesX, y - 1.0f, m_fNotesCX, 3.0f,
@@ -1392,7 +1394,7 @@ void MainScreen::RenderNote( int iPos )
 
     // Compute true positions
     float x = GetNoteX( iNote );
-    float y = m_fNotesY + m_fNotesCY * ( 1.0f - static_cast< float >( llNoteStart - m_llRndStartTime ) / m_llTimeSpan );
+    float y = m_fNotesY + m_fNotesCY * ( 1.0f - ( pNote->GetAbsMicroSecFloat() - m_fRndStartTime) / m_llTimeSpan );
     float cx =  MIDI::IsSharp( iNote ) ? m_fWhiteCX * SharpRatio : m_fWhiteCX;
     float cy = m_fNotesCY * ( static_cast< float >( llNoteEnd - llNoteStart ) / m_llTimeSpan );
     float fDeflate = m_fWhiteCX * 0.15f / 2.0f;
@@ -1417,10 +1419,13 @@ void MainScreen::RenderNote( int iPos )
         y = fMinY + cy;
     }
 
-    m_pRenderer->DrawRectBatch( x, y - cy, cx, cy, csTrack.iVeryDarkRGB );
-    m_pRenderer->DrawRectBatch( x + fDeflate, y - cy + fDeflate,
-                                cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
-                                csTrack.iPrimaryRGB, csTrack.iDarkRGB, csTrack.iDarkRGB, csTrack.iPrimaryRGB );
+    // this is forced to be interpreted as d3d9 so the function can be inlined
+    reinterpret_cast<D3D9Renderer*>(m_pRenderer)->DrawRectBatch( x, y - cy, cx, cy, csTrack.iVeryDarkRGB );
+    if (cy > 0.1) {
+        reinterpret_cast<D3D9Renderer*>(m_pRenderer)->DrawRectBatch(x + fDeflate, y - cy + fDeflate,
+            cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
+            csTrack.iPrimaryRGB, csTrack.iDarkRGB, csTrack.iDarkRGB, csTrack.iPrimaryRGB);
+    }
 }
 
 void MainScreen::GenNoteXTable() {
@@ -1634,7 +1639,7 @@ void MainScreen::RenderBorder()
 
 void MainScreen::RenderText()
 {
-    int iLines = 2;
+    int iLines = 4;
 
     // Screen info
     RECT rcStatus = { m_pRenderer->GetBufferWidth() - 156, 0, m_pRenderer->GetBufferWidth(), 6 + 16 * iLines };
@@ -1680,6 +1685,14 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
     TCHAR sFPS[128];
     _stprintf_s(sFPS, TEXT("%.1lf"), m_dFPS);
 
+    // Build state_map buckets text
+    TCHAR sStateBuckets[128];
+    _stprintf_s(sStateBuckets, TEXT("%llu"), state_map.bucket_count());
+
+    // Build vertex capacity text
+    TCHAR sVQCapacity[128];
+    _stprintf_s(sVQCapacity, TEXT("%llu"), batch_vertices.capacity());
+
 
     // Display the text
     InflateRect(prcStatus, -6, -3);
@@ -1697,6 +1710,20 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
     OffsetRect(prcStatus, -2, -1);
     m_pRenderer->DrawText(TEXT("FPS:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
     m_pRenderer->DrawText(sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
+
+    OffsetRect(prcStatus, 2, 16 + 1);
+    m_pRenderer->DrawText(TEXT("State Buckets:"), Renderer::Small, prcStatus, 0, 0xFF404040);
+    m_pRenderer->DrawText(sStateBuckets, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
+    OffsetRect(prcStatus, -2, -1);
+    m_pRenderer->DrawText(TEXT("State Buckets:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
+    m_pRenderer->DrawText(sStateBuckets, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
+
+    OffsetRect(prcStatus, 2, 16 + 1);
+    m_pRenderer->DrawText(TEXT("VQ Capacity:"), Renderer::Small, prcStatus, 0, 0xFF404040);
+    m_pRenderer->DrawText(sVQCapacity, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
+    OffsetRect(prcStatus, -2, -1);
+    m_pRenderer->DrawText(TEXT("VQ Capacity:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
+    m_pRenderer->DrawText(sVQCapacity, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
 }
 
 void MainScreen::RenderMessage(LPRECT prcMsg, TCHAR* sMsg)

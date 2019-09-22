@@ -12,6 +12,7 @@
 #include <Windows.h>
 #include <vector>
 #include <string>
+#include <map>
 using namespace std;
 
 #include "Misc.h"
@@ -33,6 +34,9 @@ class MIDIOutDevice;
 // MIDI File Classes
 //
 
+// lol global variable
+extern std::map<int, std::pair<std::vector<MIDIEvent*>::iterator, std::vector<MIDIEvent*>>> midi_map;
+
 class MIDIPos
 {
 public:
@@ -50,6 +54,7 @@ private:
     // Where are we in the file?
     MIDI &m_MIDI;
     vector< size_t > m_vTrackPos;
+    std::map<int, std::pair<std::vector<MIDIEvent*>::iterator, std::vector<MIDIEvent*>>>::iterator map_it = midi_map.begin();
 
     // Tempo variables
     bool m_bIsStandard;
@@ -196,7 +201,8 @@ public:
     int GetTrack() const { return m_iTrack; }
     int GetAbsT() const { return m_iAbsT; }
     long long GetAbsMicroSec() const { return m_llAbsMicroSec; }
-    void SetAbsMicroSec( long long llAbsMicroSec ) { m_llAbsMicroSec = llAbsMicroSec; }
+    float GetAbsMicroSecFloat() const { return m_fAbsMicroSec; }
+    void SetAbsMicroSec(long long llAbsMicroSec) { m_llAbsMicroSec = llAbsMicroSec; m_fAbsMicroSec = static_cast<float>(llAbsMicroSec); };
 
 protected:
     EventType m_eEventType;
@@ -204,6 +210,7 @@ protected:
     int m_iTrack;
     int m_iAbsT;
     long long m_llAbsMicroSec;
+    float m_fAbsMicroSec;
 };
 
 //Channel Event: notes and whatnot
