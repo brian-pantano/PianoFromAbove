@@ -66,6 +66,9 @@
     <ClInclude Include="tinyxml\tinyxml.h">
       <Filter>Header Files\TinyXML</Filter>
     </ClInclude>
+    <ClInclude Include="robin_hood.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PianoFromAbove.rc">

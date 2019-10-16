@@ -1008,7 +1008,7 @@ void MainScreen::UpdateState( int iPos )
     if ( eEventType == MIDIChannelEvent::NoteOn && iVelocity > 0 )
     {
         m_vState.push_back( iPos );
-        state_map[iPos] = m_vState.size() - 1;
+        state_map[pEvent] = m_vState.size() - 1;
         m_pNoteState[iNote] = iPos;
     }
     else
@@ -1019,12 +1019,12 @@ void MainScreen::UpdateState( int iPos )
             m_vState.clear();
         else {
             if (!m_vState.empty()) {
-                state_map[m_vState.back()] = state_map[pEvent->sister_idx];
-                m_vState[state_map[pEvent->sister_idx]] = m_vState.back();
+                state_map[m_vEvents[m_vState.back()]] = state_map[pEvent->GetSister()];
+                m_vState[state_map[pEvent->GetSister()]] = m_vState.back();
                 m_vState.pop_back();
             }
         }
-        state_map.erase(pEvent->sister_idx);
+        state_map.erase(pEvent->GetSister());
 
         vector<int>::reverse_iterator it = m_vState.rbegin();
         while (it != m_vState.rend())
@@ -1639,7 +1639,7 @@ void MainScreen::RenderBorder()
 
 void MainScreen::RenderText()
 {
-    int iLines = 4;
+    int iLines = 3;
 
     // Screen info
     RECT rcStatus = { m_pRenderer->GetBufferWidth() - 156, 0, m_pRenderer->GetBufferWidth(), 6 + 16 * iLines };
@@ -1685,10 +1685,6 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
     TCHAR sFPS[128];
     _stprintf_s(sFPS, TEXT("%.1lf"), m_dFPS);
 
-    // Build state_map buckets text
-    TCHAR sStateBuckets[128];
-    _stprintf_s(sStateBuckets, TEXT("%llu"), state_map.bucket_count());
-
     // Build vertex capacity text
     TCHAR sVQCapacity[128];
     _stprintf_s(sVQCapacity, TEXT("%llu"), batch_vertices.capacity());
@@ -1710,13 +1706,6 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
     OffsetRect(prcStatus, -2, -1);
     m_pRenderer->DrawText(TEXT("FPS:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
     m_pRenderer->DrawText(sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
-
-    OffsetRect(prcStatus, 2, 16 + 1);
-    m_pRenderer->DrawText(TEXT("State Buckets:"), Renderer::Small, prcStatus, 0, 0xFF404040);
-    m_pRenderer->DrawText(sStateBuckets, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
-    OffsetRect(prcStatus, -2, -1);
-    m_pRenderer->DrawText(TEXT("State Buckets:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
-    m_pRenderer->DrawText(sStateBuckets, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
 
     OffsetRect(prcStatus, 2, 16 + 1);
     m_pRenderer->DrawText(TEXT("VQ Capacity:"), Renderer::Small, prcStatus, 0, 0xFF404040);

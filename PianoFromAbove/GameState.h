@@ -12,7 +12,6 @@
 #include <Windows.h>
 #include <map>
 #include <string>
-#include <unordered_map>
 #include <functional>
 using namespace std;
 
@@ -20,6 +19,7 @@ using namespace std;
 #include "Renderer.h"
 #include "MIDI.h"
 #include "Misc.h"
+#include "robin_hood.h"
 
 //Abstract base class
 class GameState
@@ -139,14 +139,14 @@ public:
 
 class CustomHashFunc {
 public:
-    int operator() (int key) const {
-        return key;
+    unsigned operator() (MIDIChannelEvent* key) const {
+        return (uint64_t)key & 0xFFFFFFFF;
     }
 };
 
 class CustomKeyEqualFunc {
 public:
-    int operator() (int a, int b) const {
+    bool operator() (MIDIChannelEvent* a, MIDIChannelEvent* b) const {
         return a == b;
     }
 };
@@ -237,7 +237,7 @@ private:
     long long m_llStartTime, m_llTimeSpan;  // Times of the start and end events of the current window
     int m_iStartTick; // Tick that corresponds with m_llStartTime. Used to help with beat and metronome detection
     vector< int > m_vState;  // The notes that are on at time m_llStartTime.
-    unordered_map<int, int, CustomHashFunc, CustomKeyEqualFunc> state_map;
+    robin_hood::unordered_map<MIDIChannelEvent*, int, CustomHashFunc, CustomKeyEqualFunc> state_map;
     int m_pNoteState[128]; // The last note that was turned on
     double m_dSpeed; // Speed multiplier
     bool m_bPaused; // Paused state
