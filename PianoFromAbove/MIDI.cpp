@@ -8,9 +8,14 @@
 *
 *************************************************************************************************/
 #include "MIDI.h"
+#include "robin_hood.h"
 #include <fstream>
 
-std::map<int, std::pair<std::vector<MIDIEvent*>::iterator, std::vector<MIDIEvent*>>> midi_map;
+//std::map<int, std::pair<std::vector<MIDIEvent*>::iterator, std::vector<MIDIEvent*>>> midi_map;
+
+robin_hood::unordered_map<int, std::pair<std::vector<MIDIEvent*>::iterator, std::vector<MIDIEvent*>>> midi_map;
+std::vector<int> midi_map_times;
+size_t midi_map_times_pos = 0;
 
 //-----------------------------------------------------------------------------
 // MIDIPos functions
@@ -58,11 +63,20 @@ int MIDIPos::GetNextEvent( int iMicroSecs, MIDIEvent **pOutEvent )
     // Get the next closest event
     MIDIEvent *pMinEvent = NULL;
 
+    /*
     if (map_it != midi_map.end()) {
         auto& pair = map_it->second;
         pMinEvent = *pair.first;
         if (++pair.first == pair.second.end())
             map_it++;
+    }
+    */
+
+    if (midi_map_times_pos != midi_map_times.size() - 1) {
+        auto& pair = midi_map[midi_map_times[midi_map_times_pos]];
+        pMinEvent = *pair.first;
+        if (++pair.first == pair.second.end())
+            midi_map_times_pos++;
     }
 
     // No min found. We're at the end of file
@@ -282,6 +296,8 @@ void MIDI::clear( void )
     m_vTracks.clear();
     m_Info.clear();
     midi_map.clear();
+    midi_map_times.clear();
+    midi_map_times_pos = 0;
 }
 
 int MIDI::ParseMIDI( const unsigned char *pcData, size_t iMaxSize )
@@ -450,6 +466,8 @@ void MIDI::PostProcess( vector< MIDIEvent* > *vEvents )
     m_Info.llFirstNote = max( 0LL, llFirstNote );
 
     midi_map.clear();
+    midi_map_times.clear();
+    midi_map_times_pos = 0;
 }
 
 void MIDI::ConnectNotes()
@@ -567,6 +585,8 @@ size_t MIDITrack::ParseEvents( const unsigned char *pcData, size_t iMaxSize, int
     while ( iMaxSize - iTotal > 0 && iCount > 0 &&
             ( pEvent->GetEventType() != MIDIEvent::MetaEvent ||
               reinterpret_cast< MIDIMetaEvent* >( pEvent )->GetMetaEventType() != MIDIMetaEvent::EndOfTrack ) );
+
+    std::sort(midi_map_times.begin(), midi_map_times.end());
 
     return iTotal;
 }
@@ -700,7 +720,9 @@ int MIDIEvent::MakeNextEvent( const unsigned char *pcData, size_t iMaxSize, int 
 
     auto& key = midi_map[(*pOutEvent)->m_iAbsT];
     key.second.push_back(*pOutEvent);
-    key.first = midi_map[(*pOutEvent)->m_iAbsT].second.begin();
+    key.first = key.second.begin();
+    if (key.second.size() == 1)
+        midi_map_times.push_back((*pOutEvent)->m_iAbsT);
 
     return iTotal;
 }

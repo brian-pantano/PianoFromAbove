@@ -16,6 +16,7 @@
 using namespace std;
 
 #include "Misc.h"
+#include "robin_hood.h"
 
 //Classes defined in this file
 class MIDI;
@@ -35,7 +36,9 @@ class MIDIOutDevice;
 //
 
 // lol global variable
-extern std::map<int, std::pair<std::vector<MIDIEvent*>::iterator, std::vector<MIDIEvent*>>> midi_map;
+extern robin_hood::unordered_map<int, std::pair<std::vector<MIDIEvent*>::iterator, std::vector<MIDIEvent*>>> midi_map;
+extern std::vector<int> midi_map_times;
+extern size_t midi_map_times_pos;
 
 class MIDIPos
 {
@@ -54,7 +57,6 @@ private:
     // Where are we in the file?
     MIDI &m_MIDI;
     vector< size_t > m_vTrackPos;
-    std::map<int, std::pair<std::vector<MIDIEvent*>::iterator, std::vector<MIDIEvent*>>>::iterator map_it = midi_map.begin();
 
     // Tempo variables
     bool m_bIsStandard;
