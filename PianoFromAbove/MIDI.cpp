@@ -432,6 +432,7 @@ void MIDI::PostProcess( vector< MIDIEvent* > *vEvents )
         if ( pEvent->GetEventType() == MIDIEvent::ChannelEvent )
         {
             MIDIChannelEvent *pChannelEvent = reinterpret_cast< MIDIChannelEvent* >( pEvent );
+            pChannelEvent->SetSimultaneous(iSimultaneous);
             if ( pChannelEvent->GetSister() )
             {
                 if ( pChannelEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
@@ -475,8 +476,8 @@ void MIDI::ConnectNotes()
     //const int StackSize = 10;
     int pSize[16][128];
     //MIDIChannelEvent *pStacks[16][128][StackSize];
-    const auto track_count = GetInfo().iNumTracks;
-    MIDIChannelEvent** pStacks = new MIDIChannelEvent*[16 * 128 * track_count];
+    const auto track_count = m_vTracks.size();
+    MIDIChannelEvent** pStacks = new MIDIChannelEvent*[16 * 128 * track_count * 16];
 
     for ( vector< MIDITrack* >::iterator itTrack = m_vTracks.begin(); itTrack != m_vTracks.end(); ++itTrack )
     {
@@ -503,7 +504,7 @@ void MIDI::ConnectNotes()
                     int &iSize = pSize[iChannel][iNote];
                     if ( iSize > 0 )
                     {
-                        if ( iSize <= track_count) pStacks[((((iSize - 1) * track_count) + iChannel) * 16) + iNote]->SetSister( pEvent );
+                        if ( iSize <= track_count) pStacks[(((((size_t)iSize - 1) * track_count) + iChannel) * 16) + iNote]->SetSister( pEvent );
                         iSize--;
                     }
                 }
@@ -715,6 +716,7 @@ int MIDIEvent::MakeNextEvent( const unsigned char *pcData, size_t iMaxSize, int 
     (*pOutEvent)->m_eEventType = eEventType;
     (*pOutEvent)->m_iEventCode = iEventCode;
     (*pOutEvent)->m_iTrack = iTrack;
+    (*pOutEvent)->m_iDT = iDT;
     (*pOutEvent)->m_iAbsT = iDT;
     if ( pPrevEvent ) (*pOutEvent)->m_iAbsT += pPrevEvent->m_iAbsT;
 

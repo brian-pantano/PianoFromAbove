@@ -507,7 +507,6 @@ MainScreen::MainScreen( wstring sMIDIFile, State eGameMode, HWND hWnd, Renderer 
     // Allocate
     m_vTrackSettings.resize( m_MIDI.GetInfo().iNumTracks );
     m_vState.reserve( 128 );
-    state_map.reserve(32768);
 
     // Initialize
     InitNoteMap( vEvents ); // Longish
@@ -519,12 +518,23 @@ void MainScreen::InitNoteMap( const vector< MIDIEvent* > &vEvents )
 {
     //Get only the channel events
     m_vEvents.reserve( vEvents.size() );
+    m_vNoteOns.reserve(vEvents.size() / 2); 
     for ( vector< MIDIEvent* >::const_iterator it = vEvents.begin(); it != vEvents.end(); ++it )
         if ( (*it)->GetEventType() == MIDIEvent::ChannelEvent )
         {
             MIDIChannelEvent *pEvent = reinterpret_cast< MIDIChannelEvent* >( *it );
             m_vEvents.push_back( pEvent );
 
+            // Makes random access to the song faster, but unsure if it's worth it
+            MIDIChannelEvent::ChannelEventType eEventType = pEvent->GetChannelEventType();
+            if (eEventType == MIDIChannelEvent::NoteOn && pEvent->GetParam2() > 0 && pEvent->GetSister())
+                m_vNoteOns.push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), m_vEvents.size() - 1));
+            else
+            {
+                m_vNonNotes.push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), m_vEvents.size() - 1));
+                if (eEventType == MIDIChannelEvent::ProgramChange || eEventType == MIDIChannelEvent::Controller)
+                    m_vProgramChange.push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), m_vEvents.size() - 1));
+            }
             if (pEvent->GetSister())
                 pEvent->GetSister()->sister_idx = m_vEvents.size() - 1;
         }
@@ -606,7 +616,7 @@ GameState::GameError MainScreen::Init()
     m_OutDevice.SetVolume( 1.0 );
     if (m_Timer.m_bManualTimer)
         m_Timer.SetFrameRate(60);
-    batch_vertices.reserve(m_MIDI.GetInfo().iNoteCount * 4);
+    //batch_vertices.reserve(m_MIDI.GetInfo().iNoteCount * 4);
     return Success;
 }
 
@@ -709,6 +719,16 @@ GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LP
                 case ID_CHANGESTATE:
                     m_pNextState = reinterpret_cast< GameState* >( lParam );
                     return Success;
+                case ID_PLAY_STOP:
+                    JumpTo(GetMinTime());
+                    cPlayback.SetStopped(true);
+                    return Success;
+                case ID_PLAY_SKIPFWD:
+                    JumpTo(static_cast<long long>(m_llStartTime + cControls.dFwdBackSecs * 1000000));
+                    return Success;
+                case ID_PLAY_SKIPBACK:
+                    JumpTo(static_cast<long long>(m_llStartTime - cControls.dFwdBackSecs * 1000000));
+                    return Success;
                 case ID_VIEW_RESETDEVICE:
                     m_pRenderer->ResetDevice();
                     return Success;
@@ -754,6 +774,10 @@ GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LP
                 case VK_SPACE:
                     cPlayback.TogglePaused( true );
                     return Success;
+                case VK_OEM_PERIOD:
+                    JumpTo(GetMinTime());
+                    cPlayback.SetStopped(true);
+                    return Success;
                 case VK_UP:
                     if ( bAlt && !bCtrl )
                         cPlayback.SetVolume( min( cPlayback.GetVolume() + 0.1, 1.0 ), true );
@@ -773,6 +797,12 @@ GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LP
                 case 'R':
                     cPlayback.SetSpeed( 1.0, true );
                     return Success;
+                case VK_LEFT:
+                    JumpTo(static_cast<long long>(m_llStartTime - cControls.dFwdBackSecs * 1000000));
+                    return Success;
+                case VK_RIGHT:
+                    JumpTo(static_cast<long long>(m_llStartTime + cControls.dFwdBackSecs * 1000000));
+                    return Success;
                 case 'M':
                     cPlayback.ToggleMute( true );
                     return Success;
@@ -783,6 +813,13 @@ GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LP
             if ( cAudio.iOutDevice >= 0 && m_OutDevice.GetDevice() != cAudio.vMIDIOutDevices[cAudio.iOutDevice] )
                 m_OutDevice.Open( cAudio.iOutDevice );
             break;
+        case TBM_SETPOS:
+        {
+            long long llFirstTime = GetMinTime();
+            long long llLastTime = GetMaxTime();
+            JumpTo(llFirstTime + ((llLastTime - llFirstTime) * lParam) / 1000, false);
+            break;
+        }
         case WM_LBUTTONDOWN:
         {
             if ( m_bZoomMove )
@@ -992,6 +1029,52 @@ GameState::GameError MainScreen::Logic( void )
     return Success;
 }
 
+// https://github.com/WojciechMula/simd-search/blob/master/sse-binsearch-block.cpp
+int sse_bin_search(const std::vector<int>& data, int key) {
+
+    const __m128i keys = _mm_set1_epi32(key);
+    __m128i v;
+
+    int limit = data.size() - 1;
+    int a = 0;
+    int b = limit;
+
+    while (a <= b) {
+        const int c = (a + b) / 2;
+
+        if (data[c] == key) {
+            return c;
+        }
+
+        if (key < data[c]) {
+            b = c - 1;
+
+            if (b >= 4) {
+                v = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&data[b - 4]));
+                v = _mm_cmpeq_epi32(v, keys);
+                const uint16_t mask = _mm_movemask_epi8(v);
+                if (mask) {
+                    return b - 4 + __builtin_ctz(mask) / 4;
+                }
+            }
+        }
+        else {
+            a = c + 1;
+
+            if (a + 4 < limit) {
+                v = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&data[a]));
+                v = _mm_cmpeq_epi32(v, keys);
+                const uint16_t mask = _mm_movemask_epi8(v);
+                if (mask) {
+                    return a + __builtin_ctz(mask) / 4;
+                }
+            }
+        }
+    }
+
+    return -1;
+}
+
 void MainScreen::UpdateState( int iPos )
 {
     // Event data
@@ -1004,38 +1087,161 @@ void MainScreen::UpdateState( int iPos )
     int iNote = pEvent->GetParam1();
     int iVelocity = pEvent->GetParam2();
 
+    int iSisterIdx = pEvent->sister_idx;
+
     // Turn note on
     if ( eEventType == MIDIChannelEvent::NoteOn && iVelocity > 0 )
     {
         m_vState.push_back( iPos );
-        state_map[pEvent] = m_vState.size() - 1;
         m_pNoteState[iNote] = iPos;
     }
     else
     {
         m_pNoteState[iNote] = -1;
 
-        if (m_vState.size() == 1)
-            m_vState.clear();
-        else {
-            if (!m_vState.empty()) {
-                state_map[m_vEvents[m_vState.back()]] = state_map[pEvent->GetSister()];
-                m_vState[state_map[pEvent->GetSister()]] = m_vState.back();
-                m_vState.pop_back();
-            }
-        }
-        state_map.erase(pEvent->GetSister());
-
-        vector<int>::reverse_iterator it = m_vState.rbegin();
-        while (it != m_vState.rend())
         {
-            if (m_vEvents[*it]->GetParam1() == iNote) {
-                m_pNoteState[iNote] = *it;
-                break;
+            /*
+            vector<int>::iterator it = m_vState.begin();
+            MIDIChannelEvent* pSearch = pEvent->GetSister();
+            while (it != m_vState.end())
+            {
+                if (*it == iSisterIdx) {
+                    m_vState.erase(it);
+                    break;
+                }
+                ++it;
             }
-            ++it;
+            */
+            // binary search
+            //m_vState.erase(std::lower_bound(m_vState.begin(), m_vState.end(), iSisterIdx));
+            auto pos = sse_bin_search(m_vState, iSisterIdx);
+            if (pos != -1)
+                m_vState.erase(m_vState.begin() + pos);
+        }
+
+        {
+            vector<int>::reverse_iterator it = m_vState.rbegin();
+            while (it != m_vState.rend())
+            {
+                if (m_vEvents[*it]->GetParam1() == iNote) {
+                    m_pNoteState[iNote] = *it;
+                    break;
+                }
+                ++it;
+            }
         }
     }
+}
+
+void MainScreen::JumpTo(long long llStartTime, bool bUpdateGUI)
+{
+    // Kill the music!
+    m_OutDevice.AllNotesOff();
+
+    // Start time. Piece of cake!
+    long long llFirstTime = GetMinTime();
+    long long llLastTime = GetMaxTime();
+    m_llStartTime = min(max(llStartTime, llFirstTime), llLastTime);
+    long long llEndTime = m_llStartTime + m_llTimeSpan;
+
+    // Start position and current state: hard!
+    eventvec_t::iterator itBegin = m_vNoteOns.begin();
+    eventvec_t::iterator itEnd = m_vNoteOns.end();
+    // Want lower bound to minimize simultaneous complexity
+    eventvec_t::iterator itMiddle = lower_bound(itBegin, itEnd, pair< long long, int >(llStartTime, 0));
+
+    // Start position
+    m_iStartPos = (int)m_vEvents.size();
+    if (itMiddle != itEnd && itMiddle->second < m_iStartPos)
+        m_iStartPos = itMiddle->second;
+    eventvec_t::iterator itNonNote = lower_bound(m_vNonNotes.begin(), m_vNonNotes.end(), pair< long long, int >(llStartTime, 0));
+    if (itNonNote != m_vNonNotes.end() && itNonNote->second < m_iStartPos)
+        m_iStartPos = itNonNote->second;
+
+    // Find the notes that occur simultaneously with the previous note on
+    m_vState.clear();
+    memset(m_pNoteState, -1, sizeof(m_pNoteState));
+    if (itMiddle != itBegin)
+    {
+        eventvec_t::iterator itPrev = itMiddle - 1;
+        int iFound = 0;
+        int iSimultaneous = m_vEvents[itPrev->second]->GetSimultaneous() + 1;
+        for (eventvec_t::reverse_iterator it(itMiddle); iFound < iSimultaneous && it != m_vNoteOns.rend(); ++it)
+        {
+            MIDIChannelEvent* pEvent = m_vEvents[it->second];
+            MIDIChannelEvent* pSister = pEvent->GetSister();
+            if (pSister->GetAbsMicroSec() > itPrev->first) // > because itMiddle is the max for its time
+                iFound++;
+            if (pSister->GetAbsMicroSec() > llStartTime) // > because we don't care about simultaneous ending notes
+            {
+                m_vState.push_back(it->second);
+                if (m_pNoteState[pEvent->GetParam1()] < 0)
+                    m_pNoteState[pEvent->GetParam1()] = it->second;
+            }
+        }
+        reverse(m_vState.begin(), m_vState.end());
+    }
+
+    // End position: a little tricky. Same as logic code. Only needed for paused jumping.
+    m_iEndPos = m_iStartPos - 1;
+    int iEventCount = (int)m_vEvents.size();
+    while (m_iEndPos + 1 < iEventCount && m_vEvents[m_iEndPos + 1]->GetAbsMicroSec() < llEndTime)
+        m_iEndPos++;
+
+    // Input position, iterators, tick
+    eventvec_t::const_iterator itOldProgramChange = m_itNextProgramChange;
+    AdvanceIterators(llStartTime, true);
+    PlaySkippedEvents(itOldProgramChange);
+    m_iStartTick = GetCurrentTick(m_llStartTime);
+
+    if (bUpdateGUI)
+    {
+        static PlaybackSettings& cPlayback = Config::GetConfig().GetPlaybackSettings();
+        long long llNewPos = ((m_llStartTime - llFirstTime) * 1000) / (llLastTime - llFirstTime);
+        cPlayback.SetPosition(static_cast<int>(llNewPos));
+    }
+}
+
+// Plays skipped program change and controller events. Only plays the one's needed.
+// Linear search assumes a small number of events in the file. Better than 128 maps :/
+void MainScreen::PlaySkippedEvents(eventvec_t::const_iterator itOldProgramChange)
+{
+    if (itOldProgramChange == m_itNextProgramChange)
+        return;
+
+    // Lookup tables to see if we've got an event for a given control or program. faster than map or hash_map.
+    bool aControl[16][128], aProgram[16];
+    memset(aControl, 0, sizeof(aControl));
+    memset(aProgram, 0, sizeof(aProgram));
+
+    // Go from one before the next to the beginning backwards. iterators are so verbose :/
+    vector< MIDIChannelEvent* > vControl;
+    eventvec_t::const_reverse_iterator itBegin = eventvec_t::const_reverse_iterator(m_itNextProgramChange);
+    eventvec_t::const_reverse_iterator itEnd = m_vProgramChange.rend();
+    if (itOldProgramChange < m_itNextProgramChange) itEnd = eventvec_t::const_reverse_iterator(itOldProgramChange);
+
+    for (eventvec_t::const_reverse_iterator it = itBegin; it != itEnd; ++it)
+    {
+        MIDIChannelEvent* pEvent = m_vEvents[it->second];
+        // Order matters because some events affect others, thus store for later use
+        if (pEvent->GetChannelEventType() == MIDIChannelEvent::Controller &&
+            !aControl[pEvent->GetChannel()][pEvent->GetParam1()])
+        {
+            aControl[pEvent->GetChannel()][pEvent->GetParam1()] = true;
+            vControl.push_back(m_vEvents[it->second]);
+        }
+        // Order doesn't matter. Just play as you go by.
+        else if (pEvent->GetChannelEventType() == MIDIChannelEvent::ProgramChange &&
+            !aProgram[pEvent->GetChannel()])
+        {
+            aProgram[pEvent->GetChannel()] = true;
+            m_OutDevice.PlayEvent(pEvent->GetEventCode(), pEvent->GetParam1(), pEvent->GetParam2());
+        }
+    }
+
+    // Finally play the controller events. vControl is in reverse time order
+    for (vector< MIDIChannelEvent* >::reverse_iterator it = vControl.rbegin(); it != vControl.rend(); ++it)
+        m_OutDevice.PlayEvent((*it)->GetEventCode(), (*it)->GetParam1(), (*it)->GetParam2());
 }
 
 // Advance program change, tempo, and signature
