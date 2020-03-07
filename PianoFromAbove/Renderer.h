@@ -93,10 +93,13 @@ public:
     HRESULT EndText();
     HRESULT DrawRect( float x, float y, float cx, float cy, DWORD color );
     static inline HRESULT DrawRectBatch(float x, float y, float cx, float cy, DWORD color);
+    static inline void GenRect(float x, float y, float cx, float cy, DWORD color, SCREEN_VERTEX* v);
     HRESULT DrawRect( float x, float y, float cx, float cy,
                       DWORD c1, DWORD c2, DWORD c3, DWORD c4 );
     static inline HRESULT DrawRectBatch(float x, float y, float cx, float cy,
                                  DWORD c1, DWORD c2, DWORD c3, DWORD c4);
+    static inline void GenRect(float x, float y, float cx, float cy,
+        DWORD c1, DWORD c2, DWORD c3, DWORD c4, SCREEN_VERTEX* v);
     HRESULT DrawSkew( float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, DWORD color );
     HRESULT DrawSkew( float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4,
                       DWORD c1, DWORD c2, DWORD c3, DWORD c4 );
@@ -158,4 +161,28 @@ inline HRESULT D3D9Renderer::DrawRectBatch(float x, float y, float cx, float cy,
 inline HRESULT D3D9Renderer::DrawRectBatch(float x, float y, float cx, float cy, DWORD color)
 {
     return DrawRectBatch(x, y, cx, cy, color, color, color, color);
+}
+
+inline void D3D9Renderer::GenRect(float x, float y, float cx, float cy,
+    DWORD c1, DWORD c2, DWORD c3, DWORD c4, SCREEN_VERTEX* v)
+{
+    x -= 0.5f;
+    y -= 0.5f;
+
+    SCREEN_VERTEX vertices[6] =
+    {
+        x,  y,            0.5f, 1.0f, c1,
+        x + cx, y,        0.5f, 1.0f, c2,
+        x + cx, y + cy,   0.5f, 1.0f, c3,
+        x,  y,            0.5f, 1.0f, c1,
+        x + cx, y + cy,   0.5f, 1.0f, c3,
+        x,  y + cy,       0.5f, 1.0f, c4
+    };
+
+    memcpy(v, vertices, sizeof(vertices));
+}
+
+inline void D3D9Renderer::GenRect(float x, float y, float cx, float cy, DWORD color, SCREEN_VERTEX* vertices)
+{
+    GenRect(x, y, cx, cy, color, color, color, color, vertices);
 }

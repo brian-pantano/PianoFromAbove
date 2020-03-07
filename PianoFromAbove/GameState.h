@@ -151,6 +151,11 @@ public:
     }
 };
 
+typedef struct {
+    size_t queue_pos; // where to write the generated vertex data
+    const MIDIChannelEvent* note;
+} thread_work_t;
+
 class MainScreen : public GameState
 {
 public:
@@ -209,7 +214,7 @@ private:
     void RenderGlobals();
     void RenderLines();
     void RenderNotes();
-    void RenderNote( int iPos );
+    void RenderNote(thread_work_t& work);
     void GenNoteXTable();
     float GetNoteX( int iNote );
     void RenderKeys();
@@ -265,6 +270,7 @@ private:
     ChannelSettings m_csBackground;
     ChannelSettings m_csKBRed, m_csKBWhite, m_csKBSharp, m_csKBBackground;
     vector< TrackSettings > m_vTrackSettings;
+    vector< thread_work_t > m_vThreadWork;
 
     float m_fZoomX, m_fOffsetX, m_fOffsetY;
     float m_fTempZoomX, m_fTempOffsetX, m_fTempOffsetY;

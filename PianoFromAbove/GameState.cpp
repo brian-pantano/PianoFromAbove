@@ -10,6 +10,7 @@
 *************************************************************************************************/
 #include <algorithm>
 #include <tchar.h>
+#include <ppl.h>
 
 #include "Globals.h"
 #include "GameState.h"
@@ -1100,23 +1101,17 @@ void MainScreen::UpdateState( int iPos )
         m_pNoteState[iNote] = -1;
 
         {
-            /*
-            vector<int>::iterator it = m_vState.begin();
-            MIDIChannelEvent* pSearch = pEvent->GetSister();
-            while (it != m_vState.end())
-            {
-                if (*it == iSisterIdx) {
-                    m_vState.erase(it);
-                    break;
-                }
-                ++it;
-            }
-            */
             // binary search
-            //m_vState.erase(std::lower_bound(m_vState.begin(), m_vState.end(), iSisterIdx));
             auto pos = sse_bin_search(m_vState, iSisterIdx);
-            if (pos != -1)
+            if (pos != -1) {
                 m_vState.erase(m_vState.begin() + pos);
+            } else {
+                // this should be impossible, but still happens in some cases
+                // nuke all notes from that note, nobody will ever notice
+                m_vState.erase(std::remove_if(m_vState.begin(), m_vState.end(), [&](int x) {
+                    return m_vEvents[x]->GetParam1() == iNote;
+                }));
+            }
         }
 
         {
@@ -1547,48 +1542,68 @@ void MainScreen::RenderNotes()
 
     // Render notes. Regular notes then sharps to  make sure they're not hidden
     bool bHasSharp = false;
-    for ( vector< int >::iterator it = m_vState.begin(); it != m_vState.end(); ++it )
-        if ( !MIDI::IsSharp( m_vEvents[*it]->GetParam1() ) )
-            RenderNote( *it );
-        else
+    size_t queue_pos = batch_vertices.size();
+    for (vector< int >::iterator it = m_vState.begin(); it != m_vState.end(); ++it)
+        if (!MIDI::IsSharp(m_vEvents[*it]->GetParam1())) {
+            const thread_work_t work{ queue_pos, m_vEvents[*it] };
+            m_vThreadWork.push_back(work);
+            queue_pos += 12;
+        } else {
             bHasSharp = true;
+        }
 
-    for ( int i = m_iStartPos; i <= m_iEndPos; i++ )
+    for (int i = m_iStartPos; i <= m_iEndPos; i++)
     {
-        MIDIChannelEvent *pEvent = m_vEvents[i];
-        if ( pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
-             pEvent->GetParam2() > 0 && pEvent->GetSister() )
+        MIDIChannelEvent* pEvent = m_vEvents[i];
+        if (pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
+            pEvent->GetParam2() > 0 && pEvent->GetSister())
         {
-            if ( !MIDI::IsSharp( pEvent->GetParam1() ) )
-                RenderNote( i );
-            else
+            if (!MIDI::IsSharp(pEvent->GetParam1())) {
+                const thread_work_t work{ queue_pos, pEvent };
+                m_vThreadWork.push_back(work);
+                queue_pos += 12;
+            } 
+            else {
                 bHasSharp = true;
+            }
         }
     }
 
     // Do it all again, but only for the sharps
-    if ( bHasSharp )
+    if (bHasSharp)
     {
-        for ( vector< int >::iterator it = m_vState.begin(); it != m_vState.end(); ++it )
-            if ( MIDI::IsSharp( m_vEvents[*it]->GetParam1() ) )
-                RenderNote( *it );
+        for (vector< int >::iterator it = m_vState.begin(); it != m_vState.end(); ++it)
+            if (MIDI::IsSharp(m_vEvents[*it]->GetParam1())) {
+                const thread_work_t work{ queue_pos, m_vEvents[*it] };
+                m_vThreadWork.push_back(work);
+                queue_pos += 12;
+            }
 
-        for ( int i = m_iStartPos; i <= m_iEndPos; i++ )
+        for (int i = m_iStartPos; i <= m_iEndPos; i++)
         {
-            MIDIChannelEvent *pEvent = m_vEvents[i];
-            if ( pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
-                 pEvent->GetParam2() > 0 && pEvent->GetSister() &&
-                 MIDI::IsSharp( pEvent->GetParam1() ) )
-                RenderNote( i );                
+            MIDIChannelEvent* pEvent = m_vEvents[i];
+            if (pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
+                pEvent->GetParam2() > 0 && pEvent->GetSister() &&
+                MIDI::IsSharp(pEvent->GetParam1())) {
+                const thread_work_t work{ queue_pos, pEvent };
+                m_vThreadWork.push_back(work);
+                queue_pos += 12;
+            }
         }
     }
+    batch_vertices.resize(queue_pos + 12);
+
+    concurrency::parallel_for_each(m_vThreadWork.begin(), m_vThreadWork.end(), [&](thread_work_t& work) {
+        RenderNote(work);
+    });
 
     m_pRenderer->RenderBatch();
+    m_vThreadWork.clear();
 }
 
-void MainScreen::RenderNote( int iPos )
+void MainScreen::RenderNote( thread_work_t& work )
 {
-    const MIDIChannelEvent *pNote = m_vEvents[iPos];
+    const MIDIChannelEvent* pNote = work.note;
     int iNote = pNote->GetParam1();
     int iTrack = pNote->GetTrack();
     int iChannel = pNote->GetChannel();
@@ -1626,12 +1641,10 @@ void MainScreen::RenderNote( int iPos )
     }
 
     // this is forced to be interpreted as d3d9 so the function can be inlined
-    reinterpret_cast<D3D9Renderer*>(m_pRenderer)->DrawRectBatch( x, y - cy, cx, cy, csTrack.iVeryDarkRGB );
-    if (cy > 0.1) {
-        reinterpret_cast<D3D9Renderer*>(m_pRenderer)->DrawRectBatch(x + fDeflate, y - cy + fDeflate,
-            cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
-            csTrack.iPrimaryRGB, csTrack.iDarkRGB, csTrack.iDarkRGB, csTrack.iPrimaryRGB);
-    }
+    reinterpret_cast<D3D9Renderer*>(m_pRenderer)->GenRect(x, y - cy, cx, cy, csTrack.iVeryDarkRGB, &batch_vertices[work.queue_pos]);
+    reinterpret_cast<D3D9Renderer*>(m_pRenderer)->GenRect(x + fDeflate, y - cy + fDeflate,
+        cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
+        csTrack.iPrimaryRGB, csTrack.iDarkRGB, csTrack.iDarkRGB, csTrack.iPrimaryRGB, &batch_vertices[work.queue_pos + 6]);
 }
 
 void MainScreen::GenNoteXTable() {
