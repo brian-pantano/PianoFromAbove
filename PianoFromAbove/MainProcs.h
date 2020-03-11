@@ -34,6 +34,9 @@ VOID MoveThumbPosition( int iPositionNew, int &iPosition, HWND hWnd, RECT *rcCha
 
 INT_PTR WINAPI AboutProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 
+extern size_t vq_capacity_proc_res;
+INT_PTR WINAPI VQCapacityProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 VOID HandOffMsg( UINT msg, WPARAM wParam, LPARAM lParam );
 VOID ShowControls( BOOL bShow );
 VOID ShowKeyboard( BOOL bShow );

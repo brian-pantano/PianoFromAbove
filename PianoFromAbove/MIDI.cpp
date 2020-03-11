@@ -176,6 +176,18 @@ MIDI::~MIDI( void )
     clear();
 }
 
+#define EVENT_POOL_MAX 1000000
+MIDIChannelEvent* MIDI::AllocChannelEvent() {
+    if (event_pools.size() == 0 || event_pools.back().size() == EVENT_POOL_MAX) {
+        event_pools.emplace_back();
+        event_pools.back().reserve(EVENT_POOL_MAX);
+    }
+    auto& pool = event_pools.back();
+    pool.emplace_back();
+    return &pool.back();
+}
+
+
 const wstring MIDI::Instruments[129] =
 {
     L"Acoustic Grand Piano", L"Bright Acoustic Piano", L"Electric Grand Piano", L"Honky-tonk Piano", L"Electric Piano 1", 
@@ -298,6 +310,7 @@ void MIDI::clear( void )
     midi_map.clear();
     midi_map_times.clear();
     midi_map_times_pos = 0;
+    event_pools.clear();
 }
 
 int MIDI::ParseMIDI( const unsigned char *pcData, size_t iMaxSize )
@@ -337,7 +350,7 @@ int MIDI::ParseTracks( const unsigned char *pcData, size_t iMaxSize )
     do
     {
         // Create and parse the track
-        MIDITrack *track = new MIDITrack();
+        MIDITrack *track = new MIDITrack(this);
         iCount = track->ParseTrack( pcData + iTotal, iMaxSize - iTotal, iTrack++ );
 
         // If Success, add it to the list
@@ -359,7 +372,7 @@ int MIDI::ParseTracks( const unsigned char *pcData, size_t iMaxSize )
 int MIDI::ParseEvents( const unsigned char *pcData, size_t iMaxSize )
 {
     // Create and parse the track
-    MIDITrack *track = new MIDITrack();
+    MIDITrack *track = new MIDITrack(this);
     int iCount = track->ParseEvents( pcData, iMaxSize, static_cast< int >( m_vTracks.size() ) );
 
     // If Success, add it to the list
@@ -519,6 +532,8 @@ void MIDI::ConnectNotes()
 // MIDITrack functions
 //-----------------------------------------------------------------------------
 
+MIDITrack::MIDITrack(MIDI* midi) : m_midi(midi) {};
+
 MIDITrack::~MIDITrack( void )
 {
     clear();
@@ -526,8 +541,11 @@ MIDITrack::~MIDITrack( void )
 
 void MIDITrack::clear( void )
 {
-    for ( auto it = m_vEvents.begin(); it != m_vEvents.end(); ++it )
-        delete *it;
+    // TODO: this is fucking awful
+    for (auto it = m_vEvents.begin(); it != m_vEvents.end(); ++it) {
+        if ((*it)->GetEventType() != MIDIEvent::EventType::ChannelEvent)
+            delete* it;
+    }
     m_vEvents.clear();
     m_TrackInfo.clear();
 }
@@ -568,7 +586,7 @@ size_t MIDITrack::ParseEvents( const unsigned char *pcData, size_t iMaxSize, int
     {
         // Create and parse the event
         iCount = 0;
-        iDTCode = MIDIEvent::MakeNextEvent( pcData + iTotal, iMaxSize - iTotal, iTrack, &pEvent );
+        iDTCode = MIDIEvent::MakeNextEvent( m_midi, pcData + iTotal, iMaxSize - iTotal, iTrack, &pEvent );
         if ( iDTCode > 0 )
         {
             iCount = pEvent->ParseEvent( pcData + iDTCode + iTotal, iMaxSize - iDTCode - iTotal );
@@ -683,7 +701,7 @@ MIDIEvent::EventType MIDIEvent::DecodeEventType( int iEventCode )
     return MetaEvent;
 }
 
-int MIDIEvent::MakeNextEvent( const unsigned char *pcData, size_t iMaxSize, int iTrack, MIDIEvent **pOutEvent )
+int MIDIEvent::MakeNextEvent( MIDI* midi, const unsigned char *pcData, size_t iMaxSize, int iTrack, MIDIEvent **pOutEvent )
 {
     MIDIEvent *pPrevEvent = *pOutEvent;
 
@@ -708,7 +726,7 @@ int MIDIEvent::MakeNextEvent( const unsigned char *pcData, size_t iMaxSize, int 
     // Make the object
     switch ( eEventType )
     {
-        case ChannelEvent: *pOutEvent = new MIDIChannelEvent(); break;
+        case ChannelEvent: *pOutEvent = midi->AllocChannelEvent(); break;
         case MetaEvent: *pOutEvent = new MIDIMetaEvent(); break;
         case SysExEvent: *pOutEvent = new MIDISysExEvent(); break;
     }

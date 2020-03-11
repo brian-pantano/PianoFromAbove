@@ -618,6 +618,10 @@ GameState::GameError MainScreen::Init()
     if (m_Timer.m_bManualTimer)
         m_Timer.SetFrameRate(60);
     //batch_vertices.reserve(m_MIDI.GetInfo().iNoteCount * 4);
+
+    INT_PTR iDlgResult = DialogBox(g_hInstance, MAKEINTRESOURCE(IDD_VQPREALLOC), g_hWnd, VQCapacityProc);
+    if (iDlgResult == IDOK)
+        batch_vertices.reserve(vq_capacity_proc_res);
     return Success;
 }
 
@@ -1103,15 +1107,8 @@ void MainScreen::UpdateState( int iPos )
         {
             // binary search
             auto pos = sse_bin_search(m_vState, iSisterIdx);
-            if (pos != -1) {
+            if (pos != -1)
                 m_vState.erase(m_vState.begin() + pos);
-            } else {
-                // this should be impossible, but still happens in some cases
-                // nuke all notes from that note, nobody will ever notice
-                m_vState.erase(std::remove_if(m_vState.begin(), m_vState.end(), [&](int x) {
-                    return m_vEvents[x]->GetParam1() == iNote;
-                }));
-            }
         }
 
         {
@@ -1610,6 +1607,7 @@ void MainScreen::RenderNote( thread_work_t& work )
     long long llNoteStart = pNote->GetAbsMicroSec();
     long long llNoteEnd = pNote->GetSister()->GetAbsMicroSec();
 
+    // TODO: this load is really expensive
     ChannelSettings &csTrack = m_vTrackSettings[iTrack].aChannels[iChannel];
     if ( m_vTrackSettings[iTrack].aChannels[iChannel].bHidden ) return;
 
@@ -1858,7 +1856,7 @@ void MainScreen::RenderBorder()
 
 void MainScreen::RenderText()
 {
-    int iLines = 3;
+    int iLines = 4;
 
     // Screen info
     RECT rcStatus = { m_pRenderer->GetBufferWidth() - 156, 0, m_pRenderer->GetBufferWidth(), 6 + 16 * iLines };
@@ -1908,6 +1906,10 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
     TCHAR sVQCapacity[128];
     _stprintf_s(sVQCapacity, TEXT("%llu"), batch_vertices.capacity());
 
+    // Build state debug text
+    TCHAR sStateSize[128];
+    _stprintf_s(sStateSize, TEXT("%llu"), m_vState.size());
+
 
     // Display the text
     InflateRect(prcStatus, -6, -3);
@@ -1932,6 +1934,13 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
     OffsetRect(prcStatus, -2, -1);
     m_pRenderer->DrawText(TEXT("VQ Capacity:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
     m_pRenderer->DrawText(sVQCapacity, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
+
+    OffsetRect(prcStatus, 2, 16 + 1);
+    m_pRenderer->DrawText(TEXT("m_vState:"), Renderer::Small, prcStatus, 0, 0xFF404040);
+    m_pRenderer->DrawText(sStateSize, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
+    OffsetRect(prcStatus, -2, -1);
+    m_pRenderer->DrawText(TEXT("m_vState:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
+    m_pRenderer->DrawText(sStateSize, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
 }
 
 void MainScreen::RenderMessage(LPRECT prcMsg, TCHAR* sMsg)

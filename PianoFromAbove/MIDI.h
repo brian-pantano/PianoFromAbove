@@ -96,6 +96,9 @@ public:
     MIDI( const wstring &sFilename );
     ~MIDI( void );
 
+    // shitty memory pool allocator
+    MIDIChannelEvent* AllocChannelEvent();
+
     //Parsing functions that load data into the instance
     int ParseMIDI( const unsigned char *pcData, size_t iMaxSize );
     int ParseTracks( const unsigned char *pcData, size_t iMaxSize );
@@ -141,12 +144,15 @@ private:
 
     MIDIInfo m_Info;
     vector< MIDITrack* > m_vTracks;
+
+    std::vector<std::vector<MIDIChannelEvent>> event_pools;
 };
 
 //Holds all the event of one MIDI track
 class MIDITrack
 {
 public:
+    MIDITrack(MIDI* midi);
     ~MIDITrack( void );
 
     //Parsing functions that load data into the instance
@@ -181,6 +187,8 @@ public:
 private:
     MIDITrackInfo m_TrackInfo;
     vector< MIDIEvent* > m_vEvents;
+    // TODO: why
+    MIDI* m_midi;
 };
 
 //Base Event class
@@ -194,7 +202,7 @@ public:
     static EventType DecodeEventType( int iEventCode );
 
     //Parsing functions that load data into the instance
-    static int MakeNextEvent( const unsigned char *pcData, size_t iMaxSize, int iTrack, MIDIEvent **pOutEvent );
+    static int MakeNextEvent( MIDI* midi, const unsigned char *pcData, size_t iMaxSize, int iTrack, MIDIEvent **pOutEvent );
     virtual int ParseEvent( const unsigned char *pcData, size_t iMaxSize ) = 0;
 
     //Accessors
@@ -208,12 +216,12 @@ public:
     void SetAbsMicroSec(long long llAbsMicroSec) { m_llAbsMicroSec = llAbsMicroSec; m_fAbsMicroSec = static_cast<float>(llAbsMicroSec); };
 
 protected:
+    long long m_llAbsMicroSec;
     EventType m_eEventType;
     int m_iEventCode;
     int m_iTrack;
     int m_iDT;
     int m_iAbsT;
-    long long m_llAbsMicroSec;
     float m_fAbsMicroSec;
 };
 
@@ -241,12 +249,12 @@ public:
     int sister_idx = -1;
 
 private:
+    MIDIChannelEvent *m_pSister;
+    int m_iSimultaneous;
     char m_eChannelEventType;
     unsigned char m_cChannel;
     unsigned char m_cParam1;
     unsigned char m_cParam2;
-    MIDIChannelEvent *m_pSister;
-    int m_iSimultaneous;
 };
 
 //Meta Event: info about the notes and whatnot
