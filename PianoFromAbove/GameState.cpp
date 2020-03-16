@@ -616,7 +616,7 @@ GameState::GameError MainScreen::Init()
 
     m_OutDevice.SetVolume( 1.0 );
     if (m_Timer.m_bManualTimer)
-        m_Timer.SetFrameRate(60);
+        m_Timer.SetFrameRate(144);
     //batch_vertices.reserve(m_MIDI.GetInfo().iNoteCount * 4);
 
     INT_PTR iDlgResult = DialogBox(g_hInstance, MAKEINTRESOURCE(IDD_VQPREALLOC), g_hWnd, VQCapacityProc);
@@ -922,8 +922,6 @@ GameState::GameError MainScreen::Logic( void )
     m_bShowFPS = cVideo.bShowFPS;
     m_pRenderer->SetLimitFPS( cVideo.bLimitFPS );
     if ( cVisual.iBkgColor != m_csBackground.iOrigBGR ) m_csBackground.SetColor( cVisual.iBkgColor, 0.7f, 1.3f );
-
-    GenNoteXTable();
 
     double dMaxCorrect = ( mInfo.iMaxVolume > 0 ? 127.0 / mInfo.iMaxVolume : 1.0 );
     double dVolumeCorrect = ( mInfo.iVolumeSum > 0 ? ( m_dVolume * 127.0 * mInfo.iNoteCount ) / mInfo.iVolumeSum : 1.0 );
@@ -1450,6 +1448,8 @@ void MainScreen::RenderGlobals()
     long long llMicroSecsPP = static_cast< long long >( m_llTimeSpan / m_fNotesCY + 0.5f );
     m_fRndStartTime = m_llStartTime - ( m_llStartTime < 0 ? llMicroSecsPP : 0 );
     m_fRndStartTime = ( m_fRndStartTime / llMicroSecsPP ) * llMicroSecsPP;
+
+    GenNoteXTable();
 }
 
 void MainScreen::RenderLines()
@@ -1646,7 +1646,9 @@ void MainScreen::RenderNote( thread_work_t& work )
 }
 
 void MainScreen::GenNoteXTable() {
-    for (int i = 0; i < 128; i++) {
+    int min_key = min(max(0, m_iStartNote), 127);
+    int max_key = min(max(0, m_iEndNote), 127);
+    for (int i = min_key; i <= max_key; i++) {
         int iWhiteKeys = MIDI::WhiteCount(m_iStartNote, i);
         float fStartX = (MIDI::IsSharp(m_iStartNote) - MIDI::IsSharp(i)) * SharpRatio / 2.0f;
         if (MIDI::IsSharp(i))
