@@ -194,7 +194,7 @@ private:
 //Base Event class
 //Should really be a single class with unions for the different events. much faster that way.
 //Might be forced to convert if batch processing is too slow
-class MIDIEvent
+class __declspec(novtable) MIDIEvent
 {
 public:
     //Event types
@@ -206,23 +206,19 @@ public:
     virtual int ParseEvent( const unsigned char *pcData, size_t iMaxSize ) = 0;
 
     //Accessors
-    EventType GetEventType() const { return m_eEventType; }
-    int GetEventCode() const { return m_iEventCode; }
+    EventType GetEventType() const { return (EventType)m_eEventType; }
+    unsigned char GetEventCode() const { return m_iEventCode; }
     int GetTrack() const { return m_iTrack; }
-    int GetDT() const { return m_iDT; }
     int GetAbsT() const { return m_iAbsT; }
     long long GetAbsMicroSec() const { return m_llAbsMicroSec; }
-    float GetAbsMicroSecFloat() const { return m_fAbsMicroSec; }
-    void SetAbsMicroSec(long long llAbsMicroSec) { m_llAbsMicroSec = llAbsMicroSec; m_fAbsMicroSec = static_cast<float>(llAbsMicroSec); };
+    void SetAbsMicroSec(long long llAbsMicroSec) { m_llAbsMicroSec = llAbsMicroSec; };
 
 protected:
     long long m_llAbsMicroSec;
-    EventType m_eEventType;
-    int m_iEventCode;
-    int m_iTrack;
-    int m_iDT;
     int m_iAbsT;
-    float m_fAbsMicroSec;
+    unsigned short m_iTrack;
+    char m_eEventType;
+    unsigned char m_iEventCode;
 };
 
 //Channel Event: notes and whatnot

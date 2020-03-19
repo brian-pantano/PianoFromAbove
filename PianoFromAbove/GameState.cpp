@@ -1613,7 +1613,7 @@ void MainScreen::RenderNote( thread_work_t& work )
 
     // Compute true positions
     float x = GetNoteX( iNote );
-    float y = m_fNotesY + m_fNotesCY * ( 1.0f - ( pNote->GetAbsMicroSecFloat() - m_fRndStartTime) / m_llTimeSpan );
+    float y = m_fNotesY + m_fNotesCY * ( 1.0f - ( static_cast<float>(pNote->GetAbsMicroSec()) - m_fRndStartTime) / m_llTimeSpan );
     float cx =  MIDI::IsSharp( iNote ) ? m_fWhiteCX * SharpRatio : m_fWhiteCX;
     float cy = m_fNotesCY * ( static_cast< float >( llNoteEnd - llNoteStart ) / m_llTimeSpan );
     float fDeflate = m_fWhiteCX * 0.15f / 2.0f;

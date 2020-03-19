@@ -734,7 +734,6 @@ int MIDIEvent::MakeNextEvent( MIDI* midi, const unsigned char *pcData, size_t iM
     (*pOutEvent)->m_eEventType = eEventType;
     (*pOutEvent)->m_iEventCode = iEventCode;
     (*pOutEvent)->m_iTrack = iTrack;
-    (*pOutEvent)->m_iDT = iDT;
     (*pOutEvent)->m_iAbsT = iDT;
     if ( pPrevEvent ) (*pOutEvent)->m_iAbsT += pPrevEvent->m_iAbsT;
 
