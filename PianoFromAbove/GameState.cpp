@@ -1103,10 +1103,25 @@ void MainScreen::UpdateState( int iPos )
         m_pNoteState[iNote] = -1;
 
         {
-            // binary search
-            auto pos = sse_bin_search(m_vState, iSisterIdx);
-            if (pos != -1)
-                m_vState.erase(m_vState.begin() + pos);
+            if (iSisterIdx != -1) {
+                // binary search
+                auto pos = sse_bin_search(m_vState, iSisterIdx);
+                if (pos != -1)
+                    m_vState.erase(m_vState.begin() + pos);
+            } else {
+                // slow path, should rarely happen
+                vector< int >::iterator it = m_vState.begin();
+                MIDIChannelEvent* pSearch = pEvent->GetSister();
+                while (it != m_vState.end())
+                {
+                    if (m_vEvents[*it] == pSearch) {
+                        it = m_vState.erase(it);
+                        break;
+                    } else {
+                        ++it;
+                    }
+                }
+            }
         }
 
         {
