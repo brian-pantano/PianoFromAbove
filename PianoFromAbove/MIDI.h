@@ -211,10 +211,12 @@ public:
     int GetTrack() const { return m_iTrack; }
     int GetAbsT() const { return m_iAbsT; }
     long long GetAbsMicroSec() const { return m_llAbsMicroSec; }
-    void SetAbsMicroSec(long long llAbsMicroSec) { m_llAbsMicroSec = llAbsMicroSec; };
+    float GetAbsMicroSecFloat() const { return m_fAbsMicroSec; }
+    void SetAbsMicroSec(long long llAbsMicroSec) { m_llAbsMicroSec = llAbsMicroSec; m_fAbsMicroSec = static_cast<float>(llAbsMicroSec); };
 
 protected:
     long long m_llAbsMicroSec;
+    float m_fAbsMicroSec;
     int m_iAbsT;
     unsigned short m_iTrack;
     char m_eEventType;
