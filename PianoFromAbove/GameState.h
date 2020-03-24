@@ -244,7 +244,7 @@ private:
     int m_iStartPos, m_iEndPos; // Postions of the start and end events that occur in the current window
     long long m_llStartTime, m_llTimeSpan;  // Times of the start and end events of the current window
     int m_iStartTick; // Tick that corresponds with m_llStartTime. Used to help with beat and metronome detection
-    vector< int > m_vState;  // The notes that are on at time m_llStartTime.
+    vector<int> m_vState[128];  // The notes that are on at time m_llStartTime.
     int m_pNoteState[128]; // The last note that was turned on
     double m_dSpeed; // Speed multiplier
     bool m_bPaused; // Paused state

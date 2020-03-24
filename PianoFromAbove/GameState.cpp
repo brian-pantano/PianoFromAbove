@@ -507,7 +507,8 @@ MainScreen::MainScreen( wstring sMIDIFile, State eGameMode, HWND hWnd, Renderer 
 
     // Allocate
     m_vTrackSettings.resize( m_MIDI.GetInfo().iNumTracks );
-    m_vState.reserve( 128 );
+    for (auto note_state : m_vState)
+        note_state.reserve(m_MIDI.GetInfo().iNumTracks * 16);
 
     // Initialize
     InitNoteMap( vEvents ); // Longish
@@ -1091,50 +1092,40 @@ void MainScreen::UpdateState( int iPos )
     int iVelocity = pEvent->GetParam2();
 
     int iSisterIdx = pEvent->sister_idx;
+    auto& note_state = m_vState[iNote];
 
     // Turn note on
     if ( eEventType == MIDIChannelEvent::NoteOn && iVelocity > 0 )
     {
-        m_vState.push_back( iPos );
+        note_state.push_back( iPos );
         m_pNoteState[iNote] = iPos;
     }
     else
     {
-        m_pNoteState[iNote] = -1;
-
-        {
-            if (iSisterIdx != -1) {
-                // binary search
-                auto pos = sse_bin_search(m_vState, iSisterIdx);
-                if (pos != -1)
-                    m_vState.erase(m_vState.begin() + pos);
-            } else {
-                // slow path, should rarely happen
-                vector< int >::iterator it = m_vState.begin();
-                MIDIChannelEvent* pSearch = pEvent->GetSister();
-                while (it != m_vState.end())
-                {
-                    if (m_vEvents[*it] == pSearch) {
-                        it = m_vState.erase(it);
-                        break;
-                    } else {
-                        ++it;
-                    }
-                }
-            }
-        }
-
-        {
-            vector<int>::reverse_iterator it = m_vState.rbegin();
-            while (it != m_vState.rend())
+        if (iSisterIdx != -1) {
+            // binary search
+            auto pos = sse_bin_search(note_state, iSisterIdx);
+            if (pos != -1)
+                note_state.erase(note_state.begin() + pos);
+        } else {
+            // slow path, should rarely happen
+            vector< int >::iterator it = note_state.begin();
+            MIDIChannelEvent* pSearch = pEvent->GetSister();
+            while (it != note_state.end())
             {
-                if (m_vEvents[*it]->GetParam1() == iNote) {
-                    m_pNoteState[iNote] = *it;
+                if (m_vEvents[*it] == pSearch) {
+                    it = note_state.erase(it);
                     break;
+                } else {
+                    ++it;
                 }
-                ++it;
             }
         }
+
+        if (note_state.size() == 0)
+            m_pNoteState[iNote] = -1;
+        else
+            m_pNoteState[iNote] = note_state.back();
     }
 }
 
@@ -1164,7 +1155,8 @@ void MainScreen::JumpTo(long long llStartTime, bool bUpdateGUI)
         m_iStartPos = itNonNote->second;
 
     // Find the notes that occur simultaneously with the previous note on
-    m_vState.clear();
+    for (auto& note_state : m_vState)
+        note_state.clear();
     memset(m_pNoteState, -1, sizeof(m_pNoteState));
     if (itMiddle != itBegin)
     {
@@ -1179,12 +1171,13 @@ void MainScreen::JumpTo(long long llStartTime, bool bUpdateGUI)
                 iFound++;
             if (pSister->GetAbsMicroSec() > llStartTime) // > because we don't care about simultaneous ending notes
             {
-                m_vState.push_back(it->second);
+                (m_vState[pEvent->GetParam1()]).push_back(it->second);
                 if (m_pNoteState[pEvent->GetParam1()] < 0)
                     m_pNoteState[pEvent->GetParam1()] = it->second;
             }
         }
-        reverse(m_vState.begin(), m_vState.end());
+        for (auto& note_state : m_vState)
+            reverse(note_state.begin(), note_state.end());
     }
 
     // End position: a little tricky. Same as logic code. Only needed for paused jumping.
@@ -1555,14 +1548,17 @@ void MainScreen::RenderNotes()
     // Render notes. Regular notes then sharps to  make sure they're not hidden
     bool bHasSharp = false;
     size_t queue_pos = batch_vertices.size();
-    for (vector< int >::iterator it = m_vState.begin(); it != m_vState.end(); ++it)
-        if (!MIDI::IsSharp(m_vEvents[*it]->GetParam1())) {
-            const thread_work_t work{ queue_pos, m_vEvents[*it] };
-            m_vThreadWork.push_back(work);
-            queue_pos += 12;
+    for (int i = 0; i < 128; i++) {
+        if (!MIDI::IsSharp(i)) {
+            for (vector< int >::iterator it = (m_vState[i]).begin(); it != (m_vState[i]).end(); ++it) {
+                const thread_work_t work{ queue_pos, m_vEvents[*it] };
+                m_vThreadWork.push_back(work);
+                queue_pos += 12;
+            }
         } else {
             bHasSharp = true;
         }
+    }
 
     for (int i = m_iStartPos; i <= m_iEndPos; i++)
     {
@@ -1584,12 +1580,15 @@ void MainScreen::RenderNotes()
     // Do it all again, but only for the sharps
     if (bHasSharp)
     {
-        for (vector< int >::iterator it = m_vState.begin(); it != m_vState.end(); ++it)
-            if (MIDI::IsSharp(m_vEvents[*it]->GetParam1())) {
-                const thread_work_t work{ queue_pos, m_vEvents[*it] };
-                m_vThreadWork.push_back(work);
-                queue_pos += 12;
+        for (int i = 0; i < 128; i++) {
+            if (MIDI::IsSharp(i)) {
+                for (vector< int >::iterator it = (m_vState[i]).begin(); it != (m_vState[i]).end(); ++it) {
+                    const thread_work_t work{ queue_pos, m_vEvents[*it] };
+                    m_vThreadWork.push_back(work);
+                    queue_pos += 12;
+                }
             }
+        }
 
         for (int i = m_iStartPos; i <= m_iEndPos; i++)
         {
@@ -1926,8 +1925,11 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
     _stprintf_s(sVQCapacity, TEXT("%llu"), batch_vertices.capacity());
 
     // Build state debug text
+    size_t state_size = 0;
+    for (auto note_state : m_vState)
+        state_size += note_state.size();
     TCHAR sStateSize[128];
-    _stprintf_s(sStateSize, TEXT("%llu"), m_vState.size());
+    _stprintf_s(sStateSize, TEXT("%llu"), state_size);
 
 
     // Display the text
