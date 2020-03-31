@@ -63,9 +63,6 @@ struct SCREEN_VERTEX
     const static DWORD FVF = D3DFVF_XYZRHW | D3DFVF_DIFFUSE;
 };
 
-// only global so i can inline lol
-extern std::vector<SCREEN_VERTEX> batch_vertices;
-
 class D3D9Renderer : public Renderer
 {
 public:
@@ -92,13 +89,13 @@ public:
     HRESULT DrawTextA( const CHAR *sText, FontSize fsFont, LPRECT rcPos, DWORD dwFormat, DWORD dwColor, INT iChars = -1 );
     HRESULT EndText();
     HRESULT DrawRect( float x, float y, float cx, float cy, DWORD color );
-    static inline HRESULT DrawRectBatch(float x, float y, float cx, float cy, DWORD color);
-    static inline void GenRect(float x, float y, float cx, float cy, DWORD color, SCREEN_VERTEX* v);
+    HRESULT DrawRectBatch(float x, float y, float cx, float cy, DWORD color);
+    void GenRect(float x, float y, float cx, float cy, DWORD color, SCREEN_VERTEX* v);
     HRESULT DrawRect( float x, float y, float cx, float cy,
                       DWORD c1, DWORD c2, DWORD c3, DWORD c4 );
-    static inline HRESULT DrawRectBatch(float x, float y, float cx, float cy,
+    HRESULT DrawRectBatch(float x, float y, float cx, float cy,
                                  DWORD c1, DWORD c2, DWORD c3, DWORD c4);
-    static inline void GenRect(float x, float y, float cx, float cy,
+    void GenRect(float x, float y, float cx, float cy,
         DWORD c1, DWORD c2, DWORD c3, DWORD c4, SCREEN_VERTEX* v);
     HRESULT DrawSkew( float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, DWORD color );
     HRESULT DrawSkew( float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4,
@@ -135,54 +132,6 @@ private:
     bool m_bStatic;
 
     HRESULT Blit( SCREEN_VERTEX *data, int iTriangles );
+
+    std::vector<SCREEN_VERTEX> batch_vertices;
 };
-
-inline HRESULT D3D9Renderer::DrawRectBatch(float x, float y, float cx, float cy,
-    DWORD c1, DWORD c2, DWORD c3, DWORD c4)
-{
-    x -= 0.5f;
-    y -= 0.5f;
-
-    SCREEN_VERTEX vertices[6] =
-    {
-        x,  y,            0.5f, 1.0f, c1,
-        x + cx, y,        0.5f, 1.0f, c2,
-        x + cx, y + cy,   0.5f, 1.0f, c3,
-        x,  y,            0.5f, 1.0f, c1,
-        x + cx, y + cy,   0.5f, 1.0f, c3,
-        x,  y + cy,       0.5f, 1.0f, c4
-    };
-
-    batch_vertices.insert(batch_vertices.end(), vertices, std::end(vertices));
-
-    return S_OK;
-}
-
-inline HRESULT D3D9Renderer::DrawRectBatch(float x, float y, float cx, float cy, DWORD color)
-{
-    return DrawRectBatch(x, y, cx, cy, color, color, color, color);
-}
-
-inline void D3D9Renderer::GenRect(float x, float y, float cx, float cy,
-    DWORD c1, DWORD c2, DWORD c3, DWORD c4, SCREEN_VERTEX* v)
-{
-    x -= 0.5f;
-    y -= 0.5f;
-
-    SCREEN_VERTEX vertices[6] =
-    {
-        x,  y,            0.5f, 1.0f, c1,
-        x + cx, y,        0.5f, 1.0f, c2,
-        x + cx, y + cy,   0.5f, 1.0f, c3,
-        x,  y,            0.5f, 1.0f, c1,
-        x + cx, y + cy,   0.5f, 1.0f, c3,
-        x,  y + cy,       0.5f, 1.0f, c4
-    };
-
-    memcpy(v, vertices, sizeof(vertices));
-}
-
-inline void D3D9Renderer::GenRect(float x, float y, float cx, float cy, DWORD color, SCREEN_VERTEX* vertices)
-{
-    GenRect(x, y, cx, cy, color, color, color, color, vertices);
-}

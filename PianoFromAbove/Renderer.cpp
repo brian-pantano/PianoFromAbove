@@ -386,3 +386,53 @@ HRESULT D3D9Renderer::ReleaseStaticBuffer()
     m_iStaticTriangle = m_iStaticMaxTriangles = 0;
     return m_pStaticVertexBuffer->Release();
 }
+
+HRESULT D3D9Renderer::DrawRectBatch(float x, float y, float cx, float cy,
+    DWORD c1, DWORD c2, DWORD c3, DWORD c4)
+{
+    x -= 0.5f;
+    y -= 0.5f;
+
+    SCREEN_VERTEX vertices[6] =
+    {
+        x,  y,            0.5f, 1.0f, c1,
+        x + cx, y,        0.5f, 1.0f, c2,
+        x + cx, y + cy,   0.5f, 1.0f, c3,
+        x,  y,            0.5f, 1.0f, c1,
+        x + cx, y + cy,   0.5f, 1.0f, c3,
+        x,  y + cy,       0.5f, 1.0f, c4
+    };
+
+    batch_vertices.insert(batch_vertices.end(), vertices, std::end(vertices));
+
+    return S_OK;
+}
+
+HRESULT D3D9Renderer::DrawRectBatch(float x, float y, float cx, float cy, DWORD color)
+{
+    return DrawRectBatch(x, y, cx, cy, color, color, color, color);
+}
+
+void D3D9Renderer::GenRect(float x, float y, float cx, float cy,
+    DWORD c1, DWORD c2, DWORD c3, DWORD c4, SCREEN_VERTEX* v)
+{
+    x -= 0.5f;
+    y -= 0.5f;
+
+    SCREEN_VERTEX vertices[6] =
+    {
+        x,  y,            0.5f, 1.0f, c1,
+        x + cx, y,        0.5f, 1.0f, c2,
+        x + cx, y + cy,   0.5f, 1.0f, c3,
+        x,  y,            0.5f, 1.0f, c1,
+        x + cx, y + cy,   0.5f, 1.0f, c3,
+        x,  y + cy,       0.5f, 1.0f, c4
+    };
+
+    memcpy(v, vertices, sizeof(vertices));
+}
+
+void D3D9Renderer::GenRect(float x, float y, float cx, float cy, DWORD color, SCREEN_VERTEX* vertices)
+{
+    GenRect(x, y, cx, cy, color, color, color, color, vertices);
+}

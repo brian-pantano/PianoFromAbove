@@ -35,11 +35,6 @@ class MIDIOutDevice;
 // MIDI File Classes
 //
 
-// lol global variable
-extern robin_hood::unordered_map<int, std::pair<std::vector<MIDIEvent*>::iterator, std::vector<MIDIEvent*>>> midi_map;
-extern std::vector<int> midi_map_times;
-extern size_t midi_map_times_pos;
-
 class MIDIPos
 {
 public:
@@ -111,6 +106,8 @@ public:
     void clear( void );
 
     friend class MIDIPos;
+    friend class MIDITrack;
+    friend class MIDIEvent;
 
     struct MIDIInfo
     {
@@ -135,6 +132,11 @@ public:
     const MIDIInfo& GetInfo() const { return m_Info; }
     const vector< MIDITrack* >& GetTracks() const { return m_vTracks; }
 
+protected:
+    robin_hood::unordered_map<int, std::pair<std::vector<MIDIEvent*>::iterator, std::vector<MIDIEvent*>>> midi_map;
+    std::vector<int> midi_map_times;
+    size_t midi_map_times_pos = 0;
+
 private:
     static void InitArrays();
     static wstring aNoteNames[KEYS + 1];
@@ -152,7 +154,7 @@ private:
 class MIDITrack
 {
 public:
-    MIDITrack(MIDI* midi);
+    MIDITrack(MIDI& midi);
     ~MIDITrack( void );
 
     //Parsing functions that load data into the instance
@@ -187,8 +189,7 @@ public:
 private:
     MIDITrackInfo m_TrackInfo;
     vector< MIDIEvent* > m_vEvents;
-    // TODO: why
-    MIDI* m_midi;
+    MIDI& m_MIDI;
 };
 
 //Base Event class
@@ -202,7 +203,7 @@ public:
     static EventType DecodeEventType( int iEventCode );
 
     //Parsing functions that load data into the instance
-    static int MakeNextEvent( MIDI* midi, const unsigned char *pcData, size_t iMaxSize, int iTrack, MIDIEvent **pOutEvent );
+    static int MakeNextEvent( MIDI& midi, const unsigned char *pcData, size_t iMaxSize, int iTrack, MIDIEvent **pOutEvent );
     virtual int ParseEvent( const unsigned char *pcData, size_t iMaxSize ) = 0;
 
     //Accessors
