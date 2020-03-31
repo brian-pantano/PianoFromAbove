@@ -36,3 +36,6 @@ BOOL ToggleYN( HWND hWndListview, int iItem );
 
 BOOL GetCustomSettings( MainScreen *pGameState );
 INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
+
+// still using a global variable for this
+extern size_t vq_capacity_proc_res;

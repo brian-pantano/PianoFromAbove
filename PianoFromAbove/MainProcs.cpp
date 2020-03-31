@@ -863,29 +863,6 @@ INT_PTR WINAPI AboutProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 	return FALSE;
 }
 
-// oh god more global variables
-static size_t vq_capacity_proc_res = 0;
-
-INT_PTR WINAPI VQCapacityProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-    wchar_t szCapacity[80];
-    switch (msg) {
-    case WM_COMMAND:
-        switch (LOWORD(wParam)) {
-        case IDOK:
-            if (GetDlgItemText(hWnd, IDC_CAPACITY, szCapacity, 80)) {
-                if (swscanf(szCapacity, L"%llu", &vq_capacity_proc_res) != 1) {
-                    vq_capacity_proc_res = 0; // just in case
-                }
-            }
-            // fallthrough
-        case IDCANCEL:
-            EndDialog(hWnd, IDOK);
-            return TRUE;
-        }
-    }
-    return FALSE;
-}
-
 // Helpers involved with user interaction and the GUI
 
 VOID HandOffMsg( UINT msg, WPARAM wParam, LPARAM lParam )

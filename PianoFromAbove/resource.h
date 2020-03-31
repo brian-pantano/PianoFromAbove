@@ -22,7 +22,6 @@
 #define IDD_ABOUT                       138
 #define IDB_LOCK                        146
 #define IDR_SPLASHMIDI                  149
-#define IDD_VQPREALLOC                  150
 #define IDC_TRACKS                      1001
 #define IDC_HIDEKEYBOARD                1004
 #define IDC_FLIPSCREEN                  1005
@@ -42,6 +41,7 @@
 #define IDC_UDARROWSSPIN                1026
 #define IDC_MIDIIN                      1028
 #define IDC_WINDOWSECS                  1028
+#define IDC_VQCAPACITY                  1028
 #define IDC_MIDIOUT                     1029
 #define IDC_LRARROWSSPIN2               1029
 #define IDC_WINDOWSECSSPIN              1029
@@ -74,13 +74,13 @@
 #define IDC_RESET                       1076
 #define IDC_PIANOGROUP                  1078
 #define IDC_EDIT1                       1079
-#define IDC_CAPACITY                    1079
 #define IDC_BUTTON7                     1081
 #define IDC_RADIO1                      1086
 #define IDC_RADIO2                      1087
 #define IDC_RADIO3                      1088
 #define IDC_PICTURE                     1089
 #define IDC_EDIT2                       1090
+#define IDC_VQSIZE                      1090
 #define IDC_LICENSE                     1093
 #define IDC_LOCK                        1094
 #define IDC_NSPEED                      1095
@@ -179,7 +179,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        152
+#define _APS_NEXT_RESOURCE_VALUE        153
 #define _APS_NEXT_COMMAND_VALUE         40172
 #define _APS_NEXT_CONTROL_VALUE         1096
 #define _APS_NEXT_SYMED_VALUE           102

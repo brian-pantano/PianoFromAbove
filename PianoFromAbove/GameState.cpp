@@ -16,6 +16,7 @@
 #include "GameState.h"
 #include "Config.h"
 #include "resource.h"
+#include "ConfigProcs.h"
 
 const wstring GameState::Errors[] =
 {
@@ -620,9 +621,7 @@ GameState::GameError MainScreen::Init()
         m_Timer.SetFrameRate(144);
     //batch_vertices.reserve(m_MIDI.GetInfo().iNoteCount * 4);
 
-    INT_PTR iDlgResult = DialogBox(g_hInstance, MAKEINTRESOURCE(IDD_VQPREALLOC), g_hWnd, VQCapacityProc);
-    if (iDlgResult == IDOK)
-        batch_vertices.reserve(vq_capacity_proc_res);
+    batch_vertices.reserve(vq_capacity_proc_res);
     return Success;
 }
 
