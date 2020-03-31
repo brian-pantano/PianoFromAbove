@@ -20,11 +20,16 @@ using namespace std;
 // The Timer class
 //-----------------------------------------------------------------------------
 
-Timer::Timer()
+Timer::~Timer()
 {
+    if ( !m_bManualTimer)
+        timeEndPeriod( 1 );
+}
+
+void Timer::Init(bool manual) {
     // Get the frequency. This should be done in a static constructor. Oh well.
     LARGE_INTEGER liFreq = { 0 };
-    m_bManualTimer = false;
+    m_bManualTimer = manual;
     m_llManualTicks = 0;
     if (!m_bManualTimer) {
         timeBeginPeriod(1);
@@ -38,12 +43,6 @@ Timer::Timer()
     // Initialize status
     m_bStarted = m_bPaused = false;
     m_llStartTicks = m_llPausedTicks = 0;
-}
-
-Timer::~Timer()
-{
-    if ( !m_bManualTimer)
-        timeEndPeriod( 1 );
 }
 
 // Start/reset the timer
@@ -120,6 +119,7 @@ void Timer::AddManualTime(long long time)
 void Timer::SetFrameRate(unsigned rate)
 {
     m_llTicksPerSec = (long long)rate * 100;
+    m_dFramerate = rate;
 }
 
 void Timer::IncrementFrame()

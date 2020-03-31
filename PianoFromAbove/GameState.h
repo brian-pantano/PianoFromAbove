@@ -249,6 +249,7 @@ private:
     double m_dSpeed; // Speed multiplier
     bool m_bPaused; // Paused state
     Timer m_Timer; // Frame timers
+    Timer m_RealTimer;
     bool m_bMute;
     double m_dVolume;
     size_t m_iNotesPlayed = 0;

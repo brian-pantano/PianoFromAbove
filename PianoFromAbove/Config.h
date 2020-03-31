@@ -195,6 +195,9 @@ public:
     void SetVideoSettings(const VideoSettings &videoSettings) { m_VideoSettings = videoSettings; }
     void SetControlsSettings(const ControlsSettings &ControlsSettings) { m_ControlsSettings = ControlsSettings; }
 
+    // i really need to start writting getters and setters
+    bool m_bManualTimer = false;
+
 private:
     // Singleton
     Config();

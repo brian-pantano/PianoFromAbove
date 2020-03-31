@@ -17,8 +17,8 @@ class Timer
 {
 public:
     // Initializes variables
-    Timer();
     ~Timer();
+    void Init(bool manual);
 
     // The various clock actions
     void Start();
@@ -40,6 +40,7 @@ public:
     void SetFrameRate(unsigned rate);
     void IncrementFrame();
     bool m_bManualTimer;
+    double m_dFramerate;
 
 private:
     static const long long m_llPrecisionLimit = 1000000000ll;

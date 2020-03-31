@@ -705,6 +705,8 @@ INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                             vq_capacity_proc_res = 0; // just in case
                         }
                     }
+
+                    Config::GetConfig().m_bManualTimer = IsDlgButtonChecked(hWnd, IDC_CHECK1);
                 }
                 case IDCANCEL:
 			        EndDialog( hWnd, iId );
