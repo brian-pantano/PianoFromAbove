@@ -63,6 +63,9 @@ struct SCREEN_VERTEX
     const static DWORD FVF = D3DFVF_XYZRHW | D3DFVF_DIFFUSE;
 };
 
+// epic global variable
+extern std::vector<SCREEN_VERTEX> batch_vertices;
+
 class D3D9Renderer : public Renderer
 {
 public:
@@ -132,6 +135,4 @@ private:
     bool m_bStatic;
 
     HRESULT Blit( SCREEN_VERTEX *data, int iTriangles );
-
-    std::vector<SCREEN_VERTEX> batch_vertices;
 };
