@@ -707,6 +707,7 @@ INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     }
 
                     Config::GetConfig().m_bManualTimer = IsDlgButtonChecked(hWnd, IDC_CHECK1);
+                    Config::GetConfig().m_bUltraTurboModeXtreme = IsDlgButtonChecked(hWnd, IDC_CHECK2);
                 }
                 case IDCANCEL:
 			        EndDialog( hWnd, iId );

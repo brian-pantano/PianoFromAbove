@@ -85,6 +85,7 @@
 #define IDC_LOCK                        1094
 #define IDC_NSPEED                      1095
 #define IDC_CHECK1                      1096
+#define IDC_CHECK2                      1097
 #define ID_FILE_PLAYFILE                40001
 #define ID_FILE_ADDFILE                 40002
 #define ID_FILE_ADDFOLDER               40003
