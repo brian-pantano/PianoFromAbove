@@ -11,6 +11,7 @@
 #include <Windows.h>
 #include <CommCtrl.h>
 #include <ctime>
+#include <shlwapi.h>
 
 #include "MainProcs.h"
 #include "resource.h"
@@ -50,6 +51,21 @@ INT WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdL
     // Initialize COM. For the SH* functions
     HRESULT hr = CoInitialize( NULL );
     if ( FAILED( hr ) ) return 1;
+
+    // Bug the user if WinMM isn't patched
+    char* temp = nullptr;
+    if (!_get_pgmptr(&temp)) {
+        // Get the directory of the executable
+        char* temp2 = _strdup(temp);
+        PathRemoveFileSpecA(temp2);
+        std::string path(temp2);
+        free(temp2);
+
+        // Check if winmm.dll exists
+        path += "\\winmm.dll";
+        if (GetFileAttributesA(path.c_str()) == INVALID_FILE_ATTRIBUTES)
+            MessageBox(NULL, L"You don't appear to be using a patched winmm.dll.\nPlease patch it for best results.", L"", MB_ICONWARNING);
+    }
 
     // Register the window class
     WNDCLASSEX wc;
