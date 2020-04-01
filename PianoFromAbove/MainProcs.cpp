@@ -206,6 +206,19 @@ LRESULT WINAPI WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
         case WM_DESTROY:
             PostQuitMessage( 0 );
             return 0;
+        case WM_DROPFILES:
+            if (!wParam)
+                return 0;
+            auto drop = (HDROP)wParam;
+            // only allow 1 file
+            if (DragQueryFile(drop, 0xFFFFFFFF, NULL, 0) != 1)
+                return 0;
+            // it's 2020, so no MAX_PATH!
+            std::vector<wchar_t> filename;
+            filename.resize(DragQueryFile(drop, 0, NULL, 0) + 1);
+            DragQueryFile(drop, 0, filename.data(), filename.size());
+            PlayFile(filename.data(), true);
+            return 0;
     }
 
     return DefWindowProc( hWnd, msg, wParam, lParam );

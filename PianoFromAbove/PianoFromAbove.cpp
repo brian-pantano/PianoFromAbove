@@ -94,6 +94,9 @@ INT WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdL
                              cView.GetMainWidth(), cView.GetMainHeight(), NULL, NULL, wc.hInstance, NULL );
     if ( !g_hWnd ) return 1;
 
+    // Accept drag and drop
+    DragAcceptFiles(g_hWnd, true);
+
     // Creation order (z-order) matters big time for full screen
 
     // Create the controls rebar
