@@ -914,8 +914,6 @@ GameState::GameError MainScreen::Logic( void )
     // Detect changes in state
     bool bPaused = cPlayback.GetPaused();
     double dSpeed = cPlayback.GetSpeed();
-    if (config.m_bUltraTurboModeXtreme)
-        dSpeed = 100.0;
     double dNSpeed = cPlayback.GetNSpeed();
     bool bMute = cPlayback.GetMute();
     long long llTimeSpan = static_cast< long long >( 3.0 * dNSpeed * 1000000 );
@@ -983,9 +981,8 @@ GameState::GameError MainScreen::Logic( void )
 
     // Advance end position
     int iEventCount = (int)m_vEvents.size();
-    if (!config.m_bUltraTurboModeXtreme)
-        while ( m_iEndPos + 1 < iEventCount && m_vEvents[m_iEndPos + 1]->GetAbsMicroSec() < llEndTime )
-            m_iEndPos++;
+    while ( m_iEndPos + 1 < iEventCount && m_vEvents[m_iEndPos + 1]->GetAbsMicroSec() < llEndTime )
+        m_iEndPos++;
 
     // Only want to advance start positions when unpaused becuase advancing startpos "consumes" the events
     if ( !m_bPaused )
@@ -1106,56 +1103,51 @@ int sse_bin_search(const std::vector<int>& data, int key) {
 
 void MainScreen::UpdateState( int iPos )
 {
-    auto& config = Config::GetConfig();
-    if (!config.m_bUltraTurboModeXtreme) {
-        // Event data
-        MIDIChannelEvent* pEvent = m_vEvents[iPos];
-        if (!pEvent->GetSister()) return;
+    // Event data
+    MIDIChannelEvent *pEvent = m_vEvents[iPos];
+    if ( !pEvent->GetSister() ) return;
 
-        MIDIChannelEvent::ChannelEventType eEventType = pEvent->GetChannelEventType();
-        int iTrack = pEvent->GetTrack();
-        int iChannel = pEvent->GetChannel();
-        int iNote = pEvent->GetParam1();
-        int iVelocity = pEvent->GetParam2();
+    MIDIChannelEvent::ChannelEventType eEventType = pEvent->GetChannelEventType();
+    int iTrack = pEvent->GetTrack();
+    int iChannel = pEvent->GetChannel();
+    int iNote = pEvent->GetParam1();
+    int iVelocity = pEvent->GetParam2();
 
-        int iSisterIdx = pEvent->sister_idx;
-        auto& note_state = m_vState[iNote];
+    int iSisterIdx = pEvent->sister_idx;
+    auto& note_state = m_vState[iNote];
 
-        // Turn note on
-        if (eEventType == MIDIChannelEvent::NoteOn && iVelocity > 0)
-        {
-            note_state.push_back(iPos);
-            m_pNoteState[iNote] = iPos;
-        }
-        else
-        {
-            if (iSisterIdx != -1) {
-                // binary search
-                auto pos = sse_bin_search(note_state, iSisterIdx);
-                if (pos != -1)
-                    note_state.erase(note_state.begin() + pos);
-            }
-            else {
-                // slow path, should rarely happen
-                vector< int >::iterator it = note_state.begin();
-                MIDIChannelEvent* pSearch = pEvent->GetSister();
-                while (it != note_state.end())
-                {
-                    if (m_vEvents[*it] == pSearch) {
-                        it = note_state.erase(it);
-                        break;
-                    }
-                    else {
-                        ++it;
-                    }
+    // Turn note on
+    if ( eEventType == MIDIChannelEvent::NoteOn && iVelocity > 0 )
+    {
+        note_state.push_back( iPos );
+        m_pNoteState[iNote] = iPos;
+    }
+    else
+    {
+        if (iSisterIdx != -1) {
+            // binary search
+            auto pos = sse_bin_search(note_state, iSisterIdx);
+            if (pos != -1)
+                note_state.erase(note_state.begin() + pos);
+        } else {
+            // slow path, should rarely happen
+            vector< int >::iterator it = note_state.begin();
+            MIDIChannelEvent* pSearch = pEvent->GetSister();
+            while (it != note_state.end())
+            {
+                if (m_vEvents[*it] == pSearch) {
+                    it = note_state.erase(it);
+                    break;
+                } else {
+                    ++it;
                 }
             }
-
-            if (note_state.size() == 0)
-                m_pNoteState[iNote] = -1;
-            else
-                m_pNoteState[iNote] = note_state.back();
         }
+
+        if (note_state.size() == 0)
+            m_pNoteState[iNote] = -1;
+        else
+            m_pNoteState[iNote] = note_state.back();
     }
 }
 
@@ -1430,9 +1422,7 @@ GameState::GameError MainScreen::Render()
 
     m_pRenderer->BeginScene();
     RenderLines();
-    auto& config = Config::GetConfig();
-    if (!config.m_bUltraTurboModeXtreme)
-        RenderNotes();
+    RenderNotes();
     if ( m_bShowKB )
         RenderKeys();
     RenderBorder();

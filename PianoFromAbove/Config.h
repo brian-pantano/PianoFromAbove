@@ -197,7 +197,6 @@ public:
 
     // i really need to start writting getters and setters
     bool m_bManualTimer = false;
-    bool m_bUltraTurboModeXtreme = false;
 
 private:
     // Singleton
