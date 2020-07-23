@@ -69,7 +69,7 @@ INT_PTR WINAPI VisualProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             HWND hWndLastKey = GetDlgItem( hWnd, IDC_LASTKEY );
 
             // Enumerate the keys
-            for ( int i = MIDI::A0; i <= MIDI::C8; i++ )
+            for ( int i = MIDI::minKey; i <= MIDI::maxKey; i++ )
             {
                 SendMessage( hWndFirstKey, CB_ADDSTRING, i, ( LPARAM )MIDI::NoteName(i).c_str() );
                 SendMessage( hWndLastKey, CB_ADDSTRING, i, ( LPARAM )MIDI::NoteName(i).c_str() );
@@ -165,8 +165,8 @@ INT_PTR WINAPI VisualProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                                            cVisual.Song );
                     cVisual.bAlwaysShowControls = ( IsDlgButtonChecked( hWnd, IDC_SHOWCONTROLS ) == BST_CHECKED );
                     cVisual.bAssociateFiles = ( IsDlgButtonChecked( hWnd, IDC_ASSOCIATEFILES ) == BST_CHECKED );
-                    cVisual.iFirstKey = (int)SendMessage( GetDlgItem( hWnd, IDC_FIRSTKEY ), CB_GETCURSEL, 0, 0 ) + MIDI::A0;
-                    cVisual.iLastKey = (int)SendMessage( GetDlgItem( hWnd, IDC_LASTKEY ), CB_GETCURSEL, 0, 0 ) + MIDI::A0;
+                    cVisual.iFirstKey = (int)SendMessage( GetDlgItem( hWnd, IDC_FIRSTKEY ), CB_GETCURSEL, 0, 0 ) + MIDI::minKey;
+                    cVisual.iLastKey = (int)SendMessage( GetDlgItem( hWnd, IDC_LASTKEY ), CB_GETCURSEL, 0, 0 ) + MIDI::minKey;
                     for ( int i = 0; i < IDC_COLOR6 - IDC_COLOR1 + 1; i++ )
                         cVisual.colors[i] = (int)GetWindowLongPtr( GetDlgItem( hWnd, IDC_COLOR1 + i ), GWLP_USERDATA );
                     cVisual.iBkgColor = (int)GetWindowLongPtr( GetDlgItem( hWnd, IDC_BKGCOLOR ), GWLP_USERDATA );
@@ -197,8 +197,8 @@ VOID SetVisualProc( HWND hWnd, const VisualSettings &cVisual )
     CheckDlgButton( hWnd, IDC_SHOWCONTROLS, cVisual.bAlwaysShowControls ? BST_CHECKED : BST_UNCHECKED );
     CheckDlgButton( hWnd, IDC_ASSOCIATEFILES, cVisual.bAssociateFiles ? BST_CHECKED : BST_UNCHECKED );
     SendMessage( hWnd, WM_COMMAND, IDC_SHOWALLKEYS + cVisual.eKeysShown, 0 );
-    SendMessage( hWndFirstKey, CB_SETCURSEL, cVisual.iFirstKey - MIDI::A0, 0 );
-    SendMessage( hWndLastKey, CB_SETCURSEL, cVisual.iLastKey - MIDI::A0, 0 );
+    SendMessage( hWndFirstKey, CB_SETCURSEL, cVisual.iFirstKey - MIDI::minKey, 0 );
+    SendMessage( hWndLastKey, CB_SETCURSEL, cVisual.iLastKey - MIDI::minKey, 0 );
 
     // Colors
     for ( int i = 0; i < IDC_COLOR6 - IDC_COLOR1 + 1; i++ )

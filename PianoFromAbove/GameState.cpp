@@ -1295,8 +1295,8 @@ void MainScreen::RenderGlobals()
     const MIDI::MIDIInfo &mInfo = m_MIDI.GetInfo();
     if ( m_eKeysShown == VisualSettings::All )
     {
-        m_iStartNote = min( m_iStartNote, MIDI::A0 );
-        m_iEndNote = max( m_iEndNote, MIDI::C8 );
+        m_iStartNote = min( m_iStartNote, MIDI::minKey );
+        m_iEndNote = max( m_iEndNote, MIDI::maxKey );
     }
     else if ( m_eKeysShown == VisualSettings::Song )
     {
@@ -1596,8 +1596,8 @@ void MainScreen::RenderKeys()
         }
 
     // Draw the sharps
-    iStartRender = ( m_iStartNote != MIDI::A0 && !MIDI::IsSharp( m_iStartNote ) && m_iStartNote > 0 && MIDI::IsSharp( m_iStartNote - 1 ) ? m_iStartNote - 1 : m_iStartNote );
-    iEndRender = ( m_iEndNote != MIDI::C8 && !MIDI::IsSharp( m_iEndNote ) && m_iEndNote < 127 && MIDI::IsSharp( m_iEndNote + 1 ) ? m_iEndNote + 1 : m_iEndNote );
+    iStartRender = ( m_iStartNote != MIDI::minKey && !MIDI::IsSharp( m_iStartNote ) && m_iStartNote > 0 && MIDI::IsSharp( m_iStartNote - 1 ) ? m_iStartNote - 1 : m_iStartNote );
+    iEndRender = ( m_iEndNote != MIDI::maxKey && !MIDI::IsSharp( m_iEndNote ) && m_iEndNote < 127 && MIDI::IsSharp( m_iEndNote + 1 ) ? m_iEndNote + 1 : m_iEndNote );
     fStartX = ( MIDI::IsSharp( m_iStartNote ) ? m_fWhiteCX * SharpRatio / 2.0f : 0.0f );
 
     float fSharpTop = SharpRatio * 0.7f;
