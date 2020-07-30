@@ -1572,10 +1572,11 @@ void MainScreen::RenderNotes()
     size_t queue_pos = batch_vertices.size();
     for (int i = 0; i < 128; i++) {
         if (!MIDI::IsSharp(i)) {
-            for (vector< int >::iterator it = (m_vState[i]).begin(); it != (m_vState[i]).end(); ++it) {
+            for (vector< int >::iterator it = (m_vState[i]).begin(); it != (m_vState[i]).end();) {
                 const thread_work_t work{ queue_pos, m_vEvents[*it] };
                 m_vThreadWork.push_back(work);
                 queue_pos += 12;
+                ++it;
             }
         } else {
             bHasSharp = true;
@@ -1604,10 +1605,11 @@ void MainScreen::RenderNotes()
     {
         for (int i = 0; i < 128; i++) {
             if (MIDI::IsSharp(i)) {
-                for (vector< int >::iterator it = (m_vState[i]).begin(); it != (m_vState[i]).end(); ++it) {
+                for (vector< int >::iterator it = (m_vState[i]).begin(); it != (m_vState[i]).end();) {
                     const thread_work_t work{ queue_pos, m_vEvents[*it] };
                     m_vThreadWork.push_back(work);
                     queue_pos += 12;
+                    ++it;
                 }
             }
         }
@@ -1640,8 +1642,8 @@ void MainScreen::RenderNote( thread_work_t& work )
     int iNote = pNote->GetParam1();
     int iTrack = pNote->GetTrack();
     int iChannel = pNote->GetChannel();
-    long long llNoteStart = pNote->GetAbsMicroSec();
-    long long llNoteEnd = pNote->GetSister()->GetAbsMicroSec();
+    float fNoteStart = pNote->GetAbsMicroSec();
+    float fNoteEnd = pNote->GetSister()->GetAbsMicroSec();
 
     // TODO: this load is really expensive
     ChannelSettings &csTrack = m_vTrackSettings[iTrack].aChannels[iChannel];
@@ -1651,9 +1653,9 @@ void MainScreen::RenderNote( thread_work_t& work )
     float x = GetNoteX( iNote );
     // despite the extra 4 bytes per event, this actually makes quite a difference in performance
     // who knew int to float was still so expensive?
-    float y = m_fNotesY + m_fNotesCY * ( 1.0f - ( pNote->GetAbsMicroSecFloat() - m_fRndStartTime) / m_llTimeSpan );
+    float y = m_fNotesY + m_fNotesCY * ( 1.0f - ( fNoteStart - m_fRndStartTime) / m_llTimeSpan );
     float cx =  MIDI::IsSharp( iNote ) ? m_fWhiteCX * SharpRatio : m_fWhiteCX;
-    float cy = m_fNotesCY * ( static_cast< float >( llNoteEnd - llNoteStart ) / m_llTimeSpan );
+    float cy = m_fNotesCY * ( ( fNoteEnd - fNoteStart ) / m_llTimeSpan );
     float fDeflate = m_fWhiteCX * 0.15f / 2.0f;
 
     // Rounding to make everything consistent
