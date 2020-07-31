@@ -525,6 +525,7 @@ void MainScreen::InitNoteMap( const vector< MIDIEvent* > &vEvents )
     //Get only the channel events
     m_vEvents.reserve( vEvents.size() );
     m_vNoteOns.reserve(vEvents.size() / 2); 
+    m_vMarkers.push_back(pair<long long, int>(0, -1)); // dummy value
     for ( vector< MIDIEvent* >::const_iterator it = vEvents.begin(); it != vEvents.end(); ++it )
         if ( (*it)->GetEventType() == MIDIEvent::ChannelEvent )
         {
@@ -545,16 +546,24 @@ void MainScreen::InitNoteMap( const vector< MIDIEvent* > &vEvents )
                 pEvent->GetSister()->sister_idx = m_vEvents.size() - 1;
         }
         // Have to keep track of tempo and signature for the measure lines
+        // markers too
         else if ( (*it)->GetEventType() == MIDIEvent::MetaEvent )
         {
             MIDIMetaEvent *pEvent = reinterpret_cast< MIDIMetaEvent* >( *it );
             m_vMetaEvents.push_back( pEvent );
 
             MIDIMetaEvent::MetaEventType eEventType = pEvent->GetMetaEventType();
-            if ( eEventType == MIDIMetaEvent::SetTempo )
-                m_vTempo.push_back( pair< long long, int >( pEvent->GetAbsMicroSec(), m_vMetaEvents.size() - 1 ) );
-            else if ( eEventType == MIDIMetaEvent::TimeSignature )
-                m_vSignature.push_back( pair< long long, int >( pEvent->GetAbsMicroSec(), m_vMetaEvents.size() - 1 ) );
+            switch (eEventType) {
+            case MIDIMetaEvent::SetTempo:
+                m_vTempo.push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), m_vMetaEvents.size() - 1));
+                break;
+            case MIDIMetaEvent::TimeSignature:
+                m_vSignature.push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), m_vMetaEvents.size() - 1));
+                break;
+            case MIDIMetaEvent::Marker:
+                m_vMarkers.push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), m_vMetaEvents.size() - 1));
+                break;
+            }
         }
 }
 
@@ -1301,6 +1310,22 @@ void MainScreen::AdvanceIterators( long long llTime, bool bIsJump )
             m_iClocksPerMet = 24;
             m_iLastSignatureTick = 0;
         }
+
+        auto itCurMarker = m_itNextMarker;
+        m_itNextMarker = upper_bound(m_vMarkers.begin(), m_vMarkers.end(), pair< long long, int >(llTime, m_vMetaEvents.size()));
+        if (itCurMarker != m_itNextMarker) {
+            if (m_itNextMarker != m_vMarkers.begin() && (m_itNextMarker - 1)->second != -1) {
+                const auto eEvent = m_vMetaEvents[(m_itNextMarker - 1)->second];
+                auto sTempStr = new char[eEvent->GetDataLen() + 1];
+                memcpy(sTempStr, eEvent->GetData(), eEvent->GetDataLen());
+                sTempStr[eEvent->GetDataLen()] = '\0';
+                m_wsMarker = std::wstring(sTempStr, sTempStr + eEvent->GetDataLen() + 1);
+                delete[] sTempStr;
+            }
+            else {
+                m_wsMarker = std::wstring();
+            }
+        }
     }
     else
     {
@@ -1325,6 +1350,21 @@ void MainScreen::AdvanceIterators( long long llTime, bool bIsJump )
                 m_iBeatType = 1 << pEvent->GetData()[1];
                 m_iClocksPerMet = pEvent->GetData()[2];
                 m_iLastSignatureTick = pEvent->GetAbsT();
+            }
+        }
+        auto itCurMarker = m_itNextMarker;
+        while (m_itNextMarker != m_vMarkers.end() && m_itNextMarker->first <= llTime)
+            ++m_itNextMarker;
+        if (itCurMarker != m_itNextMarker) {
+            if (m_itNextMarker != m_vMarkers.begin() && (m_itNextMarker - 1)->second != -1) {
+                const auto eEvent = m_vMetaEvents[(m_itNextMarker - 1)->second];
+                auto sTempStr = new char[eEvent->GetDataLen() + 1];
+                memcpy(sTempStr, eEvent->GetData(), eEvent->GetDataLen());
+                sTempStr[eEvent->GetDataLen()] = '\0';
+                m_wsMarker = std::wstring(sTempStr, sTempStr + eEvent->GetDataLen() + 1);
+                delete[] sTempStr;
+            } else {
+                m_wsMarker = std::wstring();
             }
         }
     }
@@ -1905,6 +1945,11 @@ void MainScreen::RenderText()
     // Screen info
     RECT rcStatus = { m_pRenderer->GetBufferWidth() - 156, 0, m_pRenderer->GetBufferWidth(), 6 + 16 * iLines };
 
+    // Current marker (if there is one)
+    RECT rcMarker;
+    m_pRenderer->DrawText(m_wsMarker.c_str(), Renderer::Small, &rcMarker, DT_CALCRECT, 0);
+    rcMarker = { 0, rcMarker.top, rcMarker.right - rcMarker.left + 12, rcMarker.bottom + 6 };
+
     int iMsgCY = 200;
     RECT rcMsg = { 0, static_cast<int>(m_pRenderer->GetBufferHeight() * (1.0f - KBPercent) - iMsgCY) / 2 };
     rcMsg.right = m_pRenderer->GetBufferWidth();
@@ -1914,6 +1959,10 @@ void MainScreen::RenderText()
     unsigned iBkgColor = 0x40000000;
     m_pRenderer->DrawRect(static_cast<float>(rcStatus.left), static_cast<float>(rcStatus.top),
         static_cast<float>(rcStatus.right - rcStatus.left), static_cast<float>(rcStatus.bottom - rcStatus.top), 0x80000000);
+    if (!m_wsMarker.empty()) {
+        m_pRenderer->DrawRect(static_cast<float>(rcMarker.left), static_cast<float>(rcMarker.top),
+            static_cast<float>(rcMarker.right - rcMarker.left), static_cast<float>(rcMarker.bottom - rcMarker.top), 0x80000000);
+    }
     if (m_bZoomMove)
         m_pRenderer->DrawRect(static_cast<float>(rcMsg.left), static_cast<float>(rcMsg.top),
             static_cast<float>(rcMsg.right - rcMsg.left), static_cast<float>(rcMsg.bottom - rcMsg.top), iBkgColor);
@@ -1922,6 +1971,7 @@ void MainScreen::RenderText()
     m_pRenderer->BeginText();
 
     RenderStatus(&rcStatus);
+    RenderMarker(&rcMarker, m_wsMarker.c_str()); // lol
     if (m_bZoomMove)
         RenderMessage(&rcMsg, TEXT("- Left-click and drag to move the screen\n- Right-click and drag to zoom horizontally\n- Press Escape to abort changes\n- Press Ctrl+V to save changes"));
 
@@ -2003,6 +2053,16 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
         m_pRenderer->DrawText(TEXT("Speed:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
         m_pRenderer->DrawText(sSpeed, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
     }
+}
+
+void MainScreen::RenderMarker(LPRECT prcPos, const wchar_t* sStr)
+{
+    InflateRect(prcPos, -6, -3);
+
+    OffsetRect(prcPos, 2, 1);
+    m_pRenderer->DrawText(sStr, Renderer::Small, prcPos, 0, 0xFF404040);
+    OffsetRect(prcPos, -2, -1);
+    m_pRenderer->DrawText(sStr, Renderer::Small, prcPos, 0, 0xFFFFFFFF);
 }
 
 void MainScreen::RenderMessage(LPRECT prcMsg, TCHAR* sMsg)

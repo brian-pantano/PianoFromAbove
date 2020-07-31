@@ -10,6 +10,8 @@
 #include "MIDI.h"
 #include "robin_hood.h"
 #include <fstream>
+#include <stack>
+#include <array>
 
 //std::map<int, std::pair<std::vector<MIDIEvent*>::iterator, std::vector<MIDIEvent*>>> midi_map;
 
@@ -473,45 +475,34 @@ void MIDI::PostProcess( vector< MIDIEvent* > *vEvents )
 
 void MIDI::ConnectNotes()
 {
-    //const int StackSize = 10;
-    int pSize[16][128];
-    //MIDIChannelEvent *pStacks[16][128][StackSize];
-    const auto track_count = m_vTracks.size();
-    MIDIChannelEvent** pStacks = new MIDIChannelEvent*[16 * 128 * track_count * 16];
+    std::vector<std::array<std::stack<MIDIChannelEvent*>, 128>> vStacks;
+    vStacks.resize(m_vTracks.size() * 16);
 
-    for ( vector< MIDITrack* >::iterator itTrack = m_vTracks.begin(); itTrack != m_vTracks.end(); ++itTrack )
-    {
-        memset( pSize, 0, sizeof( pSize ) );
-        vector< MIDIEvent* > &vEvents = ( *itTrack )->m_vEvents;
+    for (int track = 0; track < m_vTracks.size(); ++track) {
+        vector< MIDIEvent* >& vEvents = m_vTracks[track]->m_vEvents;
         int iEvents = (int)vEvents.size();
-        for ( int i = 0; i < iEvents; i++ )
-            if ( vEvents[i]->GetEventType() == MIDIEvent::ChannelEvent )
+        for (int i = 0; i < iEvents; i++) {
+            if (vEvents[i]->GetEventType() == MIDIEvent::ChannelEvent)
             {
-                MIDIChannelEvent *pEvent = reinterpret_cast< MIDIChannelEvent* >( vEvents[i] );
+                MIDIChannelEvent* pEvent = reinterpret_cast<MIDIChannelEvent*>(vEvents[i]);
                 MIDIChannelEvent::ChannelEventType eEventType = pEvent->GetChannelEventType();
                 int iChannel = pEvent->GetChannel();
                 int iNote = pEvent->GetParam1();
                 int iVelocity = pEvent->GetParam2();
-                
-                if ( eEventType == MIDIChannelEvent::NoteOn && iVelocity > 0 )
-                {
-                    int &iSize = pSize[iChannel][iNote];
-                    if ( iSize < track_count) pStacks[(((iSize * track_count) + iChannel) * 16) + iNote] = pEvent;
-                    iSize++;
-                }
-                else if ( eEventType == MIDIChannelEvent::NoteOff || eEventType == MIDIChannelEvent::NoteOn )
-                {
-                    int &iSize = pSize[iChannel][iNote];
-                    if ( iSize > 0 )
-                    {
-                        if ( iSize <= track_count) pStacks[(((((size_t)iSize - 1) * track_count) + iChannel) * 16) + iNote]->SetSister( pEvent );
-                        iSize--;
+                auto& sStack = vStacks[track * 16 + iChannel][iNote];
+
+                if (eEventType == MIDIChannelEvent::NoteOn && iVelocity > 0) {
+                    sStack.push(pEvent);
+                } else if (eEventType == MIDIChannelEvent::NoteOff || eEventType == MIDIChannelEvent::NoteOn) {
+                    if (!sStack.empty()) {
+                        auto pTop = sStack.top();
+                        sStack.pop();
+                        pTop->SetSister(pEvent);
                     }
                 }
             }
+        }
     }
-
-    delete[] pStacks;
 }
 
 
