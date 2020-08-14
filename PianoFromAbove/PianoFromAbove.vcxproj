@@ -165,7 +165,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalOptions>-O3 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/clang:-Ofast %(AdditionalOptions)</AdditionalOptions>
       <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
