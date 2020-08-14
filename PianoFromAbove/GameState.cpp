@@ -543,7 +543,7 @@ void MainScreen::InitNoteMap( const vector< MIDIEvent* > &vEvents )
                     m_vProgramChange.push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), m_vEvents.size() - 1));
             }
             if (pEvent->GetSister())
-                pEvent->GetSister()->sister_idx = m_vEvents.size() - 1;
+                pEvent->GetSister()->SetSisterIdx(m_vEvents.size() - 1);
         }
         // Have to keep track of tempo and signature for the measure lines
         // markers too
@@ -1122,7 +1122,7 @@ void MainScreen::UpdateState( int iPos )
     int iNote = pEvent->GetParam1();
     int iVelocity = pEvent->GetParam2();
 
-    int iSisterIdx = pEvent->sister_idx;
+    int iSisterIdx = pEvent->GetSisterIdx();
     auto& note_state = m_vState[iNote];
 
     // Turn note on

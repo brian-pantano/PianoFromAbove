@@ -12,6 +12,7 @@
 #include <fstream>
 #include <stack>
 #include <array>
+#include <ppl.h>
 
 //std::map<int, std::pair<std::vector<MIDIEvent*>::iterator, std::vector<MIDIEvent*>>> midi_map;
 
@@ -154,7 +155,7 @@ MIDI::MIDI ( const wstring &sFilename )
     // Parse it
     int iTotal = ParseMIDI ( pcMemBlock, iSize );
     m_Info.sFilename = sFilename;
-    Util::MD5( pcMemBlock, iSize, m_Info.sMd5 );
+    //Util::MD5( pcMemBlock, iSize, m_Info.sMd5 );
  
     // Clean up
     delete[] pcMemBlock;
@@ -478,10 +479,9 @@ void MIDI::ConnectNotes()
     std::vector<std::array<std::stack<MIDIChannelEvent*>, 128>> vStacks;
     vStacks.resize(m_vTracks.size() * 16);
 
-    for (int track = 0; track < m_vTracks.size(); ++track) {
+    concurrency::parallel_for(size_t(0), m_vTracks.size(), [&](int track) {
         vector< MIDIEvent* >& vEvents = m_vTracks[track]->m_vEvents;
-        int iEvents = (int)vEvents.size();
-        for (int i = 0; i < iEvents; i++) {
+        for (size_t i = 0; i < vEvents.size(); i++) {
             if (vEvents[i]->GetEventType() == MIDIEvent::ChannelEvent)
             {
                 MIDIChannelEvent* pEvent = reinterpret_cast<MIDIChannelEvent*>(vEvents[i]);
@@ -493,7 +493,8 @@ void MIDI::ConnectNotes()
 
                 if (eEventType == MIDIChannelEvent::NoteOn && iVelocity > 0) {
                     sStack.push(pEvent);
-                } else if (eEventType == MIDIChannelEvent::NoteOff || eEventType == MIDIChannelEvent::NoteOn) {
+                }
+                else if (eEventType == MIDIChannelEvent::NoteOff || eEventType == MIDIChannelEvent::NoteOn) {
                     if (!sStack.empty()) {
                         auto pTop = sStack.top();
                         sStack.pop();
@@ -502,7 +503,7 @@ void MIDI::ConnectNotes()
                 }
             }
         }
-    }
+    });
 }
 
 

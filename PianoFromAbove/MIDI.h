@@ -237,16 +237,16 @@ public:
     unsigned char GetParam1() const { return m_cParam1; }
     unsigned char GetParam2() const { return m_cParam2; }
     MIDIChannelEvent *GetSister() const { return m_pSister; }
+    int GetSisterIdx() const { return m_iSisterIdx; }
     int GetSimultaneous() const { return m_iSimultaneous; }
 
     void SetSister( MIDIChannelEvent *pSister ) { m_pSister = pSister; pSister->m_pSister = this; }
+    void SetSisterIdx(int iSisterIdx) { m_iSisterIdx = iSisterIdx; }
     void SetSimultaneous(int iSimultaneous) { m_iSimultaneous = iSimultaneous; }
-
-    // too lazy to write accessor
-    int sister_idx = -1;
 
 private:
     MIDIChannelEvent *m_pSister;
+    int m_iSisterIdx = -1;
     int m_iSimultaneous;
     char m_eChannelEventType;
     unsigned char m_cChannel;
