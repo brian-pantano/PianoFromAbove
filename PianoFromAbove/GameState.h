@@ -196,6 +196,7 @@ private:
     void UpdateState( int iPos );
     void JumpTo(long long llStartTime, bool bUpdateGUI = true);
     void PlaySkippedEvents(eventvec_t::const_iterator itOldProgramChange);
+    void ApplyMarker(unsigned char* data, size_t size);
     void AdvanceIterators( long long llTime, bool bIsJump );
     MIDIMetaEvent* GetPrevious( eventvec_t::const_iterator &itCurrent,
                                 const eventvec_t &vEventMap, int iDataLen );

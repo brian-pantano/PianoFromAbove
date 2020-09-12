@@ -1273,6 +1273,26 @@ void MainScreen::PlaySkippedEvents(eventvec_t::const_iterator itOldProgramChange
         m_OutDevice.PlayEvent((*it)->GetEventCode(), (*it)->GetParam1(), (*it)->GetParam2());
 }
 
+void MainScreen::ApplyMarker(unsigned char* data, size_t size) {
+    if (data) {
+        constexpr unsigned code_page = 932; // SHIFT-JIS
+        auto temp_str = new char[size + 1];
+        memcpy(temp_str, data, size);
+        temp_str[size] = '\0';
+        
+        auto wide_len = MultiByteToWideChar(code_page, 0, temp_str, size + 1, NULL, 0);
+        auto wide_temp_str = new WCHAR[wide_len];
+        MultiByteToWideChar(code_page, 0, temp_str, size + 1, wide_temp_str, wide_len);
+
+        m_wsMarker = std::wstring(wide_temp_str);
+
+        delete[] temp_str;
+        delete[] wide_temp_str;
+    } else {
+        m_wsMarker = std::wstring();
+    }
+}
+
 // Advance program change, tempo, and signature
 void MainScreen::AdvanceIterators( long long llTime, bool bIsJump )
 {
@@ -1316,14 +1336,10 @@ void MainScreen::AdvanceIterators( long long llTime, bool bIsJump )
         if (itCurMarker != m_itNextMarker) {
             if (m_itNextMarker != m_vMarkers.begin() && (m_itNextMarker - 1)->second != -1) {
                 const auto eEvent = m_vMetaEvents[(m_itNextMarker - 1)->second];
-                auto sTempStr = new char[eEvent->GetDataLen() + 1];
-                memcpy(sTempStr, eEvent->GetData(), eEvent->GetDataLen());
-                sTempStr[eEvent->GetDataLen()] = '\0';
-                m_wsMarker = std::wstring(sTempStr, sTempStr + eEvent->GetDataLen() + 1);
-                delete[] sTempStr;
+                ApplyMarker(eEvent->GetData(), eEvent->GetDataLen());
             }
             else {
-                m_wsMarker = std::wstring();
+                ApplyMarker(nullptr, 0);
             }
         }
     }
@@ -1358,13 +1374,9 @@ void MainScreen::AdvanceIterators( long long llTime, bool bIsJump )
         if (itCurMarker != m_itNextMarker) {
             if (m_itNextMarker != m_vMarkers.begin() && (m_itNextMarker - 1)->second != -1) {
                 const auto eEvent = m_vMetaEvents[(m_itNextMarker - 1)->second];
-                auto sTempStr = new char[eEvent->GetDataLen() + 1];
-                memcpy(sTempStr, eEvent->GetData(), eEvent->GetDataLen());
-                sTempStr[eEvent->GetDataLen()] = '\0';
-                m_wsMarker = std::wstring(sTempStr, sTempStr + eEvent->GetDataLen() + 1);
-                delete[] sTempStr;
+                ApplyMarker(eEvent->GetData(), eEvent->GetDataLen());
             } else {
-                m_wsMarker = std::wstring();
+                ApplyMarker(nullptr, 0);
             }
         }
     }
