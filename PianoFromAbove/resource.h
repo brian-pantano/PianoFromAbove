@@ -22,6 +22,7 @@
 #define IDD_ABOUT                       138
 #define IDB_LOCK                        146
 #define IDR_SPLASHMIDI                  149
+#define IDD_LOADING                     153
 #define IDC_TRACKS                      1001
 #define IDC_HIDEKEYBOARD                1004
 #define IDC_FLIPSCREEN                  1005
@@ -85,6 +86,9 @@
 #define IDC_LOCK                        1094
 #define IDC_NSPEED                      1095
 #define IDC_CHECK1                      1096
+#define IDC_LOADINGPROGRESS             1097
+#define IDC_LOADINGDESC                 1098
+#define IDC_LOADINGNUM                  1099
 #define ID_FILE_PLAYFILE                40001
 #define ID_FILE_ADDFILE                 40002
 #define ID_FILE_ADDFOLDER               40003
@@ -180,9 +184,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        153
+#define _APS_NEXT_RESOURCE_VALUE        155
 #define _APS_NEXT_COMMAND_VALUE         40172
-#define _APS_NEXT_CONTROL_VALUE         1097
+#define _APS_NEXT_CONTROL_VALUE         1100
 #define _APS_NEXT_SYMED_VALUE           102
 #endif
 #endif

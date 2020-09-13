@@ -20,6 +20,7 @@
 
 #include "GameState.h"
 #include "Config.h"
+#include <thread>
 
 static WNDPROC g_pPrevBarProc; // Have to override the toolbar proc to make controls transparent
 
@@ -1041,6 +1042,58 @@ VOID SetPlayPauseStop( BOOL bPlay, BOOL bPause, BOOL bStop )
     SendMessage( hWndToolbar, TB_PRESSBUTTON, ID_PLAY_STOP, bStop );
 }
 
+INT_PTR LoadingProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+    static int asdf = 0;
+    switch (msg) {
+    case WM_INITDIALOG: {
+        SetWindowTextW(hwnd, (L"Loading " + g_LoadingProgress.name).c_str());
+        SetTimer(hwnd, 420691337, 1, NULL);
+        EnableMenuItem(GetSystemMenu(hwnd, FALSE), SC_CLOSE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED);
+        return true;
+    }
+    case WM_TIMER: {
+        // lots of race conditions possible but hopefully nobody notices them
+        const char* desc = "placeholder";
+        switch (g_LoadingProgress.stage) {
+        case MIDILoadingProgress::Stage::CopyToMem:
+            desc = "Copying MIDI into memory...";
+            break;
+        case MIDILoadingProgress::Stage::ParseTracks:
+            desc = "Parsing tracks...";
+            break;
+        case MIDILoadingProgress::Stage::ConnectNotes:
+            desc = "Connecting notes...";
+            break;
+        case MIDILoadingProgress::Stage::SortEvents:
+            desc = "Sorting events...";
+            break;
+        case MIDILoadingProgress::Stage::Finalize:
+            desc = "Finalizing...";
+            break;
+        case MIDILoadingProgress::Stage::Done:
+            EndDialog(hwnd, 0);
+            return true;
+        }
+
+        char buf[1024];
+        auto prog = g_LoadingProgress.progress.load();
+        snprintf(buf, sizeof(buf), "%d / %d", prog, g_LoadingProgress.max);
+        SetWindowTextA(GetDlgItem(hwnd, IDC_LOADINGDESC), desc);
+        SetWindowTextA(GetDlgItem(hwnd, IDC_LOADINGNUM), buf);
+        auto bar = GetDlgItem(hwnd, IDC_LOADINGPROGRESS);
+        SendMessage(bar, PBM_SETRANGE32, 0, g_LoadingProgress.max);
+        SendMessage(bar, PBM_SETPOS, prog, 0);
+        UpdateWindow(bar);
+        return true;
+    }
+    case WM_CLOSE: {
+        EndDialog(hwnd, 0);
+        return true;
+    }
+    }
+    return false;
+}
+
 BOOL PlayFile( const wstring &sFile, bool bCustomSettings, bool bLibraryEligible )
 {
     Config &config = Config::GetConfig();
@@ -1052,11 +1105,19 @@ BOOL PlayFile( const wstring &sFile, bool bCustomSettings, bool bLibraryEligible
     const GameState::State ePlayMode = GameState::Practice;
 
     // Try loading the file
-    MainScreen *pGameState = NULL;
-    pGameState = new MainScreen( sFile, ePlayMode, NULL, NULL );
-    if ( !pGameState->IsValid() )
+    MainScreen* pGameState = NULL;
+    g_LoadingProgress.stage = MIDILoadingProgress::Stage::CopyToMem;
+    g_LoadingProgress.name = sFile;
+    g_LoadingProgress.progress = 0;
+    g_LoadingProgress.max = 1;
+    auto thread = std::thread([&]() {
+        pGameState = new MainScreen(sFile, ePlayMode, NULL, NULL);
+    });
+    DialogBox(NULL, MAKEINTRESOURCE(IDD_LOADING), g_hWnd, LoadingProc);
+    thread.join();
+    if (!pGameState->IsValid())
     {
-        MessageBox( g_hWnd, ( L"Was not able to load " + sFile ).c_str(), TEXT( "Error" ), MB_OK | MB_ICONEXCLAMATION );
+        MessageBox(g_hWnd, (L"Was not able to load " + sFile).c_str(), TEXT("Error"), MB_OK | MB_ICONEXCLAMATION);
         return FALSE;
     }
 

@@ -15,6 +15,7 @@
 #include <ppl.h>
 
 //std::map<int, std::pair<std::vector<MIDIEvent*>::iterator, std::vector<MIDIEvent*>>> midi_map;
+MIDILoadingProgress g_LoadingProgress;
 
 //-----------------------------------------------------------------------------
 // MIDIPos functions
@@ -337,6 +338,9 @@ int MIDI::ParseMIDI( const unsigned char *pcData, size_t iMaxSize )
 int MIDI::ParseTracks( const unsigned char *pcData, size_t iMaxSize )
 {
     size_t iTotal = 0, iCount = 0, iTrack = m_vTracks.size();
+    g_LoadingProgress.stage = MIDILoadingProgress::Stage::ParseTracks;
+    g_LoadingProgress.progress = 0;
+    g_LoadingProgress.max = m_Info.iNumTracks; // not actually guaranteed to hit this
     do
     {
         // Create and parse the track
@@ -348,6 +352,7 @@ int MIDI::ParseTracks( const unsigned char *pcData, size_t iMaxSize )
         {
             m_vTracks.push_back( track );
             m_Info.AddTrackInfo( *track );
+            g_LoadingProgress.progress++;
         }
         else
             delete track;
@@ -418,10 +423,17 @@ void MIDI::PostProcess( vector< MIDIEvent* > *vEvents )
     long long llLastTempoTime = 0;
     int iSimultaneous = 0;
 
+    size_t event_count = 0;
+    for (auto track : m_vTracks)
+        event_count += track->m_vEvents.size();
+
+    g_LoadingProgress.stage = MIDILoadingProgress::Stage::SortEvents;
+    g_LoadingProgress.progress = 0;
+    g_LoadingProgress.max = event_count;
+
     MIDIEvent *pEvent = NULL;
     long long llFirstNote = -1;
     long long llTime = 0;
-    int i = 0;
     for ( midiPos.GetNextEvent( -1, &pEvent ); pEvent; midiPos.GetNextEvent( -1, &pEvent ) )
     {
         // Compute the exact time (off by at most a micro second... I don't feel like rounding)
@@ -463,7 +475,7 @@ void MIDI::PostProcess( vector< MIDIEvent* > *vEvents )
         }
 
         if ( vEvents ) vEvents->push_back( pEvent );
-        i++;
+        g_LoadingProgress.progress++;
     }
 
     m_Info.llTotalMicroSecs = llTime;
@@ -478,6 +490,10 @@ void MIDI::ConnectNotes()
 {
     std::vector<std::array<std::stack<MIDIChannelEvent*>, 128>> vStacks;
     vStacks.resize(m_vTracks.size() * 16);
+
+    g_LoadingProgress.stage = MIDILoadingProgress::Stage::ConnectNotes;
+    g_LoadingProgress.progress = 0;
+    g_LoadingProgress.max = m_vTracks.size();
 
     concurrency::parallel_for(size_t(0), m_vTracks.size(), [&](int track) {
         vector< MIDIEvent* >& vEvents = m_vTracks[track]->m_vEvents;
@@ -503,6 +519,7 @@ void MIDI::ConnectNotes()
                 }
             }
         }
+        g_LoadingProgress.progress++;
     });
 }
 

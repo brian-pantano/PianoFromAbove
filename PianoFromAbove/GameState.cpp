@@ -518,19 +518,25 @@ MainScreen::MainScreen( wstring sMIDIFile, State eGameMode, HWND hWnd, Renderer 
     InitNoteMap( vEvents ); // Longish
     InitColors();
     InitState();
+
+    g_LoadingProgress.stage = MIDILoadingProgress::Stage::Done;
 }
 
 void MainScreen::InitNoteMap( const vector< MIDIEvent* > &vEvents )
 {
+    g_LoadingProgress.stage = MIDILoadingProgress::Stage::Finalize;
+    g_LoadingProgress.progress = 0;
+    g_LoadingProgress.max = vEvents.size(); // probably stays the same
+
     //Get only the channel events
     m_vEvents.reserve( vEvents.size() );
     m_vNoteOns.reserve(vEvents.size() / 2); 
     m_vMarkers.push_back(pair<long long, int>(0, -1)); // dummy value
-    for ( vector< MIDIEvent* >::const_iterator it = vEvents.begin(); it != vEvents.end(); ++it )
-        if ( (*it)->GetEventType() == MIDIEvent::ChannelEvent )
+    for (vector< MIDIEvent* >::const_iterator it = vEvents.begin(); it != vEvents.end(); ++it) {
+        if ((*it)->GetEventType() == MIDIEvent::ChannelEvent)
         {
-            MIDIChannelEvent *pEvent = reinterpret_cast< MIDIChannelEvent* >( *it );
-            m_vEvents.push_back( pEvent );
+            MIDIChannelEvent* pEvent = reinterpret_cast<MIDIChannelEvent*>(*it);
+            m_vEvents.push_back(pEvent);
 
             // Makes random access to the song faster, but unsure if it's worth it
             MIDIChannelEvent::ChannelEventType eEventType = pEvent->GetChannelEventType();
@@ -547,10 +553,10 @@ void MainScreen::InitNoteMap( const vector< MIDIEvent* > &vEvents )
         }
         // Have to keep track of tempo and signature for the measure lines
         // markers too
-        else if ( (*it)->GetEventType() == MIDIEvent::MetaEvent )
+        else if ((*it)->GetEventType() == MIDIEvent::MetaEvent)
         {
-            MIDIMetaEvent *pEvent = reinterpret_cast< MIDIMetaEvent* >( *it );
-            m_vMetaEvents.push_back( pEvent );
+            MIDIMetaEvent* pEvent = reinterpret_cast<MIDIMetaEvent*>(*it);
+            m_vMetaEvents.push_back(pEvent);
 
             MIDIMetaEvent::MetaEventType eEventType = pEvent->GetMetaEventType();
             switch (eEventType) {
@@ -565,6 +571,8 @@ void MainScreen::InitNoteMap( const vector< MIDIEvent* > &vEvents )
                 break;
             }
         }
+        g_LoadingProgress.progress++;
+    }
 }
 
 // Display colors

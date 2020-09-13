@@ -13,6 +13,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <atomic>
 using namespace std;
 
 #include "Misc.h"
@@ -342,3 +343,15 @@ private:
                                       DWORD_PTR dwParam1, DWORD_PTR dwParam2 );
     HMIDIOUT m_hMIDIOut;
 };
+
+class MIDILoadingProgress {
+public:
+    enum Stage { CopyToMem, ParseTracks, ConnectNotes, SortEvents, Finalize, Done };
+
+    Stage stage;
+    std::wstring name;
+    std::atomic<unsigned> progress;
+    unsigned max;
+};
+
+extern MIDILoadingProgress g_LoadingProgress;
