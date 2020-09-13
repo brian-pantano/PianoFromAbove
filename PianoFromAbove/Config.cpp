@@ -171,6 +171,7 @@ void PlaybackSettings::LoadDefaultValues()
 
 void ViewSettings::LoadDefaultValues()
 {
+    this->m_bLibrary = true;
     this->m_bControls = true;
     this->m_bKeyboard = true;
     this->m_bOnTop = false;
@@ -301,6 +302,8 @@ void ViewSettings::LoadConfigValues( TiXmlElement *txRoot )
     if ( !txView ) return;
 
     int iAttrVal;
+    if (txView->QueryIntAttribute("Library", &iAttrVal) == TIXML_SUCCESS)
+        m_bLibrary = (iAttrVal != 0);
     if ( txView->QueryIntAttribute( "Controls", &iAttrVal ) == TIXML_SUCCESS )
         m_bControls = ( iAttrVal != 0 );
     if ( txView->QueryIntAttribute( "Keyboard", &iAttrVal ) == TIXML_SUCCESS )
@@ -395,6 +398,7 @@ bool ViewSettings::SaveConfigValues( TiXmlElement *txRoot )
 {
     TiXmlElement *txView = new TiXmlElement( "View" );
     txRoot->LinkEndChild( txView );
+    txView->SetAttribute("Library", m_bLibrary);
     txView->SetAttribute( "Controls", m_bControls );
     txView->SetAttribute( "Keyboard", m_bKeyboard );
     txView->SetAttribute( "OnTop", m_bOnTop );

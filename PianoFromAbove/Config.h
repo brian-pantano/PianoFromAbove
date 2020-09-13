@@ -162,7 +162,7 @@ public:
     bool GetZoomMove() const { return m_bZoomMove; }
 
 private:
-    bool m_bControls, m_bKeyboard, m_bOnTop, m_bFullScreen, m_bZoomMove;
+    bool m_bLibrary, m_bControls, m_bKeyboard, m_bOnTop, m_bFullScreen, m_bZoomMove;
     float m_fOffsetX, m_fOffsetY, m_fZoomX;
     int m_iMainLeft, m_iMainTop, m_iMainWidth, m_iMainHeight, m_iLibWidth;
 };
