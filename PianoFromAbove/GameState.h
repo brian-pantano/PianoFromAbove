@@ -242,7 +242,10 @@ private:
     int m_iMicroSecsPerBeat, m_iLastTempoTick; // Tempo
     long long m_llLastTempoTime; // Tempo
     int m_iBeatsPerMeasure, m_iBeatType, m_iClocksPerMet, m_iLastSignatureTick; // Time signature
-    std::wstring m_wsMarker; // Current marker to display on the screen (TODO: maybe decode as shift-jis since i see that most often?)
+    std::wstring m_wsMarker; // Current marker to display on the screen
+    unsigned char* m_pMarkerData = nullptr; // Used for refreshing marker data when changing encoding on the fly
+    size_t m_iMarkerSize = 0;
+    int m_iCurEncoding;
 
     // Playback
     State m_eGameMode;

@@ -940,6 +940,7 @@ GameState::GameError MainScreen::Logic( void )
     static const ViewSettings &cView = config.GetViewSettings();
     static const VisualSettings &cVisual = config.GetVisualSettings();
     static const VideoSettings &cVideo = config.GetVideoSettings();
+    static const VizSettings &cViz = config.GetVizSettings();
     const MIDI::MIDIInfo &mInfo = m_MIDI.GetInfo();
 
     // Detect changes in state
@@ -978,6 +979,11 @@ GameState::GameError MainScreen::Logic( void )
     double dMaxCorrect = ( mInfo.iMaxVolume > 0 ? 127.0 / mInfo.iMaxVolume : 1.0 );
     double dVolumeCorrect = ( mInfo.iVolumeSum > 0 ? ( m_dVolume * 127.0 * mInfo.iNoteCount ) / mInfo.iVolumeSum : 1.0 );
     dVolumeCorrect = min( dVolumeCorrect, dMaxCorrect );
+
+    if (cViz.eMarkerEncoding != m_iCurEncoding) {
+        m_iCurEncoding = cViz.eMarkerEncoding;
+        ApplyMarker(m_pMarkerData, m_iMarkerSize);
+    }
 
     // Time stuff
     long long llMaxTime = GetMaxTime();
@@ -1296,6 +1302,8 @@ void MainScreen::PlaySkippedEvents(eventvec_t::const_iterator itOldProgramChange
 }
 
 void MainScreen::ApplyMarker(unsigned char* data, size_t size) {
+    m_pMarkerData = data;
+    m_iMarkerSize = size;
     if (data) {
         Config& config = Config::GetConfig();
         VizSettings viz = config.GetVizSettings();
@@ -1311,6 +1319,10 @@ void MainScreen::ApplyMarker(unsigned char* data, size_t size) {
         MultiByteToWideChar(codepages[viz.eMarkerEncoding], 0, temp_str, size + 1, wide_temp_str, wide_len);
 
         m_wsMarker = std::wstring(wide_temp_str);
+
+        // blacklist common "unset marker" stuff
+        if (m_wsMarker == L"Setup")
+            m_wsMarker = std::wstring();
 
         delete[] temp_str;
         delete[] wide_temp_str;
