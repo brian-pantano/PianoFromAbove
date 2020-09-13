@@ -126,7 +126,7 @@ SplashScreen::SplashScreen( HWND hWnd, Renderer *pRenderer ) : GameState( hWnd, 
 
     // Parse MIDI
     if (!viz.sSplashMIDI.empty()) {
-        // this is REALLY BAD, but i can't figure out how to make it move the memory pool vector instead of copying
+        // this is REALLY BAD, but i can't figure out how to make it move ownership of the memory pool vector instead of copying
         m_MIDI.~MIDI();
         new (&m_MIDI) MIDI(viz.sSplashMIDI);
         if (!m_MIDI.IsValid()) {

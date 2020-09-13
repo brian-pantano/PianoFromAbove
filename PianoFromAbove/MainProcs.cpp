@@ -70,7 +70,7 @@ LRESULT WINAPI WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     cPlayback.SetPlayMode( GameState::Intro, true );
                     cPlayback.SetPlayable( false, true );
                     cPlayback.SetPosition( 0 );
-                    SetWindowText( g_hWnd, TEXT( APPNAME ) );
+                    SetWindowText( g_hWnd, L"pfavizkhang " __DATE__ );
                     HandOffMsg( WM_COMMAND, ID_CHANGESTATE, ( LPARAM )new IntroScreen( NULL, NULL ) );
                     return 0;
                 }
