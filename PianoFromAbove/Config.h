@@ -167,6 +167,17 @@ private:
     int m_iMainLeft, m_iMainTop, m_iMainWidth, m_iMainHeight, m_iLibWidth;
 };
 
+struct VizSettings : public ISettings {
+    void LoadDefaultValues();
+    void LoadConfigValues(TiXmlElement* txRoot);
+    bool SaveConfigValues(TiXmlElement* txRoot);
+
+    bool bShowMarkers;
+    enum MarkerEncoding { CP1252, CP932, UTF8 } eMarkerEncoding;
+    bool bNerdStats;
+    std::wstring sSplashMIDI;
+};
+
 class Config : public ISettings
 {
 public:
@@ -189,11 +200,13 @@ public:
     const ControlsSettings& GetControlsSettings() const { return m_ControlsSettings; }
     PlaybackSettings& GetPlaybackSettings() { return m_PlaybackSettings; }
     ViewSettings& GetViewSettings() { return m_ViewSettings; }
+    const VizSettings& GetVizSettings() const { return m_VizSettings; }
 
     void SetVisualSettings(const VisualSettings &VisualSettings) { m_VisualSettings = VisualSettings; }
     void SetAudioSettings(const AudioSettings &audioSettings) { m_AudioSettings = audioSettings; }
     void SetVideoSettings(const VideoSettings &videoSettings) { m_VideoSettings = videoSettings; }
     void SetControlsSettings(const ControlsSettings &ControlsSettings) { m_ControlsSettings = ControlsSettings; }
+    void SetVizSettings(const VizSettings& VizSettings) { m_VizSettings = VizSettings; }
 
     // i really need to start writting getters and setters
     bool m_bManualTimer = false;
@@ -211,4 +224,5 @@ private:
     ControlsSettings m_ControlsSettings;
     PlaybackSettings m_PlaybackSettings;
     ViewSettings m_ViewSettings;
+    VizSettings m_VizSettings;
 };

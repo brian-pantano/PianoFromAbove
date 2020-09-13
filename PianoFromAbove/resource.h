@@ -10,6 +10,7 @@
 #define IDD_PP2_AUDIO                   108
 #define IDD_PP3_VIDEO                   109
 #define IDD_PP5_LIBRARY                 110
+#define IDD_PP5_VIZ                     110
 #define IDB_MEDIAICONSSMALL             125
 #define IDR_HIDDENCMDS                  126
 #define IDD_TRACKSETTINGS               127
@@ -71,10 +72,12 @@
 #define IDC_LASTKEY                     1063
 #define IDC_THROUGH                     1064
 #define IDC_COMBO1                      1072
+#define IDC_MARKERENC                   1072
 #define IDC_COMBO2                      1073
 #define IDC_RESET                       1076
 #define IDC_PIANOGROUP                  1078
 #define IDC_EDIT1                       1079
+#define IDC_SPLASHMIDI                  1079
 #define IDC_BUTTON7                     1081
 #define IDC_RADIO1                      1086
 #define IDC_RADIO2                      1087
@@ -89,6 +92,11 @@
 #define IDC_LOADINGPROGRESS             1097
 #define IDC_LOADINGDESC                 1098
 #define IDC_LOADINGNUM                  1099
+#define IDC_STATS                       1102
+#define IDC_MARKERS                     1103
+#define IDC_SPLASHBROWSE                1104
+#define IDC_BUTTON2                     1105
+#define IDC_SPLASHRESET                 1105
 #define ID_FILE_PLAYFILE                40001
 #define ID_FILE_ADDFILE                 40002
 #define ID_FILE_ADDFOLDER               40003
@@ -184,9 +192,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        155
+#define _APS_NEXT_RESOURCE_VALUE        157
 #define _APS_NEXT_COMMAND_VALUE         40172
-#define _APS_NEXT_CONTROL_VALUE         1100
+#define _APS_NEXT_CONTROL_VALUE         1106
 #define _APS_NEXT_SYMED_VALUE           102
 #endif
 #endif

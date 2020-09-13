@@ -22,10 +22,10 @@
 
 VOID DoPreferences( HWND hWndOwner )
 {
-    int pDialogs[] = { IDD_PP1_VISUAL, IDD_PP2_AUDIO, IDD_PP4_CONTROLS };
-    DLGPROC pProcs[] = { VisualProc, AudioProc, ControlsProc };
-    LPCWSTR pTitles[] = { TEXT( "Visual" ), TEXT( "Audio" ), TEXT( "Controls" ) };
-    PROPSHEETPAGE psp[3];
+    int pDialogs[] = { IDD_PP1_VISUAL, IDD_PP2_AUDIO, IDD_PP3_VIDEO, IDD_PP4_CONTROLS, IDD_PP5_VIZ };
+    DLGPROC pProcs[] = { VisualProc, AudioProc, VideoProc, ControlsProc, VizProc };
+    LPCWSTR pTitles[] = { TEXT( "Visual" ), TEXT( "Audio" ), TEXT("Video"), TEXT( "Controls" ), TEXT("Viz") };
+    PROPSHEETPAGE psp[sizeof(pDialogs) / sizeof(int)];
     PROPSHEETHEADER psh;
 
     for ( int i = 0; i < sizeof( psp ) / sizeof( PROPSHEETPAGE ); i++ )
@@ -425,6 +425,75 @@ INT_PTR WINAPI ControlsProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             }
             break;
         }
+    }
+
+    return FALSE;
+}
+
+INT_PTR WINAPI VizProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+    case WM_INITDIALOG: {
+        Config& config = Config::GetConfig();
+        const VizSettings& viz = config.GetVizSettings();
+
+        CheckDlgButton(hWnd, IDC_MARKERS, viz.bShowMarkers);
+        CheckDlgButton(hWnd, IDC_STATS, viz.bNerdStats);
+
+        const wchar_t* codepages[] = { L"CP-1252 (Western)", L"CP-932 (Japanese)", L"UTF-8" };
+        for (int i = 0; i < sizeof(codepages) / sizeof(const wchar_t*); i++)
+            SendMessage(GetDlgItem(hWnd, IDC_MARKERENC), CB_ADDSTRING, i, (LPARAM)codepages[i]);
+        SendMessage(GetDlgItem(hWnd, IDC_MARKERENC), CB_SETCURSEL, viz.eMarkerEncoding, 0);
+
+        SetDlgItemTextW(hWnd, IDC_SPLASHMIDI, viz.sSplashMIDI.c_str());
+        return TRUE;
+    }
+    case WM_COMMAND: {
+        Changed(hWnd);
+        int id = LOWORD(wParam);
+        switch (id) {
+        case IDC_SPLASHBROWSE: {
+            OPENFILENAME ofn = { 0 };
+            TCHAR sFilename[1024] = { 0 };
+            ofn.lStructSize = sizeof(OPENFILENAME);
+            ofn.hwndOwner = hWnd;
+            ofn.lpstrFilter = TEXT("MIDI Files\0*.mid\0");
+            ofn.lpstrFile = sFilename;
+            ofn.nMaxFile = sizeof(sFilename) / sizeof(TCHAR);
+            ofn.lpstrTitle = TEXT("Select a splash MIDI!");
+            ofn.Flags = OFN_EXPLORER | OFN_HIDEREADONLY | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+            if (GetOpenFileName(&ofn))
+                SetDlgItemTextW(hWnd, IDC_SPLASHMIDI, sFilename);
+            return TRUE;
+        }
+        case IDC_SPLASHRESET: {
+            Changed(hWnd);
+            SetDlgItemTextW(hWnd, IDC_SPLASHMIDI, L"");
+            return TRUE;
+        }
+        }
+        break;
+    }
+    case WM_NOTIFY: {
+        LPNMHDR lpnmhdr = (LPNMHDR)lParam;
+        switch (lpnmhdr->code) {
+        case PSN_APPLY: {
+            Config& config = Config::GetConfig();
+            VizSettings viz = config.GetVizSettings();
+            wchar_t splash[1024]{};
+
+            viz.bShowMarkers = IsDlgButtonChecked(hWnd, IDC_MARKERS);
+            viz.eMarkerEncoding = (VizSettings::MarkerEncoding)SendMessage(GetDlgItem(hWnd, IDC_MARKERENC), CB_GETCURSEL, 0, 0);
+            viz.bNerdStats = IsDlgButtonChecked(hWnd, IDC_STATS);
+            GetWindowTextW(GetDlgItem(hWnd, IDC_SPLASHMIDI), splash, 1024);
+            viz.sSplashMIDI = splash;
+
+            config.SetVizSettings(viz);
+            SetWindowLongPtr(hWnd, DWLP_MSGRESULT, PSNRET_NOERROR);
+            return TRUE;
+        }
+        }
+        break;
+    }
     }
 
     return FALSE;

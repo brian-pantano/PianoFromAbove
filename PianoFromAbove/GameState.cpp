@@ -121,8 +121,22 @@ SplashScreen::SplashScreen( HWND hWnd, Renderer *pRenderer ) : GameState( hWnd, 
     int iSize = SizeofResource( NULL, hResInfo );
     unsigned char *pData = ( unsigned char * )LockResource( hRes );
 
+    Config& config = Config::GetConfig();
+    VizSettings viz = config.GetVizSettings();
+
     // Parse MIDI
-    m_MIDI.ParseMIDI( pData, iSize );
+    if (!viz.sSplashMIDI.empty()) {
+        // this is REALLY BAD, but i can't figure out how to make it move the memory pool vector instead of copying
+        m_MIDI.~MIDI();
+        new (&m_MIDI) MIDI(viz.sSplashMIDI);
+        if (!m_MIDI.IsValid()) {
+            MessageBox(hWnd, L"The custom splash MIDI failed to load. Please choose a different MIDI.", L"", MB_ICONWARNING);
+            m_MIDI = MIDI();
+            m_MIDI.ParseMIDI(pData, iSize);
+        }
+    } else {
+        m_MIDI.ParseMIDI(pData, iSize);
+    }
     vector< MIDIEvent* > vEvents;
     vEvents.reserve( m_MIDI.GetInfo().iEventCount );
     m_MIDI.ConnectNotes(); // Order's important here
@@ -1283,14 +1297,18 @@ void MainScreen::PlaySkippedEvents(eventvec_t::const_iterator itOldProgramChange
 
 void MainScreen::ApplyMarker(unsigned char* data, size_t size) {
     if (data) {
-        constexpr unsigned code_page = 932; // SHIFT-JIS
+        Config& config = Config::GetConfig();
+        VizSettings viz = config.GetVizSettings();
+
+        constexpr int codepages[] = {1252, 932, CP_UTF8};
+
         auto temp_str = new char[size + 1];
         memcpy(temp_str, data, size);
         temp_str[size] = '\0';
         
-        auto wide_len = MultiByteToWideChar(code_page, 0, temp_str, size + 1, NULL, 0);
+        auto wide_len = MultiByteToWideChar(codepages[viz.eMarkerEncoding], 0, temp_str, size + 1, NULL, 0);
         auto wide_temp_str = new WCHAR[wide_len];
-        MultiByteToWideChar(code_page, 0, temp_str, size + 1, wide_temp_str, wide_len);
+        MultiByteToWideChar(codepages[viz.eMarkerEncoding], 0, temp_str, size + 1, wide_temp_str, wide_len);
 
         m_wsMarker = std::wstring(wide_temp_str);
 
@@ -1958,7 +1976,14 @@ void MainScreen::RenderBorder()
 
 void MainScreen::RenderText()
 {
-    int iLines = 4;
+    Config& config = Config::GetConfig();
+    VizSettings viz = config.GetVizSettings();
+
+    int iLines = 1;
+    if (m_bShowFPS)
+        iLines++;
+    if (viz.bNerdStats)
+        iLines += 2;
     if (m_Timer.m_bManualTimer)
         iLines++;
 
@@ -1979,7 +2004,7 @@ void MainScreen::RenderText()
     unsigned iBkgColor = 0x40000000;
     m_pRenderer->DrawRect(static_cast<float>(rcStatus.left), static_cast<float>(rcStatus.top),
         static_cast<float>(rcStatus.right - rcStatus.left), static_cast<float>(rcStatus.bottom - rcStatus.top), 0x80000000);
-    if (!m_wsMarker.empty()) {
+    if (!m_wsMarker.empty() && viz.bShowMarkers) {
         m_pRenderer->DrawRect(static_cast<float>(rcMarker.left), static_cast<float>(rcMarker.top),
             static_cast<float>(rcMarker.right - rcMarker.left), static_cast<float>(rcMarker.bottom - rcMarker.top), 0x80000000);
     }
@@ -2033,6 +2058,8 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
         _stprintf_s(sSpeed, TEXT("%.1f%%"), (m_dFPS / m_Timer.m_dFramerate) * 100.0);
     }
 
+    Config& config = Config::GetConfig();
+    VizSettings viz = config.GetVizSettings();
 
     // Display the text
     InflateRect(prcStatus, -6, -3);
@@ -2044,26 +2071,30 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
     m_pRenderer->DrawText(TEXT("Time:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
     m_pRenderer->DrawText(sTime, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
 
-    OffsetRect(prcStatus, 2, 16 + 1);
-    m_pRenderer->DrawText(TEXT("FPS:"), Renderer::Small, prcStatus, 0, 0xFF404040);
-    m_pRenderer->DrawText(sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
-    OffsetRect(prcStatus, -2, -1);
-    m_pRenderer->DrawText(TEXT("FPS:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
-    m_pRenderer->DrawText(sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
+    if (m_bShowFPS) {
+        OffsetRect(prcStatus, 2, 16 + 1);
+        m_pRenderer->DrawText(TEXT("FPS:"), Renderer::Small, prcStatus, 0, 0xFF404040);
+        m_pRenderer->DrawText(sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
+        OffsetRect(prcStatus, -2, -1);
+        m_pRenderer->DrawText(TEXT("FPS:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
+        m_pRenderer->DrawText(sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
+    }
 
-    OffsetRect(prcStatus, 2, 16 + 1);
-    m_pRenderer->DrawText(TEXT("VQ Capacity:"), Renderer::Small, prcStatus, 0, 0xFF404040);
-    m_pRenderer->DrawText(sVQCapacity, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
-    OffsetRect(prcStatus, -2, -1);
-    m_pRenderer->DrawText(TEXT("VQ Capacity:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
-    m_pRenderer->DrawText(sVQCapacity, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
+    if (viz.bNerdStats) {
+        OffsetRect(prcStatus, 2, 16 + 1);
+        m_pRenderer->DrawText(TEXT("VQ Capacity:"), Renderer::Small, prcStatus, 0, 0xFF404040);
+        m_pRenderer->DrawText(sVQCapacity, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
+        OffsetRect(prcStatus, -2, -1);
+        m_pRenderer->DrawText(TEXT("VQ Capacity:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
+        m_pRenderer->DrawText(sVQCapacity, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
 
-    OffsetRect(prcStatus, 2, 16 + 1);
-    m_pRenderer->DrawText(TEXT("m_vState:"), Renderer::Small, prcStatus, 0, 0xFF404040);
-    m_pRenderer->DrawText(sStateSize, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
-    OffsetRect(prcStatus, -2, -1);
-    m_pRenderer->DrawText(TEXT("m_vState:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
-    m_pRenderer->DrawText(sStateSize, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
+        OffsetRect(prcStatus, 2, 16 + 1);
+        m_pRenderer->DrawText(TEXT("m_vState:"), Renderer::Small, prcStatus, 0, 0xFF404040);
+        m_pRenderer->DrawText(sStateSize, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
+        OffsetRect(prcStatus, -2, -1);
+        m_pRenderer->DrawText(TEXT("m_vState:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
+        m_pRenderer->DrawText(sStateSize, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
+    }
 
     if (m_Timer.m_bManualTimer) {
         OffsetRect(prcStatus, 2, 16 + 1);

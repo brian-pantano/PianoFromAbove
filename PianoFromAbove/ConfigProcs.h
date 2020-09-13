@@ -32,6 +32,8 @@ INT_PTR WINAPI VideoProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 
 INT_PTR WINAPI ControlsProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 
+INT_PTR WINAPI VizProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 BOOL ToggleYN( HWND hWndListview, int iItem );
 
 BOOL GetCustomSettings( MainScreen *pGameState );

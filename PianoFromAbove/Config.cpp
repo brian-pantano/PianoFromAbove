@@ -55,6 +55,7 @@ void Config::LoadDefaultValues()
     m_ControlsSettings.LoadDefaultValues();
     m_PlaybackSettings.LoadDefaultValues();
     m_ViewSettings.LoadDefaultValues();
+    m_VizSettings.LoadDefaultValues();
 }
 
 void Config::LoadConfigValues()
@@ -72,6 +73,17 @@ void Config::LoadConfigValues()
     if ( !txRoot ) return;
 
     LoadConfigValues( txRoot );
+
+    // Custom settings need to be loaded from a separate file, otherwise stock PFA will reset them
+    doc = TiXmlDocument(sPath + "\\pfavizkhang.xml");
+    if (!doc.LoadFile())
+        return;
+
+    txRoot = doc.FirstChildElement();
+    if (!txRoot)
+        return;
+
+    m_VizSettings.LoadConfigValues(txRoot);
 }
 
 void Config::LoadConfigValues( TiXmlElement *txRoot )
@@ -101,7 +113,18 @@ bool Config::SaveConfigValues()
     SaveConfigValues( txRoot );
 
     // Write it!
-    return doc.SaveFile( sPath + "\\Config.xml" );
+    bool bStockRet = doc.SaveFile( sPath + "\\Config.xml" );
+
+    // Same as in LoadConfigValues
+    doc = TiXmlDocument();
+    decl = new TiXmlDeclaration("1.0", "", "");
+    doc.LinkEndChild(decl);
+    txRoot = new TiXmlElement(APPNAMENOSPACES);
+    doc.LinkEndChild(txRoot);
+
+    m_VizSettings.SaveConfigValues(txRoot);
+
+    return bStockRet && doc.SaveFile(sPath + "\\pfavizkhang.xml");
 }
 
 bool Config::SaveConfigValues( TiXmlElement *txRoot )
@@ -185,6 +208,13 @@ void ViewSettings::LoadDefaultValues()
     this->m_iMainWidth = 960;
     this->m_iMainHeight = 589;
     this->m_iLibWidth = 0;
+}
+
+void VizSettings::LoadDefaultValues() {
+    this->bShowMarkers = true;
+    this->eMarkerEncoding = MarkerEncoding::CP1252;
+    this->bNerdStats = false;
+    this->sSplashMIDI = L"";
 }
 
 void AudioSettings::LoadMIDIDevices()
@@ -320,6 +350,23 @@ void ViewSettings::LoadConfigValues( TiXmlElement *txRoot )
     txView->QueryIntAttribute( "LibWidth", &m_iLibWidth );
 }
 
+void VizSettings::LoadConfigValues(TiXmlElement* txRoot) {
+    TiXmlElement* txView = txRoot->FirstChildElement("Viz");
+    if (!txView)
+        return;
+
+    int iAttrVal;
+    if (txView->QueryIntAttribute("ShowMarkers", &iAttrVal) == TIXML_SUCCESS)
+        bShowMarkers = (iAttrVal != 0);
+    if (txView->QueryIntAttribute("NerdStats", &iAttrVal) == TIXML_SUCCESS)
+        bNerdStats = (iAttrVal != 0);
+    std::string sTempStr;
+    txView->QueryStringAttribute("SplashMIDI", &sTempStr);
+    sSplashMIDI = Util::StringToWstring(sTempStr);
+    txView->QueryIntAttribute("MarkerEncoding", (int*)&eMarkerEncoding);
+    eMarkerEncoding = min(MarkerEncoding::CP1252, max(eMarkerEncoding, MarkerEncoding::UTF8));
+}
+
 //-----------------------------------------------------------------------------
 // SaveConfigValues
 //-----------------------------------------------------------------------------
@@ -410,5 +457,15 @@ bool ViewSettings::SaveConfigValues( TiXmlElement *txRoot )
     txView->SetAttribute( "MainWidth", m_iMainWidth );
     txView->SetAttribute( "MainHeight", m_iMainHeight );
     txView->SetAttribute( "LibWidth", m_iLibWidth );
+    return true;
+}
+
+bool VizSettings::SaveConfigValues(TiXmlElement* txRoot) {
+    TiXmlElement* txViz = new TiXmlElement("Viz");
+    txRoot->LinkEndChild(txViz);
+    txViz->SetAttribute("ShowMarkers", bShowMarkers);
+    txViz->SetAttribute("MarkerEncoding", eMarkerEncoding);
+    txViz->SetAttribute("NerdStats", bNerdStats);
+    txViz->SetAttribute("SplashMIDI", Util::WstringToString(sSplashMIDI));
     return true;
 }
