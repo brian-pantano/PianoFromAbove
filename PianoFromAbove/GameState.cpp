@@ -2016,7 +2016,8 @@ void MainScreen::RenderText()
     m_pRenderer->BeginText();
 
     RenderStatus(&rcStatus);
-    RenderMarker(&rcMarker, m_wsMarker.c_str()); // lol
+    if (viz.bShowMarkers)
+        RenderMarker(&rcMarker, m_wsMarker.c_str());
     if (m_bZoomMove)
         RenderMessage(&rcMsg, TEXT("- Left-click and drag to move the screen\n- Right-click and drag to zoom horizontally\n- Press Escape to abort changes\n- Press Ctrl+V to save changes"));
 

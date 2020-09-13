@@ -187,13 +187,14 @@
 #define ID_GRAPHICS_FASTERNOTES         40169
 #define ID_GRAPHICS_SLOWERNOTES         40170
 #define ID_GRAPHICS_RESET               40171
+#define ID_VIEW_NOLIBRARYHERE           40172
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        157
-#define _APS_NEXT_COMMAND_VALUE         40172
+#define _APS_NEXT_COMMAND_VALUE         40173
 #define _APS_NEXT_CONTROL_VALUE         1106
 #define _APS_NEXT_SYMED_VALUE           102
 #endif
