@@ -1143,6 +1143,8 @@ void MainScreen::UpdateState( int iPos )
     // Event data
     MIDIChannelEvent *pEvent = m_vEvents[iPos];
     if ( !pEvent->GetSister() ) return;
+    if (pEvent->GetParam1() > 127)
+        return;
 
     MIDIChannelEvent::ChannelEventType eEventType = pEvent->GetChannelEventType();
     int iTrack = pEvent->GetTrack();
