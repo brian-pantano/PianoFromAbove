@@ -10,8 +10,10 @@
 #include <TChar.h>
 #include <shlobj.h>
 #include <Dbt.h>
+#include <psapi.h>
 
 #include <set>
+#include <thread>
 
 #include "MainProcs.h"
 #include "ConfigProcs.h"
@@ -20,7 +22,6 @@
 
 #include "GameState.h"
 #include "Config.h"
-#include <thread>
 
 static WNDPROC g_pPrevBarProc; // Have to override the toolbar proc to make controls transparent
 
@@ -1075,11 +1076,19 @@ INT_PTR LoadingProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
             return true;
         }
 
+        SetWindowTextA(GetDlgItem(hwnd, IDC_LOADINGDESC), desc);
+
         char buf[1024];
         auto prog = g_LoadingProgress.progress.load();
         snprintf(buf, sizeof(buf), "%d / %d", prog, g_LoadingProgress.max);
-        SetWindowTextA(GetDlgItem(hwnd, IDC_LOADINGDESC), desc);
         SetWindowTextA(GetDlgItem(hwnd, IDC_LOADINGNUM), buf);
+
+        PROCESS_MEMORY_COUNTERS mem{};
+        mem.cb = sizeof(mem);
+        GetProcessMemoryInfo(GetCurrentProcess(), &mem, sizeof(mem));
+        snprintf(buf, sizeof(buf), "%llu MB used", mem.PagefileUsage / 1048576);
+        SetWindowTextA(GetDlgItem(hwnd, IDC_MEMUSAGE), buf);
+
         auto bar = GetDlgItem(hwnd, IDC_LOADINGPROGRESS);
         SendMessage(bar, PBM_SETRANGE32, 0, g_LoadingProgress.max);
         SendMessage(bar, PBM_SETPOS, prog, 0);

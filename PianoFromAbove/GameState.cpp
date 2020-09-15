@@ -542,6 +542,8 @@ void MainScreen::InitNoteMap( const vector< MIDIEvent* > &vEvents )
     g_LoadingProgress.progress = 0;
     g_LoadingProgress.max = vEvents.size(); // probably stays the same
 
+    bool bPianoOverride = Config::GetConfig().m_bPianoOverride;
+
     //Get only the channel events
     m_vEvents.reserve( vEvents.size() );
     m_vNoteOns.reserve(vEvents.size() / 2); 
@@ -559,8 +561,9 @@ void MainScreen::InitNoteMap( const vector< MIDIEvent* > &vEvents )
             else
             {
                 m_vNonNotes.push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), m_vEvents.size() - 1));
-                if (eEventType == MIDIChannelEvent::ProgramChange || eEventType == MIDIChannelEvent::Controller)
+                if (eEventType == MIDIChannelEvent::ProgramChange || eEventType == MIDIChannelEvent::Controller) {
                     m_vProgramChange.push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), m_vEvents.size() - 1));
+                }
             }
             if (pEvent->GetSister())
                 pEvent->GetSister()->SetSisterIdx(m_vEvents.size() - 1);
@@ -1029,8 +1032,11 @@ GameState::GameError MainScreen::Logic( void )
         while ( m_iStartPos < iEventCount && m_vEvents[m_iStartPos]->GetAbsMicroSec() <= m_llStartTime )
         {
             MIDIChannelEvent *pEvent = m_vEvents[m_iStartPos];
-            if ( pEvent->GetChannelEventType() != MIDIChannelEvent::NoteOn )
-                m_OutDevice.PlayEvent( pEvent->GetEventCode(), pEvent->GetParam1(), pEvent->GetParam2() );
+            if (pEvent->GetChannelEventType() != MIDIChannelEvent::NoteOn) {
+                if (config.m_bPianoOverride && pEvent->GetChannelEventType() == MIDIChannelEvent::ProgramChange && pEvent->GetChannel() != MIDI::Drums)
+                    pEvent->SetParam1(0);
+                m_OutDevice.PlayEvent(pEvent->GetEventCode(), pEvent->GetParam1(), pEvent->GetParam2());
+            }
             else if (!m_bMute && !m_vTrackSettings[pEvent->GetTrack()].aChannels[pEvent->GetChannel()].bMuted) {
                 m_OutDevice.PlayEvent(pEvent->GetEventCode(), pEvent->GetParam1(),
                     static_cast<int>(pEvent->GetParam2() * dVolumeCorrect + 0.5));

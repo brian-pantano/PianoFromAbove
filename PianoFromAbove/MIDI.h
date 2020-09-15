@@ -241,6 +241,9 @@ public:
     int GetSisterIdx() const { return m_iSisterIdx; }
     int GetSimultaneous() const { return m_iSimultaneous; }
 
+    void SetChannel(unsigned char channel) { m_cChannel = channel; }
+    void SetParam1(unsigned char param1) { m_cParam1 = param1; }
+    void SetParam2(unsigned char param2) { m_cParam2 = param2; }
     void SetSister( MIDIChannelEvent *pSister ) { m_pSister = pSister; pSister->m_pSister = this; }
     void SetSisterIdx(int iSisterIdx) { m_iSisterIdx = iSisterIdx; }
     void SetSimultaneous(int iSimultaneous) { m_iSimultaneous = iSimultaneous; }
