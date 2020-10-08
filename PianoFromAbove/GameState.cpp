@@ -1665,6 +1665,7 @@ void MainScreen::RenderNotes()
     if ( m_iEndPos < 0 || m_iStartPos >= static_cast< int >( m_vEvents.size() ) )
         return;
 
+    /*
     // Render notes. Regular notes then sharps to  make sure they're not hidden
     bool bHasSharp = false;
     size_t queue_pos = batch_vertices.size();
@@ -1725,12 +1726,61 @@ void MainScreen::RenderNotes()
         }
     }
     batch_vertices.resize(queue_pos + 12);
+    */
+
+    size_t queue_pos = batch_vertices.size();
+
+    for (int i = m_iEndPos; i >= m_iStartPos; i--) {
+        MIDIChannelEvent* pEvent = m_vEvents[i];
+        if (pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
+            pEvent->GetParam2() > 0 && pEvent->GetSister() &&
+            MIDI::IsSharp(pEvent->GetParam1())) {
+            const thread_work_t work{ queue_pos, pEvent };
+            m_vThreadWork.push_back(work);
+            queue_pos += 12;
+        }
+    }
+    for (int i = 0; i < 128; i++) {
+        if (MIDI::IsSharp(i)) {
+            for (vector< int >::reverse_iterator it = (m_vState[i]).rbegin(); it != (m_vState[i]).rend();) {
+                const thread_work_t work{ queue_pos, m_vEvents[*it] };
+                m_vThreadWork.push_back(work);
+                queue_pos += 12;
+                ++it;
+            }
+        }
+    }
+
+    for (int i = m_iEndPos; i >= m_iStartPos; i--) {
+        MIDIChannelEvent* pEvent = m_vEvents[i];
+        if (pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
+            pEvent->GetParam2() > 0 && pEvent->GetSister())
+        {
+            if (!MIDI::IsSharp(pEvent->GetParam1())) {
+                const thread_work_t work{ queue_pos, pEvent };
+                m_vThreadWork.push_back(work);
+                queue_pos += 12;
+            }
+        }
+    }
+    for (int i = 0; i < 128; i++) {
+        if (!MIDI::IsSharp(i)) {
+            for (vector< int >::reverse_iterator it = (m_vState[i]).rbegin(); it != (m_vState[i]).rend();) {
+                const thread_work_t work{ queue_pos, m_vEvents[*it] };
+                m_vThreadWork.push_back(work);
+                queue_pos += 12;
+                ++it;
+            }
+        }
+    }
+
+    batch_vertices.resize(queue_pos + 12);
 
     concurrency::parallel_for_each(m_vThreadWork.begin(), m_vThreadWork.end(), [&](thread_work_t& work) {
         RenderNote(work);
     });
 
-    m_pRenderer->RenderBatch();
+    m_pRenderer->RenderBatch(true);
     m_vThreadWork.clear();
 }
 
@@ -1777,10 +1827,10 @@ void MainScreen::RenderNote( thread_work_t& work )
     }
 
     // this is forced to be interpreted as d3d9 so the function can be inlined
-    reinterpret_cast<D3D9Renderer*>(m_pRenderer)->GenRect(x, y - cy, cx, cy, csTrack.iVeryDarkRGB, &batch_vertices[work.queue_pos]);
     reinterpret_cast<D3D9Renderer*>(m_pRenderer)->GenRect(x + fDeflate, y - cy + fDeflate,
         cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
-        csTrack.iPrimaryRGB, csTrack.iDarkRGB, csTrack.iDarkRGB, csTrack.iPrimaryRGB, &batch_vertices[work.queue_pos + 6]);
+        csTrack.iPrimaryRGB, csTrack.iDarkRGB, csTrack.iDarkRGB, csTrack.iPrimaryRGB, &batch_vertices[work.queue_pos]);
+    reinterpret_cast<D3D9Renderer*>(m_pRenderer)->GenRect(x, y - cy, cx, cy, csTrack.iVeryDarkRGB, &batch_vertices[work.queue_pos + 6]);
 }
 
 void MainScreen::GenNoteXTable() {

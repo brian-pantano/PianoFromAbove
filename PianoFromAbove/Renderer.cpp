@@ -68,6 +68,8 @@ HRESULT D3D9Renderer::Init( HWND hWnd, bool bLimitFPS )
     m_d3dPP.BackBufferWidth = 0;
     m_d3dPP.BackBufferHeight = 0;
     m_d3dPP.PresentationInterval = ( bLimitFPS ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE );
+    m_d3dPP.EnableAutoDepthStencil = TRUE;
+    m_d3dPP.AutoDepthStencilFormat = D3DFMT_D16;
     
     // Create the D3DDevice
     if( FAILED( hr = m_pD3D->CreateDevice( D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, //D3DDEVTYPE_REF
@@ -135,6 +137,10 @@ HRESULT D3D9Renderer::RestoreDeviceObjects()
     m_pd3dDevice->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_INVSRCALPHA );
     m_pd3dDevice->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_SRCALPHA );
 
+    m_pd3dDevice->SetRenderState(D3DRS_ZENABLE, FALSE);
+    m_pd3dDevice->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+    m_pd3dDevice->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESS);
+
     m_pd3dDevice->SetFVF( SCREEN_VERTEX::FVF );
 
     return S_OK;
@@ -180,7 +186,10 @@ HRESULT D3D9Renderer::ResetDevice()
 
 HRESULT D3D9Renderer::Clear( DWORD color )
 {
-    return m_pd3dDevice->Clear( 0, NULL, D3DCLEAR_TARGET, color, 1.0f, 0 );
+    //m_pd3dDevice->SetRenderState(D3DRS_ZWRITEENABLE, D3DZB_TRUE);
+    auto ret = m_pd3dDevice->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, color, 1.0f, 0 );
+    //m_pd3dDevice->SetRenderState(D3DRS_ZWRITEENABLE, D3DZB_FALSE);
+    return ret;
 }
 
 HRESULT D3D9Renderer::BeginScene()
@@ -327,8 +336,12 @@ HRESULT D3D9Renderer::FlushBuffer()
     return hr;
 }
 
-HRESULT D3D9Renderer::RenderBatch() {
+HRESULT D3D9Renderer::RenderBatch(bool with_depth) {
     FlushBuffer();
+    if (with_depth) {
+        m_pd3dDevice->SetRenderState(D3DRS_ZENABLE, D3DZB_TRUE);
+        m_pd3dDevice->SetRenderState(D3DRS_ZWRITEENABLE, D3DZB_TRUE);
+    }
     const auto vertex_limit = (MaxTriangles - 1) * 3;
     size_t vertices_left = batch_vertices.size();
     for (unsigned i = 0; i < batch_vertices.size(); i += vertex_limit) {
@@ -340,6 +353,10 @@ HRESULT D3D9Renderer::RenderBatch() {
         FlushBuffer();
     }
     batch_vertices.clear();
+    if (with_depth) {
+        m_pd3dDevice->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+        m_pd3dDevice->SetRenderState(D3DRS_ZWRITEENABLE, D3DZB_FALSE);
+    }
     return S_OK;
 }
 
