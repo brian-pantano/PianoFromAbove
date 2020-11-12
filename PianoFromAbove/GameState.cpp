@@ -961,7 +961,7 @@ GameState::GameError MainScreen::Logic( void )
     m_bPaused = bPaused;
     m_dSpeed = dSpeed;
     m_bMute = bMute;
-    m_llTimeSpan = llTimeSpan;
+    m_llTimeSpan = m_bTickMode ? dNSpeed * 3000 : llTimeSpan;
     m_dVolume = cPlayback.GetVolume();
     m_bShowKB = cView.GetKeyboard();
     m_bZoomMove = cView.GetZoomMove();
@@ -1015,14 +1015,23 @@ GameState::GameError MainScreen::Logic( void )
     if ( !m_bPaused && m_llStartTime < llMaxTime )
         m_llStartTime = llNextStartTime;
     m_iStartTick = GetCurrentTick( m_llStartTime );
-    long long llEndTime = m_llStartTime + m_llTimeSpan;
+    long long llEndTime = 0;
+    if (m_bTickMode)
+        llEndTime = m_iStartTick + m_llTimeSpan;
+    else
+        llEndTime = m_llStartTime + m_llTimeSpan;
 
     RenderGlobals();
 
     // Advance end position
     int iEventCount = (int)m_vEvents.size();
-    while ( m_iEndPos + 1 < iEventCount && m_vEvents[m_iEndPos + 1]->GetAbsMicroSec() < llEndTime )
-        m_iEndPos++;
+    if (m_bTickMode) {
+        while (m_iEndPos + 1 < iEventCount && m_vEvents[m_iEndPos + 1]->GetAbsT() < llEndTime)
+            m_iEndPos++;
+    } else {
+        while (m_iEndPos + 1 < iEventCount && m_vEvents[m_iEndPos + 1]->GetAbsMicroSec() < llEndTime)
+            m_iEndPos++;
+    }
 
     // Only want to advance start positions when unpaused becuase advancing startpos "consumes" the events
     if ( !m_bPaused )
@@ -1573,9 +1582,13 @@ void MainScreen::RenderGlobals()
     }
 
     // Round down start time. This is only used for rendering purposes
-    long long llMicroSecsPP = static_cast< long long >( m_llTimeSpan / m_fNotesCY + 0.5f );
-    m_fRndStartTime = m_llStartTime - ( m_llStartTime < 0 ? llMicroSecsPP : 0 );
-    m_fRndStartTime = ( m_fRndStartTime / llMicroSecsPP ) * llMicroSecsPP;
+    if (m_bTickMode) {
+        m_fRndStartTime = m_iStartTick;
+    } else {
+        long long llMicroSecsPP = static_cast< long long >( m_llTimeSpan / m_fNotesCY + 0.5f );
+        m_fRndStartTime = m_llStartTime - ( m_llStartTime < 0 ? llMicroSecsPP : 0 );
+        m_fRndStartTime = ( m_fRndStartTime / llMicroSecsPP ) * llMicroSecsPP;
+    }
 
     GenNoteXTable();
 }
@@ -1598,11 +1611,12 @@ void MainScreen::RenderLines()
 
     // Horizontal (Hard!)
     int iDivision = m_MIDI.GetInfo().iDivision;
+    // fuck this lmao
     if ( !( iDivision & 0x8000 ) )
     {
         // Copy time state vars
         int iCurrTick = m_iStartTick - 1;
-        long long llEndTime = m_llStartTime + m_llTimeSpan;
+        long long llEndTime = (m_bTickMode ? m_iStartTick : m_llStartTime) + m_llTimeSpan;
 
         // Copy tempo state vars
         int iLastTempoTick = m_iLastTempoTick;
@@ -1618,9 +1632,10 @@ void MainScreen::RenderLines()
 
         // Compute initial next beat tick and next beat time
         long long llNextBeatTime = 0;
+        int iNextBeatTick = 0;
         do
         {
-            int iNextBeatTick = GetBeatTick( iCurrTick + 1, iBeatType, iLastSignatureTick );
+            iNextBeatTick = GetBeatTick( iCurrTick + 1, iBeatType, iLastSignatureTick );
 
             // Next beat crosses the next tempo event. handle the event and recalculate next beat time
             while ( itNextTempo != m_vTempo.end() && m_vMetaEvents[itNextTempo->second]->GetDataLen() == 3 &&
@@ -1647,7 +1662,7 @@ void MainScreen::RenderLines()
             int iNextBeat = GetBeat( iNextBeatTick, iBeatType, iLastSignatureTick );
             bool bIsMeasure = !( ( iNextBeat < 0 ? -iNextBeat : iNextBeat ) % iBeatsPerMeasure );
             llNextBeatTime = GetTickTime( iNextBeatTick, iLastTempoTick, llLastTempoTime, iMicroSecsPerBeat ); 
-            float y = m_fNotesY + m_fNotesCY * ( 1.0f - ( (float)llNextBeatTime - m_fRndStartTime ) / m_llTimeSpan );
+            float y = m_fNotesY + m_fNotesCY * ( 1.0f - ( (float)(m_bTickMode ? iNextBeatTick : llNextBeatTime) - m_fRndStartTime ) / m_llTimeSpan );
             y = floor( y + 0.5f );
             if ( bIsMeasure && y + 1.0f > m_fNotesY )
                 m_pRenderer->DrawRect( m_fNotesX, y - 1.0f, m_fNotesCX, 3.0f,
@@ -1655,7 +1670,8 @@ void MainScreen::RenderLines()
 
             iCurrTick = iNextBeatTick;
         }
-        while ( llNextBeatTime <= llEndTime );
+        while ((m_bTickMode ? iNextBeatTick : llNextBeatTime) <= llEndTime );
+        // hopefully no race condition?
     }
 }
 
@@ -1790,8 +1806,15 @@ void MainScreen::RenderNote( thread_work_t& work )
     int iNote = pNote->GetParam1();
     int iTrack = pNote->GetTrack();
     int iChannel = pNote->GetChannel();
-    float fNoteStart = pNote->GetAbsMicroSec();
-    float fNoteEnd = pNote->GetSister()->GetAbsMicroSec();
+    float fNoteStart = 0;
+    float fNoteEnd = 0;
+    if (m_bTickMode) {
+        fNoteStart = pNote->GetAbsT();
+        fNoteEnd = pNote->GetSister()->GetAbsT();
+    } else {
+        fNoteStart = pNote->GetAbsMicroSec();
+        fNoteEnd = pNote->GetSister()->GetAbsMicroSec();
+    }
 
     // TODO: this load is really expensive
     ChannelSettings &csTrack = m_vTrackSettings[iTrack].aChannels[iChannel];
@@ -1803,7 +1826,7 @@ void MainScreen::RenderNote( thread_work_t& work )
     // who knew int to float was still so expensive?
     float y = m_fNotesY + m_fNotesCY * ( 1.0f - ( fNoteStart - m_fRndStartTime) / m_llTimeSpan );
     float cx =  MIDI::IsSharp( iNote ) ? m_fWhiteCX * SharpRatio : m_fWhiteCX;
-    float cy = m_fNotesCY * ( ( fNoteEnd - fNoteStart ) / m_llTimeSpan );
+    float cy = m_fNotesCY * ( ( fNoteEnd - fNoteStart ) / m_llTimeSpan);
     float fDeflate = m_fWhiteCX * 0.15f / 2.0f;
 
     // Rounding to make everything consistent
@@ -2049,7 +2072,7 @@ void MainScreen::RenderText()
     Config& config = Config::GetConfig();
     VizSettings viz = config.GetVizSettings();
 
-    int iLines = 1;
+    int iLines = 2;
     if (m_bShowFPS)
         iLines++;
     if (viz.bNerdStats)
@@ -2109,6 +2132,10 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
             mInfo.llTotalMicroSecs / 60000000, (mInfo.llTotalMicroSecs % 60000000) / 1000000.0);
 
     // Build the FPS text
+    TCHAR sTempo[128];
+    _stprintf_s(sTempo, TEXT("%.3f bpm"), 60000000.0 / m_iMicroSecsPerBeat);
+
+    // Build the FPS text
     TCHAR sFPS[128];
     _stprintf_s(sFPS, TEXT("%.1lf"), m_dFPS);
 
@@ -2141,6 +2168,13 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
     OffsetRect(prcStatus, -2, -1);
     m_pRenderer->DrawText(TEXT("Time:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
     m_pRenderer->DrawText(sTime, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
+
+    OffsetRect(prcStatus, 2, 16 + 1);
+    m_pRenderer->DrawText(TEXT("Tempo:"), Renderer::Small, prcStatus, 0, 0xFF404040);
+    m_pRenderer->DrawText(sTempo, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
+    OffsetRect(prcStatus, -2, -1);
+    m_pRenderer->DrawText(TEXT("Tempo:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
+    m_pRenderer->DrawText(sTempo, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
 
     if (m_bShowFPS) {
         OffsetRect(prcStatus, 2, 16 + 1);

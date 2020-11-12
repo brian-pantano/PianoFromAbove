@@ -77,7 +77,8 @@ int MIDIPos::GetNextEvent( int iMicroSecs, MIDIEvent **pOutEvent )
     // Make sure the event doesn't occur after the requested time window
     int iMaxTickAllowed = m_iCurrTick;
     if ( m_bIsStandard )
-        iMaxTickAllowed += ( static_cast< long long >( m_iTicksPerBeat ) * ( m_iCurrMicroSec + iMicroSecs ) ) / m_iMicroSecsPerBeat;
+        if (m_iMicroSecsPerBeat != 0)
+            iMaxTickAllowed += ( static_cast< long long >( m_iTicksPerBeat ) * ( m_iCurrMicroSec + iMicroSecs ) ) / m_iMicroSecsPerBeat;
     else
         iMaxTickAllowed += ( static_cast< long long >( m_iTicksPerSecond ) * ( m_iCurrMicroSec + iMicroSecs ) ) / 1000000;
 

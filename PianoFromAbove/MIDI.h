@@ -196,7 +196,7 @@ private:
 //Base Event class
 //Should really be a single class with unions for the different events. much faster that way.
 //Might be forced to convert if batch processing is too slow
-class __declspec(novtable) MIDIEvent
+class MIDIEvent
 {
 public:
     //Event types
@@ -215,7 +215,6 @@ public:
     long long GetAbsMicroSec() const { return m_llAbsMicroSec; }
     void SetAbsMicroSec(long long llAbsMicroSec) { m_llAbsMicroSec = llAbsMicroSec; };
 
-protected:
     long long m_llAbsMicroSec;
     int m_iAbsT;
     unsigned short m_iTrack;
@@ -244,7 +243,10 @@ public:
     void SetChannel(unsigned char channel) { m_cChannel = channel; }
     void SetParam1(unsigned char param1) { m_cParam1 = param1; }
     void SetParam2(unsigned char param2) { m_cParam2 = param2; }
-    void SetSister( MIDIChannelEvent *pSister ) { m_pSister = pSister; pSister->m_pSister = this; }
+    void SetSister(MIDIChannelEvent* pSister) {
+        m_pSister = pSister;
+        pSister->m_pSister = this;
+    }
     void SetSisterIdx(int iSisterIdx) { m_iSisterIdx = iSisterIdx; }
     void SetSimultaneous(int iSimultaneous) { m_iSimultaneous = iSimultaneous; }
 

@@ -69,7 +69,7 @@ extern std::vector<SCREEN_VERTEX> batch_vertices;
 class D3D9Renderer : public Renderer
 {
 public:
-    static const int MaxTriangles = 2000001;
+    static const int MaxTriangles = 10000000;
     static const int VertexBufferSize = sizeof( SCREEN_VERTEX ) * 3 * MaxTriangles;
 
     D3D9Renderer() : m_pD3D( NULL ), m_pTextSprite( NULL ),
