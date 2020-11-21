@@ -958,6 +958,7 @@ GameState::GameError MainScreen::Logic( void )
     bool bTimeSpanChanged = ( llTimeSpan != m_llTimeSpan );
     
     // Set the state
+    m_bTickMode = cViz.bTickBased;
     m_bPaused = bPaused;
     m_dSpeed = dSpeed;
     m_bMute = bMute;

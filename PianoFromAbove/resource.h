@@ -99,6 +99,7 @@
 #define IDC_BUTTON2                     1105
 #define IDC_SPLASHRESET                 1105
 #define IDC_MEMUSAGE                    1106
+#define IDC_TICKBASED                   1107
 #define ID_FILE_PLAYFILE                40001
 #define ID_FILE_ADDFILE                 40002
 #define ID_FILE_ADDFOLDER               40003
@@ -197,7 +198,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        157
 #define _APS_NEXT_COMMAND_VALUE         40173
-#define _APS_NEXT_CONTROL_VALUE         1107
+#define _APS_NEXT_CONTROL_VALUE         1108
 #define _APS_NEXT_SYMED_VALUE           102
 #endif
 #endif

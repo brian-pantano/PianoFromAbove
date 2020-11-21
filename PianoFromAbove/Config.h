@@ -172,6 +172,7 @@ struct VizSettings : public ISettings {
     void LoadConfigValues(TiXmlElement* txRoot);
     bool SaveConfigValues(TiXmlElement* txRoot);
 
+    bool bTickBased;
     bool bShowMarkers;
     enum MarkerEncoding { CP1252, CP932, UTF8 } eMarkerEncoding;
     bool bNerdStats;

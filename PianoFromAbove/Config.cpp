@@ -211,6 +211,7 @@ void ViewSettings::LoadDefaultValues()
 }
 
 void VizSettings::LoadDefaultValues() {
+    this->bTickBased = false;
     this->bShowMarkers = true;
     this->eMarkerEncoding = MarkerEncoding::CP1252;
     this->bNerdStats = false;
@@ -356,6 +357,8 @@ void VizSettings::LoadConfigValues(TiXmlElement* txRoot) {
         return;
 
     int iAttrVal;
+    if (txView->QueryIntAttribute("TickBased", &iAttrVal) == TIXML_SUCCESS)
+        bTickBased = (iAttrVal != 0);
     if (txView->QueryIntAttribute("ShowMarkers", &iAttrVal) == TIXML_SUCCESS)
         bShowMarkers = (iAttrVal != 0);
     if (txView->QueryIntAttribute("NerdStats", &iAttrVal) == TIXML_SUCCESS)
@@ -463,6 +466,7 @@ bool ViewSettings::SaveConfigValues( TiXmlElement *txRoot )
 bool VizSettings::SaveConfigValues(TiXmlElement* txRoot) {
     TiXmlElement* txViz = new TiXmlElement("Viz");
     txRoot->LinkEndChild(txViz);
+    txViz->SetAttribute("TickBased", bTickBased);
     txViz->SetAttribute("ShowMarkers", bShowMarkers);
     txViz->SetAttribute("MarkerEncoding", eMarkerEncoding);
     txViz->SetAttribute("NerdStats", bNerdStats);

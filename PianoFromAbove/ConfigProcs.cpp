@@ -436,6 +436,7 @@ INT_PTR WINAPI VizProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         Config& config = Config::GetConfig();
         const VizSettings& viz = config.GetVizSettings();
 
+        CheckDlgButton(hWnd, IDC_TICKBASED, viz.bTickBased);
         CheckDlgButton(hWnd, IDC_MARKERS, viz.bShowMarkers);
         CheckDlgButton(hWnd, IDC_STATS, viz.bNerdStats);
 
@@ -481,6 +482,7 @@ INT_PTR WINAPI VizProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             VizSettings viz = config.GetVizSettings();
             wchar_t splash[1024]{};
 
+            viz.bTickBased = IsDlgButtonChecked(hWnd, IDC_TICKBASED);
             viz.bShowMarkers = IsDlgButtonChecked(hWnd, IDC_MARKERS);
             viz.eMarkerEncoding = (VizSettings::MarkerEncoding)SendMessage(GetDlgItem(hWnd, IDC_MARKERENC), CB_GETCURSEL, 0, 0);
             viz.bNerdStats = IsDlgButtonChecked(hWnd, IDC_STATS);
