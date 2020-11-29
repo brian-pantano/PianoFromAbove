@@ -10,13 +10,21 @@ variables:
   buildConfiguration: 'Release'
 
 steps:
+- task: PowerShell@1
+  displayName: 'Install DirectX SDK (June 2010)'
+  inputs:
+    targetType: 'filePath'
+    filePath: './install-dxsdk.ps1'
+
 - task: VSBuild@1
+  displayName: 'Build (x64/Release/Clang)'
   inputs:
     solution: '$(solution)'
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
 
 - task: PublishBuildArtifacts@1
+  displayName: 'Publish artifacts'
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
     ArtifactName: 'release'
