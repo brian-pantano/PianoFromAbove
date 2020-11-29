@@ -22,12 +22,15 @@ steps:
 
 - task: CopyFiles@2
   inputs:
-    contents: 'Release/*.exe'
+    sourceFolder: 'Release'
+    contents: '*.exe'
     targetFolder: $(Build.ArtifactStagingDirectory)
 
-- task: PublishBuildArtifacts@1
-  displayName: 'Publish artifacts'
+- task: GithubRelease@0
+  displayName: 'Create GitHub Release'
   inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-    ArtifactName: 'release'
-    publishLocation: 'Container'
+    gitHubConnection: khang06
+    repositoryName: khang06/PianoFromAbove
+    tagSource: manual
+    tag: $(Date:yyyyMMdd)
+    assets: $(Build.ArtifactStagingDirectory)/*.exe
