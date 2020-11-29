@@ -8,8 +8,7 @@ $exePath = "$env:temp\DXSDK_Jun10.exe"
 Write-Host "Installing..."
 $installPath = "C:\Program Files (x86)\Microsoft DirectX SDK"
 cmd /c start /wait $exePath /P $installPath /U
-Add-Path $installPath
-Add-SessionPath $installPath
+refreshenv
 
 Remove-Item $exePath
 Write-Host "Installed" -ForegroundColor Green
