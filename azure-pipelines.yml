@@ -29,7 +29,7 @@ steps:
 - task: GithubRelease@0
   displayName: 'Create GitHub Release'
   inputs:
-    gitHubConnection: khang06
+    gitHubConnection: github.com_khang06
     repositoryName: khang06/PianoFromAbove
     tagSource: manual
     tag: $(Date:yyyyMMdd)
