@@ -10,11 +10,8 @@ variables:
   buildConfiguration: 'Release'
 
 steps:
-- task: PowerShell@1
+- powershell: .\install-dxsdk.ps1
   displayName: 'Install DirectX SDK (June 2010)'
-  inputs:
-    targetType: 'filePath'
-    filePath: './install-dxsdk.ps1'
 
 - task: VSBuild@1
   displayName: 'Build (x64/Release/Clang)'
