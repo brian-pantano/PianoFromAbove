@@ -657,6 +657,7 @@ GameState::GameError MainScreen::Init()
     if ( cAudio.iOutDevice >= 0 )
         m_OutDevice.Open( cAudio.iOutDevice );
 
+    m_OutDevice.Reset();
     m_OutDevice.SetVolume( 1.0 );
     m_Timer.Init(config.m_bManualTimer);
     if (m_Timer.m_bManualTimer) {
@@ -1045,6 +1046,8 @@ GameState::GameError MainScreen::Logic( void )
             if (pEvent->GetChannelEventType() != MIDIChannelEvent::NoteOn) {
                 if (config.m_bPianoOverride && pEvent->GetChannelEventType() == MIDIChannelEvent::ProgramChange && pEvent->GetChannel() != MIDI::Drums)
                     pEvent->SetParam1(0);
+                if (pEvent->GetChannelEventType() == MIDIChannelEvent::PitchBend)
+                    m_pBends[pEvent->GetChannel()] = (short)(((pEvent->GetParam2() << 7) | pEvent->GetParam1()) - 8192);
                 m_OutDevice.PlayEvent(pEvent->GetEventCode(), pEvent->GetParam1(), pEvent->GetParam2());
             }
             else if (!m_bMute && !m_vTrackSettings[pEvent->GetTrack()].aChannels[pEvent->GetChannel()].bMuted) {
@@ -1822,7 +1825,8 @@ void MainScreen::RenderNote( thread_work_t& work )
     if ( m_vTrackSettings[iTrack].aChannels[iChannel].bHidden ) return;
 
     // Compute true positions
-    float x = GetNoteX( iNote );
+    float gap = notex_table[1] - notex_table[0];
+    float x = GetNoteX( iNote ) + gap * (m_pBends[iChannel] / (8192.0f / 12.0f));
     // despite the extra 4 bytes per event, this actually makes quite a difference in performance
     // who knew int to float was still so expensive?
     float y = m_fNotesY + m_fNotesCY * ( 1.0f - ( fNoteStart - m_fRndStartTime) / m_llTimeSpan );

@@ -334,6 +334,7 @@ public:
     wstring GetDevName( int iDev ) const;
     bool Open( int iDev );
     void Close();
+    void Reset();
 
     void AllNotesOff();
     void AllNotesOff( const vector< int > &vChannels );

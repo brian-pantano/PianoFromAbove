@@ -920,6 +920,13 @@ void MIDIOutDevice::Close()
     m_bIsOpen = false;
 }
 
+void MIDIOutDevice::Reset()
+{
+    if (!m_bIsOpen) return;
+
+    midiOutReset(m_hMIDIOut);
+}
+
 // Specialized midi functions
 void MIDIOutDevice::AllNotesOff()
 {
