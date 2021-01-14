@@ -490,10 +490,10 @@ void SplashScreen::RenderNote( int iPos )
     iAlpha1 <<= 24;
     iAlpha2 <<= 24;
     // this is forced to be interpreted as d3d9 so the function can be inlined
-    reinterpret_cast<D3D9Renderer*>(m_pRenderer)->DrawRectBatch(x, y - cy, cx, cy, csTrack.iVeryDarkRGB);
+    reinterpret_cast<D3D9Renderer*>(m_pRenderer)->DrawRectBatch(x, y - cy, cx, cy, csTrack.iVeryDarkRGB | iAlpha);
     reinterpret_cast<D3D9Renderer*>(m_pRenderer)->DrawRectBatch(x + fDeflate, y - cy + fDeflate,
         cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
-        csTrack.iPrimaryRGB, csTrack.iDarkRGB, csTrack.iDarkRGB, csTrack.iPrimaryRGB);
+        csTrack.iPrimaryRGB | iAlpha1, csTrack.iDarkRGB | iAlpha1, csTrack.iDarkRGB | iAlpha2, csTrack.iPrimaryRGB | iAlpha2);
 }
 
 float SplashScreen::GetNoteX( int iNote )
