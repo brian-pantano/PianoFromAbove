@@ -1795,7 +1795,7 @@ void MainScreen::RenderNotes()
     }
 
     batch_vertices.resize(queue_pos + 12);
-
+    
     concurrency::parallel_for_each(m_vThreadWork.begin(), m_vThreadWork.end(), [&](thread_work_t& work) {
         RenderNote(work);
     });
@@ -1827,8 +1827,6 @@ void MainScreen::RenderNote( thread_work_t& work )
     // Compute true positions
     float gap = notex_table[1] - notex_table[0];
     float x = GetNoteX( iNote ) + gap * (m_pBends[iChannel] / (8192.0f / 12.0f));
-    // despite the extra 4 bytes per event, this actually makes quite a difference in performance
-    // who knew int to float was still so expensive?
     float y = m_fNotesY + m_fNotesCY * ( 1.0f - ( fNoteStart - m_fRndStartTime) / m_llTimeSpan );
     float cx =  MIDI::IsSharp( iNote ) ? m_fWhiteCX * SharpRatio : m_fWhiteCX;
     float cy = m_fNotesCY * ( ( fNoteEnd - fNoteStart ) / m_llTimeSpan);

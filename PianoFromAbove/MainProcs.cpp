@@ -1133,8 +1133,10 @@ BOOL PlayFile( const wstring &sFile, bool bCustomSettings, bool bLibraryEligible
     // Set up track settings
     if ( bCustomSettings )
     {
-        if ( !GetCustomSettings( pGameState ) )
+        if (!GetCustomSettings(pGameState)) {
+            delete pGameState;
             return FALSE;
+        }
     }
     else
     {

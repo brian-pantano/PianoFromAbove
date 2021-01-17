@@ -786,6 +786,11 @@ INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             }
 		    break;
         }
+        case WM_CLOSE:
+        {
+            EndDialog(hWnd, IDCANCEL);
+            return TRUE;
+        }
 	}
 
 	return FALSE;
