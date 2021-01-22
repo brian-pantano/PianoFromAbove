@@ -642,6 +642,7 @@ void MainScreen::InitState()
             0,
             0,
             nullptr);
+        ConnectNamedPipe(m_hVideoPipe, NULL);
     }
 
     memset( m_pNoteState, -1, sizeof( m_pNoteState ) );
@@ -659,8 +660,10 @@ GameState::GameError MainScreen::Init()
 
     m_OutDevice.Reset();
     m_OutDevice.SetVolume( 1.0 );
-    m_Timer.Init(config.m_bManualTimer);
-    if (m_Timer.m_bManualTimer) {
+    m_Timer.Init(config.m_bManualTimer || m_bDumpFrames);
+    if (m_bDumpFrames) {
+        m_Timer.SetFrameRate(60);
+    } else if (m_Timer.m_bManualTimer) {
         // get the screen's refresh rate
         DWM_TIMING_INFO timing_info;
         memset(&timing_info, 0, sizeof(timing_info));
@@ -975,7 +978,9 @@ GameState::GameError MainScreen::Logic( void )
     m_iStartNote = min( cVisual.iFirstKey, cVisual.iLastKey );
     m_iEndNote = max( cVisual.iFirstKey, cVisual.iLastKey );
     m_bShowFPS = cVideo.bShowFPS;
-    if (m_Timer.m_bManualTimer)
+    if (m_bDumpFrames)
+        m_pRenderer->SetLimitFPS(false);
+    else if (m_Timer.m_bManualTimer)
         m_pRenderer->SetLimitFPS(true);
     else
         m_pRenderer->SetLimitFPS( cVideo.bLimitFPS );
@@ -1070,44 +1075,14 @@ GameState::GameError MainScreen::Logic( void )
     if ( llOldPos != llNewPos ) cPlayback.SetPosition( static_cast< int >( llNewPos ) );
 
     // Song's over
-    if ( !m_bPaused && m_llStartTime >= llMaxTime )
-        cPlayback.SetPaused( true, true );
+    if (!m_bPaused && m_llStartTime >= llMaxTime) {
+        if (m_bDumpFrames)
+            CloseHandle(m_hVideoPipe);
+        cPlayback.SetPaused(true, true);
+    }
 
     if (m_Timer.m_bManualTimer)
         m_Timer.IncrementFrame();
-
-    // Dump frame!!!!
-    if (m_bDumpFrames) {
-        const auto& device = m_pRenderer->m_pd3dDevice;
-        // Make a surface to store the data
-        IDirect3DSurface9* buffer_surface;
-        device->CreateOffscreenPlainSurface(
-            m_pRenderer->GetBufferWidth(),
-            m_pRenderer->GetBufferHeight(),
-            D3DFMT_A8R8G8B8,
-            D3DPOOL_SYSTEMMEM,
-            &buffer_surface,
-            nullptr);
-
-        // Copy the back buffer data
-        IDirect3DSurface9* temp_buffer_surface;
-        device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &temp_buffer_surface);
-        D3DXLoadSurfaceFromSurface(buffer_surface, nullptr, nullptr, temp_buffer_surface, nullptr, nullptr, D3DX_DEFAULT, 0);
-        temp_buffer_surface->Release();
-
-        // Copy to our own buffer
-        assert(((m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight()) % 4) == 0);
-        m_vImageData.resize(m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight() * 4);
-        D3DLOCKED_RECT buffer_locked_rect;
-        buffer_surface->LockRect(&buffer_locked_rect, nullptr, 0);
-        memcpy(&m_vImageData[0], buffer_locked_rect.pBits, m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight() * 4);
-        buffer_surface->UnlockRect();
-
-        // Write to pipe
-        WriteFile(m_hVideoPipe, &m_vImageData[0], static_cast<DWORD>(m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight() * 4), nullptr, nullptr);
-        buffer_surface->Release();
-    }
-    m_lluCurrentFrame++;
     return Success;
 }
 
@@ -1542,6 +1517,38 @@ GameState::GameError MainScreen::Render()
 
     // Present the backbuffer contents to the display
     m_pRenderer->Present();
+
+    // Dump frame!!!!
+    if (m_bDumpFrames) {
+        const auto& device = m_pRenderer->m_pd3dDevice;
+        // Make a surface to store the data
+        IDirect3DSurface9* buffer_surface;
+        device->CreateOffscreenPlainSurface(
+            m_pRenderer->GetBufferWidth(),
+            m_pRenderer->GetBufferHeight(),
+            D3DFMT_A8R8G8B8,
+            D3DPOOL_SYSTEMMEM,
+            &buffer_surface,
+            nullptr);
+
+        // Copy the back buffer data
+        IDirect3DSurface9* temp_buffer_surface;
+        device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &temp_buffer_surface);
+        D3DXLoadSurfaceFromSurface(buffer_surface, nullptr, nullptr, temp_buffer_surface, nullptr, nullptr, D3DX_DEFAULT, 0);
+        temp_buffer_surface->Release();
+
+        // Copy to our own buffer
+        assert(((m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight()) % 4) == 0);
+        m_vImageData.resize(m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight() * 4);
+        D3DLOCKED_RECT buffer_locked_rect;
+        buffer_surface->LockRect(&buffer_locked_rect, nullptr, 0);
+        memcpy(&m_vImageData[0], buffer_locked_rect.pBits, m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight() * 4);
+        buffer_surface->UnlockRect();
+
+        // Write to pipe
+        WriteFile(m_hVideoPipe, &m_vImageData[0], static_cast<DWORD>(m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight() * 4), nullptr, nullptr);
+        buffer_surface->Release();
+    }
     return Success;
 }
 
@@ -2076,11 +2083,11 @@ void MainScreen::RenderText()
     VizSettings viz = config.GetVizSettings();
 
     int iLines = 2;
-    if (m_bShowFPS)
+    if (m_bShowFPS && !m_bDumpFrames)
         iLines++;
     if (viz.bNerdStats)
         iLines += 2;
-    if (m_Timer.m_bManualTimer)
+    if (m_Timer.m_bManualTimer && !m_bDumpFrames)
         iLines++;
 
     // Screen info
@@ -2179,7 +2186,7 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
     m_pRenderer->DrawText(TEXT("Tempo:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
     m_pRenderer->DrawText(sTempo, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
 
-    if (m_bShowFPS) {
+    if (m_bShowFPS && !m_bDumpFrames) {
         OffsetRect(prcStatus, 2, 16 + 1);
         m_pRenderer->DrawText(TEXT("FPS:"), Renderer::Small, prcStatus, 0, 0xFF404040);
         m_pRenderer->DrawText(sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
@@ -2204,7 +2211,7 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
         m_pRenderer->DrawText(sStateSize, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
     }
 
-    if (m_Timer.m_bManualTimer) {
+    if (m_Timer.m_bManualTimer && !m_bDumpFrames) {
         OffsetRect(prcStatus, 2, 16 + 1);
         m_pRenderer->DrawText(TEXT("Speed:"), Renderer::Small, prcStatus, 0, 0xFF404040);
         m_pRenderer->DrawText(sSpeed, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);

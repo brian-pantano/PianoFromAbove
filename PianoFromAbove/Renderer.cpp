@@ -64,7 +64,7 @@ HRESULT D3D9Renderer::Init( HWND hWnd, bool bLimitFPS )
     ZeroMemory( &m_d3dPP, sizeof( D3DPRESENT_PARAMETERS ) );
     m_d3dPP.Windowed = TRUE;
     m_d3dPP.SwapEffect = D3DSWAPEFFECT_DISCARD;
-    m_d3dPP.BackBufferFormat = D3DFMT_UNKNOWN;
+    m_d3dPP.BackBufferFormat = D3DFMT_A8R8G8B8;
     m_d3dPP.BackBufferWidth = 0;
     m_d3dPP.BackBufferHeight = 0;
     m_d3dPP.PresentationInterval = ( bLimitFPS ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE );
