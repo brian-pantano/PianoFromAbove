@@ -636,15 +636,24 @@ void MainScreen::InitState()
 
     m_bDumpFrames = cViz.bDumpFrames;
     if (m_bDumpFrames) {
+        RECT rect = {};
+        GetWindowRect(g_hWndGfx, &rect);
+        int width = rect.right - rect.left;
+        int height = rect.bottom - rect.top;
+
+        char buf[1024] = {};
+        snprintf(buf, sizeof(buf), "Waiting for connection... (%d x %d)", width, height);
+        SetWindowTextA(g_hWnd, buf);
         m_hVideoPipe = CreateNamedPipe(TEXT("\\\\.\\pipe\\pfadump"),
             PIPE_ACCESS_OUTBOUND,
             PIPE_TYPE_BYTE | PIPE_WAIT,
             PIPE_UNLIMITED_INSTANCES,
-            static_cast<DWORD>(1280 * 720 * 4 * 120),
+            static_cast<DWORD>(width * height * 4 * 120),
             0,
             0,
             nullptr);
         ConnectNamedPipe(m_hVideoPipe, NULL);
+        SetWindowTextA(g_hWnd, "Connected!");
     }
 
     memset( m_pNoteState, -1, sizeof( m_pNoteState ) );
@@ -1550,6 +1559,12 @@ GameState::GameError MainScreen::Render()
         // Write to pipe
         WriteFile(m_hVideoPipe, &m_vImageData[0], static_cast<DWORD>(m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight() * 4), nullptr, nullptr);
         buffer_surface->Release();
+
+        // show dump speed on the title bar
+        const std::wstring& name = m_MIDI.GetInfo().sFilename;
+        TCHAR sTitle[1024];
+        _stprintf_s(sTitle, TEXT("%ws (%.1lf%%)"), name.c_str() + (name.find_last_of(L'\\') + 1), (m_dFPS / m_Timer.m_dFramerate) * 100.0);
+        SetWindowText(g_hWnd, sTitle);
     }
     return Success;
 }
