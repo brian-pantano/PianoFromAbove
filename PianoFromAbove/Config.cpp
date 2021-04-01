@@ -216,6 +216,8 @@ void VizSettings::LoadDefaultValues() {
     this->eMarkerEncoding = MarkerEncoding::CP1252;
     this->bNerdStats = false;
     this->sSplashMIDI = L"";
+    this->bVisualizePitchBends = false;
+    this->bDumpFrames = false;
 }
 
 void AudioSettings::LoadMIDIDevices()
@@ -363,6 +365,10 @@ void VizSettings::LoadConfigValues(TiXmlElement* txRoot) {
         bShowMarkers = (iAttrVal != 0);
     if (txView->QueryIntAttribute("NerdStats", &iAttrVal) == TIXML_SUCCESS)
         bNerdStats = (iAttrVal != 0);
+    if (txView->QueryIntAttribute("VisualizePitchBends", &iAttrVal) == TIXML_SUCCESS)
+        bVisualizePitchBends = (iAttrVal != 0);
+    if (txView->QueryIntAttribute("DumpFrames", &iAttrVal) == TIXML_SUCCESS)
+        bDumpFrames = (iAttrVal != 0);
     std::string sTempStr;
     txView->QueryStringAttribute("SplashMIDI", &sTempStr);
     sSplashMIDI = Util::StringToWstring(sTempStr);
@@ -471,5 +477,7 @@ bool VizSettings::SaveConfigValues(TiXmlElement* txRoot) {
     txViz->SetAttribute("MarkerEncoding", eMarkerEncoding);
     txViz->SetAttribute("NerdStats", bNerdStats);
     txViz->SetAttribute("SplashMIDI", Util::WstringToString(sSplashMIDI));
+    txViz->SetAttribute("VisualizePitchBends", bVisualizePitchBends);
+    txViz->SetAttribute("DumpFrames", bDumpFrames);
     return true;
 }

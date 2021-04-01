@@ -177,6 +177,8 @@ struct VizSettings : public ISettings {
     enum MarkerEncoding { CP1252, CP932, UTF8 } eMarkerEncoding;
     bool bNerdStats;
     std::wstring sSplashMIDI;
+    bool bVisualizePitchBends;
+    bool bDumpFrames;
 };
 
 class Config : public ISettings

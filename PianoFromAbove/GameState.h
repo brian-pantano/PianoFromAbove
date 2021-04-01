@@ -154,6 +154,7 @@ public:
 typedef struct {
     size_t queue_pos; // where to write the generated vertex data
     const MIDIChannelEvent* note;
+    bool visualize_bends;
 } thread_work_t;
 
 class MainScreen : public GameState

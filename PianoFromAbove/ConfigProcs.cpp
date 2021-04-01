@@ -439,6 +439,8 @@ INT_PTR WINAPI VizProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         CheckDlgButton(hWnd, IDC_TICKBASED, viz.bTickBased);
         CheckDlgButton(hWnd, IDC_MARKERS, viz.bShowMarkers);
         CheckDlgButton(hWnd, IDC_STATS, viz.bNerdStats);
+        CheckDlgButton(hWnd, IDC_PITCHBENDS, viz.bVisualizePitchBends);
+        CheckDlgButton(hWnd, IDC_FFMPEG, viz.bDumpFrames);
 
         const wchar_t* codepages[] = { L"CP-1252 (Western)", L"CP-932 (Japanese)", L"UTF-8" };
         for (int i = 0; i < sizeof(codepages) / sizeof(const wchar_t*); i++)
@@ -488,6 +490,8 @@ INT_PTR WINAPI VizProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             viz.bNerdStats = IsDlgButtonChecked(hWnd, IDC_STATS);
             GetWindowTextW(GetDlgItem(hWnd, IDC_SPLASHMIDI), splash, 1024);
             viz.sSplashMIDI = splash;
+            viz.bVisualizePitchBends = IsDlgButtonChecked(hWnd, IDC_PITCHBENDS);
+            viz.bDumpFrames = IsDlgButtonChecked(hWnd, IDC_FFMPEG);
 
             config.SetVizSettings(viz);
             SetWindowLongPtr(hWnd, DWLP_MSGRESULT, PSNRET_NOERROR);

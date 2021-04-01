@@ -609,6 +609,7 @@ void MainScreen::InitState()
     static const PlaybackSettings &cPlayback = config.GetPlaybackSettings();
     static const ViewSettings &cView = config.GetViewSettings();
     static const VisualSettings &cVisual = config.GetVisualSettings();
+    static const VizSettings& cViz = config.GetVizSettings();
 
     m_eGameMode = Practice;
     m_iStartPos = 0;
@@ -633,6 +634,7 @@ void MainScreen::InitState()
     // m_Timer will be initialized *later*
     m_RealTimer.Init(false);
 
+    m_bDumpFrames = cViz.bDumpFrames;
     if (m_bDumpFrames) {
         m_hVideoPipe = CreateNamedPipe(TEXT("\\\\.\\pipe\\pfadump"),
             PIPE_ACCESS_OUTBOUND,
@@ -1757,12 +1759,14 @@ void MainScreen::RenderNotes()
 
     size_t queue_pos = batch_vertices.size();
 
+    bool visualize_bends = Config::GetConfig().GetVizSettings().bVisualizePitchBends;
+
     for (int i = m_iEndPos; i >= m_iStartPos; i--) {
         MIDIChannelEvent* pEvent = m_vEvents[i];
         if (pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
             pEvent->GetParam2() > 0 && pEvent->GetSister() &&
             MIDI::IsSharp(pEvent->GetParam1())) {
-            const thread_work_t work{ queue_pos, pEvent };
+            const thread_work_t work{ queue_pos, pEvent, visualize_bends };
             m_vThreadWork.push_back(work);
             queue_pos += 12;
         }
@@ -1770,7 +1774,7 @@ void MainScreen::RenderNotes()
     for (int i = 0; i < 128; i++) {
         if (MIDI::IsSharp(i)) {
             for (vector< int >::reverse_iterator it = (m_vState[i]).rbegin(); it != (m_vState[i]).rend();) {
-                const thread_work_t work{ queue_pos, m_vEvents[*it] };
+                const thread_work_t work{ queue_pos, m_vEvents[*it], visualize_bends };
                 m_vThreadWork.push_back(work);
                 queue_pos += 12;
                 ++it;
@@ -1784,7 +1788,7 @@ void MainScreen::RenderNotes()
             pEvent->GetParam2() > 0 && pEvent->GetSister())
         {
             if (!MIDI::IsSharp(pEvent->GetParam1())) {
-                const thread_work_t work{ queue_pos, pEvent };
+                const thread_work_t work{ queue_pos, pEvent, visualize_bends };
                 m_vThreadWork.push_back(work);
                 queue_pos += 12;
             }
@@ -1793,7 +1797,7 @@ void MainScreen::RenderNotes()
     for (int i = 0; i < 128; i++) {
         if (!MIDI::IsSharp(i)) {
             for (vector< int >::reverse_iterator it = (m_vState[i]).rbegin(); it != (m_vState[i]).rend();) {
-                const thread_work_t work{ queue_pos, m_vEvents[*it] };
+                const thread_work_t work{ queue_pos, m_vEvents[*it], visualize_bends };
                 m_vThreadWork.push_back(work);
                 queue_pos += 12;
                 ++it;
@@ -1832,8 +1836,9 @@ void MainScreen::RenderNote( thread_work_t& work )
     if ( m_vTrackSettings[iTrack].aChannels[iChannel].bHidden ) return;
 
     // Compute true positions
-    float gap = notex_table[1] - notex_table[0];
-    float x = GetNoteX( iNote ) + gap * (m_pBends[iChannel] / (8192.0f / 12.0f));
+    float x = GetNoteX( iNote );
+    if (work.visualize_bends)
+        x += (notex_table[1] - notex_table[0]) * (m_pBends[iChannel] / (8192.0f / 12.0f));
     float y = m_fNotesY + m_fNotesCY * ( 1.0f - ( fNoteStart - m_fRndStartTime) / m_llTimeSpan );
     float cx =  MIDI::IsSharp( iNote ) ? m_fWhiteCX * SharpRatio : m_fWhiteCX;
     float cy = m_fNotesCY * ( ( fNoteEnd - fNoteStart ) / m_llTimeSpan);

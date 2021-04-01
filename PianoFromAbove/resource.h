@@ -99,7 +99,10 @@
 #define IDC_BUTTON2                     1105
 #define IDC_SPLASHRESET                 1105
 #define IDC_MEMUSAGE                    1106
+#define IDC_PITCHBENDS                  1106
 #define IDC_TICKBASED                   1107
+#define IDC_PITCHBENDS2                 1108
+#define IDC_FFMPEG                      1108
 #define ID_FILE_PLAYFILE                40001
 #define ID_FILE_ADDFILE                 40002
 #define ID_FILE_ADDFOLDER               40003
