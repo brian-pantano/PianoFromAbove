@@ -77,14 +77,14 @@ INT_PTR WINAPI VisualProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 
             // Config to fill out the form
             Config &config = Config::GetConfig();
-            SetVisualProc( hWnd, config.GetVisualSettings() );
+            SetVisualProc( hWnd, config.GetVisualSettings(), config.GetVizSettings() );
             return TRUE;
         }
         // Draws the colored buttons
         case WM_DRAWITEM:
         {
             LPDRAWITEMSTRUCT pdis = (LPDRAWITEMSTRUCT)lParam;
-            if ( ( pdis->CtlID < IDC_COLOR1 || pdis->CtlID > IDC_COLOR6 ) && pdis->CtlID != IDC_BKGCOLOR )
+            if ( ( pdis->CtlID < IDC_COLOR1 || pdis->CtlID > IDC_COLOR6 ) && pdis->CtlID != IDC_BKGCOLOR && pdis->CtlID != IDC_BARCOLOR )
                 return FALSE;
 
             SetDCBrushColor( pdis->hDC, (COLORREF)GetWindowLongPtr( pdis->hwndItem, GWLP_USERDATA ) );
@@ -111,6 +111,7 @@ INT_PTR WINAPI VisualProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                 case IDC_COLOR1: case IDC_COLOR2: case IDC_COLOR3:
                 case IDC_COLOR4: case IDC_COLOR5: case IDC_COLOR6: 
                 case IDC_BKGCOLOR:
+                case IDC_BARCOLOR:
                 {
                     static COLORREF acrCustClr[16] = { 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 
                                                        0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF, 0x00FFFFFF }; 
@@ -135,8 +136,11 @@ INT_PTR WINAPI VisualProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     VisualSettings cVisualSettings;
                     cVisualSettings.LoadDefaultValues();
 
+                    VizSettings cVizSettings;
+                    cVizSettings.LoadDefaultValues();
+
                     SendMessage( hWnd, WM_SETREDRAW, FALSE, 0 );
-                    SetVisualProc( hWnd, cVisualSettings  );
+                    SetVisualProc( hWnd, cVisualSettings, cVizSettings );
                     SendMessage( hWnd, WM_SETREDRAW, TRUE, 0 );
                     InvalidateRect( hWnd, NULL, FALSE );
                     return TRUE;
@@ -156,6 +160,7 @@ INT_PTR WINAPI VisualProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     Config &config = Config::GetConfig();
                     VisualSettings cVisual = config.GetVisualSettings();
                     ViewSettings &cView = config.GetViewSettings();
+                    VizSettings &cViz = config.GetVizSettings();
 
                     // VisualSettings struct
                     bool bAlwaysShowControls = cVisual.bAlwaysShowControls;
@@ -170,6 +175,7 @@ INT_PTR WINAPI VisualProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     for ( int i = 0; i < IDC_COLOR6 - IDC_COLOR1 + 1; i++ )
                         cVisual.colors[i] = (int)GetWindowLongPtr( GetDlgItem( hWnd, IDC_COLOR1 + i ), GWLP_USERDATA );
                     cVisual.iBkgColor = (int)GetWindowLongPtr( GetDlgItem( hWnd, IDC_BKGCOLOR ), GWLP_USERDATA );
+                    cViz.iBarColor = (int)GetWindowLongPtr(GetDlgItem(hWnd, IDC_BARCOLOR), GWLP_USERDATA);
 
                     // Report success and return
                     config.SetVisualSettings( cVisual );
@@ -187,7 +193,7 @@ INT_PTR WINAPI VisualProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 }
 
 // Sets the values in the playback settings dialog. Used at init and restoring defaults
-VOID SetVisualProc( HWND hWnd, const VisualSettings &cVisual )
+VOID SetVisualProc( HWND hWnd, const VisualSettings &cVisual, const VizSettings& cViz )
 {
     HWND hWndFirstKey = GetDlgItem( hWnd, IDC_FIRSTKEY );
     HWND hWndLastKey = GetDlgItem( hWnd, IDC_LASTKEY );
@@ -204,6 +210,7 @@ VOID SetVisualProc( HWND hWnd, const VisualSettings &cVisual )
     for ( int i = 0; i < IDC_COLOR6 - IDC_COLOR1 + 1; i++ )
         SetWindowLongPtr( GetDlgItem( hWnd, IDC_COLOR1 + i ), GWLP_USERDATA, cVisual.colors[i] );
     SetWindowLongPtr( GetDlgItem( hWnd, IDC_BKGCOLOR ), GWLP_USERDATA, cVisual.iBkgColor );
+    SetWindowLongPtr( GetDlgItem( hWnd, IDC_BARCOLOR ), GWLP_USERDATA, cViz.iBarColor );
 }
 
 INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )

@@ -34,6 +34,8 @@
 #define IDC_COLOR5                      1010
 #define IDC_COLOR6                      1011
 #define IDC_BKGCOLOR                    1012
+#define IDC_COLOR7                      1013
+#define IDC_BARCOLOR                    1013
 #define IDC_SHOWALLKEYS                 1020
 #define IDC_SHOWSONGKEYS                1021
 #define IDC_SHOWCUSTOMKEYS              1022
@@ -199,7 +201,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        157
+#define _APS_NEXT_RESOURCE_VALUE        158
 #define _APS_NEXT_COMMAND_VALUE         40173
 #define _APS_NEXT_CONTROL_VALUE         1108
 #define _APS_NEXT_SYMED_VALUE           102

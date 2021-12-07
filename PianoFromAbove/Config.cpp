@@ -218,6 +218,7 @@ void VizSettings::LoadDefaultValues() {
     this->sSplashMIDI = L"";
     this->bVisualizePitchBends = false;
     this->bDumpFrames = false;
+    this->iBarColor = 0x00FF0080;
 }
 
 void AudioSettings::LoadMIDIDevices()
@@ -354,26 +355,34 @@ void ViewSettings::LoadConfigValues( TiXmlElement *txRoot )
 }
 
 void VizSettings::LoadConfigValues(TiXmlElement* txRoot) {
-    TiXmlElement* txView = txRoot->FirstChildElement("Viz");
-    if (!txView)
+    TiXmlElement* txViz = txRoot->FirstChildElement("Viz");
+    if (!txViz)
         return;
 
     int iAttrVal;
-    if (txView->QueryIntAttribute("TickBased", &iAttrVal) == TIXML_SUCCESS)
+    if (txViz->QueryIntAttribute("TickBased", &iAttrVal) == TIXML_SUCCESS)
         bTickBased = (iAttrVal != 0);
-    if (txView->QueryIntAttribute("ShowMarkers", &iAttrVal) == TIXML_SUCCESS)
+    if (txViz->QueryIntAttribute("ShowMarkers", &iAttrVal) == TIXML_SUCCESS)
         bShowMarkers = (iAttrVal != 0);
-    if (txView->QueryIntAttribute("NerdStats", &iAttrVal) == TIXML_SUCCESS)
+    if (txViz->QueryIntAttribute("NerdStats", &iAttrVal) == TIXML_SUCCESS)
         bNerdStats = (iAttrVal != 0);
-    if (txView->QueryIntAttribute("VisualizePitchBends", &iAttrVal) == TIXML_SUCCESS)
+    if (txViz->QueryIntAttribute("VisualizePitchBends", &iAttrVal) == TIXML_SUCCESS)
         bVisualizePitchBends = (iAttrVal != 0);
-    if (txView->QueryIntAttribute("DumpFrames", &iAttrVal) == TIXML_SUCCESS)
+    if (txViz->QueryIntAttribute("DumpFrames", &iAttrVal) == TIXML_SUCCESS)
         bDumpFrames = (iAttrVal != 0);
     std::string sTempStr;
-    txView->QueryStringAttribute("SplashMIDI", &sTempStr);
+    txViz->QueryStringAttribute("SplashMIDI", &sTempStr);
     sSplashMIDI = Util::StringToWstring(sTempStr);
-    txView->QueryIntAttribute("MarkerEncoding", (int*)&eMarkerEncoding);
+    txViz->QueryIntAttribute("MarkerEncoding", (int*)&eMarkerEncoding);
     eMarkerEncoding = min(MarkerEncoding::CP1252, max(eMarkerEncoding, MarkerEncoding::UTF8));
+
+    int r, g, b = 0;
+    TiXmlElement* txBarColor = txViz->FirstChildElement("BarColor");
+    if (txBarColor)
+        if (txBarColor->QueryIntAttribute("R", &r) == TIXML_SUCCESS &&
+            txBarColor->QueryIntAttribute("G", &g) == TIXML_SUCCESS &&
+            txBarColor->QueryIntAttribute("B", &b) == TIXML_SUCCESS)
+            iBarColor = ((r & 0xFF) << 0) | ((g & 0xFF) << 8) | ((b & 0xFF) << 16);
 }
 
 //-----------------------------------------------------------------------------
@@ -479,5 +488,11 @@ bool VizSettings::SaveConfigValues(TiXmlElement* txRoot) {
     txViz->SetAttribute("SplashMIDI", Util::WstringToString(sSplashMIDI));
     txViz->SetAttribute("VisualizePitchBends", bVisualizePitchBends);
     txViz->SetAttribute("DumpFrames", bDumpFrames);
+
+    TiXmlElement* txBarColor = new TiXmlElement("BarColor");
+    txViz->LinkEndChild(txBarColor);
+    txBarColor->SetAttribute("R", (iBarColor >> 0) & 0xFF);
+    txBarColor->SetAttribute("G", (iBarColor >> 8) & 0xFF);
+    txBarColor->SetAttribute("B", (iBarColor >> 16) & 0xFF);
     return true;
 }

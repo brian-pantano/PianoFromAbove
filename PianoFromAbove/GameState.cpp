@@ -595,9 +595,12 @@ void MainScreen::InitNoteMap( const vector< MIDIEvent* > &vEvents )
 // Display colors
 void MainScreen::InitColors()
 {
+    static Config& config = Config::GetConfig();
+    static const VizSettings& cViz = config.GetVizSettings();
+
     m_csBackground.SetColor( 0x00464646, 0.7f, 1.3f );
     m_csKBBackground.SetColor( 0x00999999, 0.4f, 0.0f );
-    m_csKBRed.SetColor( 0x0000E6E6, 0.5f ); // "red"
+    m_csKBRed.SetColor(cViz.iBarColor, 0.5f);
     m_csKBWhite.SetColor( 0x00FFFFFF, 0.8f, 0.6f );
     m_csKBSharp.SetColor( 0x00404040, 0.5f, 0.0f );
 }
@@ -960,6 +963,9 @@ GameState::GameError MainScreen::Logic( void )
     static const VideoSettings &cVideo = config.GetVideoSettings();
     static const VizSettings &cViz = config.GetVizSettings();
     const MIDI::MIDIInfo &mInfo = m_MIDI.GetInfo();
+
+    // people are probably going to yell at me if you can't change the bar color during playback
+    m_csKBRed.SetColor(cViz.iBarColor, 0.5f);
 
     // Detect changes in state
     bool bPaused = cPlayback.GetPaused();

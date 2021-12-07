@@ -20,7 +20,7 @@ VOID DoPreferences( HWND hWndOwner );
 VOID Changed( HWND hWnd );
 
 INT_PTR WINAPI VisualProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
-VOID SetVisualProc( HWND hWnd, const VisualSettings &cVisual );
+VOID SetVisualProc( HWND hWnd, const VisualSettings &cVisual, const VizSettings& cViz );
 
 INT_PTR WINAPI NoteSpanProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 void MIDIInProc( unsigned char cStatus, unsigned char cParam1, unsigned char cParam2, int iMilliSecs, void *pUserData );

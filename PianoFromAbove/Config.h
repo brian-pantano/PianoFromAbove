@@ -179,6 +179,7 @@ struct VizSettings : public ISettings {
     std::wstring sSplashMIDI;
     bool bVisualizePitchBends;
     bool bDumpFrames;
+    int iBarColor;
 };
 
 class Config : public ISettings
@@ -203,7 +204,7 @@ public:
     const ControlsSettings& GetControlsSettings() const { return m_ControlsSettings; }
     PlaybackSettings& GetPlaybackSettings() { return m_PlaybackSettings; }
     ViewSettings& GetViewSettings() { return m_ViewSettings; }
-    const VizSettings& GetVizSettings() const { return m_VizSettings; }
+    VizSettings& GetVizSettings() { return m_VizSettings; }
 
     void SetVisualSettings(const VisualSettings &VisualSettings) { m_VisualSettings = VisualSettings; }
     void SetAudioSettings(const AudioSettings &audioSettings) { m_AudioSettings = audioSettings; }
