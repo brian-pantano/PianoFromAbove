@@ -95,6 +95,9 @@
     <IntDir>$(Configuration)\$(Platform)\</IntDir>
     <TargetName>PFA-1.1.0viz-x86_64</TargetName>
   </PropertyGroup>
+  <PropertyGroup Label="Vcpkg">
+    <VcpkgEnabled>false</VcpkgEnabled>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PrecompiledHeader>
