@@ -171,7 +171,7 @@ DWORD WINAPI GameThread( LPVOID lpParameter )
     if ( !g_hWndGfx ) return 0;
 
     // Initialize Direct3D
-    Renderer *pRenderer = new D3D9Renderer();
+    D3D12Renderer *pRenderer = new D3D12Renderer();
     if( FAILED( pRenderer->Init( g_hWndGfx, Config::GetConfig().GetVideoSettings().bLimitFPS ) ) )
     {
         MessageBox( g_hWnd, TEXT( "Fatal error initializing Direct3D. Is DirectX 9 installed properly?" ), TEXT( "Error" ), MB_OK | MB_ICONEXCLAMATION );

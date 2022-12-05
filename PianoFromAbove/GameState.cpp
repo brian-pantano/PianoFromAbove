@@ -18,6 +18,7 @@
 #include "Config.h"
 #include "resource.h"
 #include "ConfigProcs.h"
+#include <d3d9types.h>
 
 const wstring GameState::Errors[] =
 {
@@ -114,7 +115,7 @@ GameState::GameError IntroScreen::Render()
 // SplashScreen GameState object
 //-----------------------------------------------------------------------------
 
-SplashScreen::SplashScreen( HWND hWnd, Renderer *pRenderer ) : GameState( hWnd, pRenderer ) 
+SplashScreen::SplashScreen( HWND hWnd, D3D12Renderer *pRenderer ) : GameState( hWnd, pRenderer )
 {
     HRSRC hResInfo = FindResource( NULL, MAKEINTRESOURCE( IDR_SPLASHMIDI ), TEXT( "MIDI" ) );
     HGLOBAL hRes = LoadResource( NULL, hResInfo );
@@ -490,8 +491,8 @@ void SplashScreen::RenderNote( int iPos )
     iAlpha1 <<= 24;
     iAlpha2 <<= 24;
     // this is forced to be interpreted as d3d9 so the function can be inlined
-    reinterpret_cast<D3D9Renderer*>(m_pRenderer)->DrawRectBatch(x, y - cy, cx, cy, csTrack.iVeryDarkRGB | iAlpha);
-    reinterpret_cast<D3D9Renderer*>(m_pRenderer)->DrawRectBatch(x + fDeflate, y - cy + fDeflate,
+    m_pRenderer->DrawRect(x, y - cy, cx, cy, csTrack.iVeryDarkRGB | iAlpha);
+    m_pRenderer->DrawRect(x + fDeflate, y - cy + fDeflate,
         cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
         csTrack.iPrimaryRGB | iAlpha1, csTrack.iDarkRGB | iAlpha1, csTrack.iDarkRGB | iAlpha2, csTrack.iPrimaryRGB | iAlpha2);
 }
@@ -513,7 +514,7 @@ float SplashScreen::GetNoteX( int iNote )
 // MainScreen GameState object
 //-----------------------------------------------------------------------------
 
-MainScreen::MainScreen( wstring sMIDIFile, State eGameMode, HWND hWnd, Renderer *pRenderer ) :
+MainScreen::MainScreen( wstring sMIDIFile, State eGameMode, HWND hWnd, D3D12Renderer *pRenderer ) :
     GameState( hWnd, pRenderer ), m_MIDI( sMIDIFile ), m_eGameMode( eGameMode )
 {
     // Finish off midi processing
@@ -691,7 +692,6 @@ GameState::GameError MainScreen::Init()
 
     }
 
-    batch_vertices.reserve(vq_capacity_proc_res);
     return Success;
 }
 
@@ -1537,40 +1537,7 @@ GameState::GameError MainScreen::Render()
 
     // Dump frame!!!!
     if (m_bDumpFrames) {
-        const auto& device = m_pRenderer->m_pd3dDevice;
-        // Make a surface to store the data
-        IDirect3DSurface9* buffer_surface;
-        device->CreateOffscreenPlainSurface(
-            m_pRenderer->GetBufferWidth(),
-            m_pRenderer->GetBufferHeight(),
-            D3DFMT_A8R8G8B8,
-            D3DPOOL_SYSTEMMEM,
-            &buffer_surface,
-            nullptr);
-
-        // Copy the back buffer data
-        IDirect3DSurface9* temp_buffer_surface;
-        device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &temp_buffer_surface);
-        D3DXLoadSurfaceFromSurface(buffer_surface, nullptr, nullptr, temp_buffer_surface, nullptr, nullptr, D3DX_DEFAULT, 0);
-        temp_buffer_surface->Release();
-
-        // Copy to our own buffer
-        assert(((m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight()) % 4) == 0);
-        m_vImageData.resize(m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight() * 4);
-        D3DLOCKED_RECT buffer_locked_rect;
-        buffer_surface->LockRect(&buffer_locked_rect, nullptr, 0);
-        memcpy(&m_vImageData[0], buffer_locked_rect.pBits, m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight() * 4);
-        buffer_surface->UnlockRect();
-
-        // Write to pipe
-        WriteFile(m_hVideoPipe, &m_vImageData[0], static_cast<DWORD>(m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight() * 4), nullptr, nullptr);
-        buffer_surface->Release();
-
-        // show dump speed on the title bar
-        const std::wstring& name = m_MIDI.GetInfo().sFilename;
-        TCHAR sTitle[1024];
-        _stprintf_s(sTitle, TEXT("%ws (%.1lf%%)"), name.c_str() + (name.find_last_of(L'\\') + 1), (m_dFPS / m_Timer.m_dFramerate) * 100.0);
-        SetWindowText(g_hWnd, sTitle);
+        // TODO: Implement
     }
     return Success;
 }
@@ -1715,71 +1682,6 @@ void MainScreen::RenderNotes()
     if ( m_iEndPos < 0 || m_iStartPos >= static_cast< int >( m_vEvents.size() ) )
         return;
 
-    /*
-    // Render notes. Regular notes then sharps to  make sure they're not hidden
-    bool bHasSharp = false;
-    size_t queue_pos = batch_vertices.size();
-    for (int i = 0; i < 128; i++) {
-        if (!MIDI::IsSharp(i)) {
-            for (vector< int >::iterator it = (m_vState[i]).begin(); it != (m_vState[i]).end();) {
-                const thread_work_t work{ queue_pos, m_vEvents[*it] };
-                m_vThreadWork.push_back(work);
-                queue_pos += 12;
-                ++it;
-            }
-        } else {
-            bHasSharp = true;
-        }
-    }
-
-    for (int i = m_iStartPos; i <= m_iEndPos; i++)
-    {
-        MIDIChannelEvent* pEvent = m_vEvents[i];
-        if (pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
-            pEvent->GetParam2() > 0 && pEvent->GetSister())
-        {
-            if (!MIDI::IsSharp(pEvent->GetParam1())) {
-                const thread_work_t work{ queue_pos, pEvent };
-                m_vThreadWork.push_back(work);
-                queue_pos += 12;
-            } 
-            else {
-                bHasSharp = true;
-            }
-        }
-    }
-
-    // Do it all again, but only for the sharps
-    if (bHasSharp)
-    {
-        for (int i = 0; i < 128; i++) {
-            if (MIDI::IsSharp(i)) {
-                for (vector< int >::iterator it = (m_vState[i]).begin(); it != (m_vState[i]).end();) {
-                    const thread_work_t work{ queue_pos, m_vEvents[*it] };
-                    m_vThreadWork.push_back(work);
-                    queue_pos += 12;
-                    ++it;
-                }
-            }
-        }
-
-        for (int i = m_iStartPos; i <= m_iEndPos; i++)
-        {
-            MIDIChannelEvent* pEvent = m_vEvents[i];
-            if (pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
-                pEvent->GetParam2() > 0 && pEvent->GetSister() &&
-                MIDI::IsSharp(pEvent->GetParam1())) {
-                const thread_work_t work{ queue_pos, pEvent };
-                m_vThreadWork.push_back(work);
-                queue_pos += 12;
-            }
-        }
-    }
-    batch_vertices.resize(queue_pos + 12);
-    */
-
-    size_t queue_pos = batch_vertices.size();
-
     bool visualize_bends = Config::GetConfig().GetVizSettings().bVisualizePitchBends;
 
     for (int i = m_iEndPos; i >= m_iStartPos; i--) {
@@ -1787,18 +1689,13 @@ void MainScreen::RenderNotes()
         if (pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
             pEvent->GetParam2() > 0 && pEvent->GetSister() &&
             MIDI::IsSharp(pEvent->GetParam1())) {
-            const thread_work_t work{ queue_pos, pEvent, visualize_bends };
-            m_vThreadWork.push_back(work);
-            queue_pos += 12;
+            RenderNote(pEvent, visualize_bends);
         }
     }
     for (int i = 0; i < 128; i++) {
         if (MIDI::IsSharp(i)) {
-            for (vector< int >::reverse_iterator it = (m_vState[i]).rbegin(); it != (m_vState[i]).rend();) {
-                const thread_work_t work{ queue_pos, m_vEvents[*it], visualize_bends };
-                m_vThreadWork.push_back(work);
-                queue_pos += 12;
-                ++it;
+            for (vector< int >::reverse_iterator it = (m_vState[i]).rbegin(); it != (m_vState[i]).rend(); it++) {
+                RenderNote(m_vEvents[*it], visualize_bends);
             }
         }
     }
@@ -1809,36 +1706,24 @@ void MainScreen::RenderNotes()
             pEvent->GetParam2() > 0 && pEvent->GetSister())
         {
             if (!MIDI::IsSharp(pEvent->GetParam1())) {
-                const thread_work_t work{ queue_pos, pEvent, visualize_bends };
-                m_vThreadWork.push_back(work);
-                queue_pos += 12;
+                RenderNote(pEvent, visualize_bends);
             }
         }
     }
     for (int i = 0; i < 128; i++) {
         if (!MIDI::IsSharp(i)) {
-            for (vector< int >::reverse_iterator it = (m_vState[i]).rbegin(); it != (m_vState[i]).rend();) {
-                const thread_work_t work{ queue_pos, m_vEvents[*it], visualize_bends };
-                m_vThreadWork.push_back(work);
-                queue_pos += 12;
-                ++it;
+            for (vector< int >::reverse_iterator it = (m_vState[i]).rbegin(); it != (m_vState[i]).rend(); it++) {
+                RenderNote(m_vEvents[*it], visualize_bends);
             }
         }
     }
-
-    batch_vertices.resize(queue_pos + 12);
-    
-    concurrency::parallel_for_each(m_vThreadWork.begin(), m_vThreadWork.end(), [&](thread_work_t& work) {
-        RenderNote(work);
-    });
 
     m_pRenderer->RenderBatch(true);
     m_vThreadWork.clear();
 }
 
-void MainScreen::RenderNote( thread_work_t& work )
+void MainScreen::RenderNote(const MIDIChannelEvent* pNote, bool bVisualizeBends)
 {
-    const MIDIChannelEvent* pNote = work.note;
     int iNote = pNote->GetParam1();
     int iTrack = pNote->GetTrack();
     int iChannel = pNote->GetChannel();
@@ -1858,7 +1743,7 @@ void MainScreen::RenderNote( thread_work_t& work )
 
     // Compute true positions
     float x = GetNoteX( iNote );
-    if (work.visualize_bends)
+    if (bVisualizeBends)
         x += (notex_table[1] - notex_table[0]) * (m_pBends[iChannel] / (8192.0f / 12.0f));
     float y = m_fNotesY + m_fNotesCY * ( 1.0f - ( fNoteStart - m_fRndStartTime) / m_llTimeSpan );
     float cx =  MIDI::IsSharp( iNote ) ? m_fWhiteCX * SharpRatio : m_fWhiteCX;
@@ -1885,11 +1770,10 @@ void MainScreen::RenderNote( thread_work_t& work )
         y = fMinY + cy;
     }
 
-    // this is forced to be interpreted as d3d9 so the function can be inlined
-    reinterpret_cast<D3D9Renderer*>(m_pRenderer)->GenRect(x + fDeflate, y - cy + fDeflate,
+    m_pRenderer->DrawRect(x + fDeflate, y - cy + fDeflate,
         cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
-        csTrack.iPrimaryRGB, csTrack.iDarkRGB, csTrack.iDarkRGB, csTrack.iPrimaryRGB, &batch_vertices[work.queue_pos]);
-    reinterpret_cast<D3D9Renderer*>(m_pRenderer)->GenRect(x, y - cy, cx, cy, csTrack.iVeryDarkRGB, &batch_vertices[work.queue_pos + 6]);
+        csTrack.iPrimaryRGB, csTrack.iDarkRGB, csTrack.iDarkRGB, csTrack.iPrimaryRGB);
+    m_pRenderer->DrawRect(x, y - cy, cx, cy, csTrack.iVeryDarkRGB);
 }
 
 void MainScreen::GenNoteXTable() {
@@ -2121,7 +2005,7 @@ void MainScreen::RenderText()
 
     // Current marker (if there is one)
     RECT rcMarker;
-    m_pRenderer->DrawText(m_wsMarker.c_str(), Renderer::Small, &rcMarker, DT_CALCRECT, 0);
+    m_pRenderer->DrawText(m_wsMarker.c_str(), D3D12Renderer::Small, &rcMarker, DT_CALCRECT, 0);
     rcMarker = { 0, rcMarker.top, rcMarker.right - rcMarker.left + 12, rcMarker.bottom + 6 };
 
     int iMsgCY = 200;
@@ -2175,10 +2059,6 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
     TCHAR sFPS[128];
     _stprintf_s(sFPS, TEXT("%.1lf"), m_dFPS);
 
-    // Build vertex capacity text
-    TCHAR sVQCapacity[128];
-    _stprintf_s(sVQCapacity, TEXT("%llu"), batch_vertices.capacity());
-
     // Build state debug text
     size_t state_size = 0;
     for (auto note_state : m_vState)
@@ -2199,51 +2079,44 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
     InflateRect(prcStatus, -6, -3);
 
     OffsetRect(prcStatus, 2, 1);
-    m_pRenderer->DrawText(TEXT("Time:"), Renderer::Small, prcStatus, 0, 0xFF404040);
-    m_pRenderer->DrawText(sTime, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
+    m_pRenderer->DrawText(TEXT("Time:"), D3D12Renderer::Small, prcStatus, 0, 0xFF404040);
+    m_pRenderer->DrawText(sTime, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
     OffsetRect(prcStatus, -2, -1);
-    m_pRenderer->DrawText(TEXT("Time:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
-    m_pRenderer->DrawText(sTime, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
+    m_pRenderer->DrawText(TEXT("Time:"), D3D12Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
+    m_pRenderer->DrawText(sTime, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
 
     OffsetRect(prcStatus, 2, 16 + 1);
-    m_pRenderer->DrawText(TEXT("Tempo:"), Renderer::Small, prcStatus, 0, 0xFF404040);
-    m_pRenderer->DrawText(sTempo, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
+    m_pRenderer->DrawText(TEXT("Tempo:"), D3D12Renderer::Small, prcStatus, 0, 0xFF404040);
+    m_pRenderer->DrawText(sTempo, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
     OffsetRect(prcStatus, -2, -1);
-    m_pRenderer->DrawText(TEXT("Tempo:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
-    m_pRenderer->DrawText(sTempo, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
+    m_pRenderer->DrawText(TEXT("Tempo:"), D3D12Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
+    m_pRenderer->DrawText(sTempo, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
 
     if (m_bShowFPS && !m_bDumpFrames) {
         OffsetRect(prcStatus, 2, 16 + 1);
-        m_pRenderer->DrawText(TEXT("FPS:"), Renderer::Small, prcStatus, 0, 0xFF404040);
-        m_pRenderer->DrawText(sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
+        m_pRenderer->DrawText(TEXT("FPS:"), D3D12Renderer::Small, prcStatus, 0, 0xFF404040);
+        m_pRenderer->DrawText(sFPS, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
         OffsetRect(prcStatus, -2, -1);
-        m_pRenderer->DrawText(TEXT("FPS:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
-        m_pRenderer->DrawText(sFPS, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
+        m_pRenderer->DrawText(TEXT("FPS:"), D3D12Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
+        m_pRenderer->DrawText(sFPS, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
     }
 
     if (viz.bNerdStats) {
         OffsetRect(prcStatus, 2, 16 + 1);
-        m_pRenderer->DrawText(TEXT("VQ Capacity:"), Renderer::Small, prcStatus, 0, 0xFF404040);
-        m_pRenderer->DrawText(sVQCapacity, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
+        m_pRenderer->DrawText(TEXT("m_vState:"), D3D12Renderer::Small, prcStatus, 0, 0xFF404040);
+        m_pRenderer->DrawText(sStateSize, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
         OffsetRect(prcStatus, -2, -1);
-        m_pRenderer->DrawText(TEXT("VQ Capacity:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
-        m_pRenderer->DrawText(sVQCapacity, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
-
-        OffsetRect(prcStatus, 2, 16 + 1);
-        m_pRenderer->DrawText(TEXT("m_vState:"), Renderer::Small, prcStatus, 0, 0xFF404040);
-        m_pRenderer->DrawText(sStateSize, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
-        OffsetRect(prcStatus, -2, -1);
-        m_pRenderer->DrawText(TEXT("m_vState:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
-        m_pRenderer->DrawText(sStateSize, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
+        m_pRenderer->DrawText(TEXT("m_vState:"), D3D12Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
+        m_pRenderer->DrawText(sStateSize, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
     }
 
     if (m_Timer.m_bManualTimer && !m_bDumpFrames) {
         OffsetRect(prcStatus, 2, 16 + 1);
-        m_pRenderer->DrawText(TEXT("Speed:"), Renderer::Small, prcStatus, 0, 0xFF404040);
-        m_pRenderer->DrawText(sSpeed, Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
+        m_pRenderer->DrawText(TEXT("Speed:"), D3D12Renderer::Small, prcStatus, 0, 0xFF404040);
+        m_pRenderer->DrawText(sSpeed, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
         OffsetRect(prcStatus, -2, -1);
-        m_pRenderer->DrawText(TEXT("Speed:"), Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
-        m_pRenderer->DrawText(sSpeed, Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
+        m_pRenderer->DrawText(TEXT("Speed:"), D3D12Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
+        m_pRenderer->DrawText(sSpeed, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
     }
 }
 
@@ -2252,19 +2125,19 @@ void MainScreen::RenderMarker(LPRECT prcPos, const wchar_t* sStr)
     InflateRect(prcPos, -6, -3);
 
     OffsetRect(prcPos, 2, 1);
-    m_pRenderer->DrawText(sStr, Renderer::Small, prcPos, 0, 0xFF404040);
+    m_pRenderer->DrawText(sStr, D3D12Renderer::Small, prcPos, 0, 0xFF404040);
     OffsetRect(prcPos, -2, -1);
-    m_pRenderer->DrawText(sStr, Renderer::Small, prcPos, 0, 0xFFFFFFFF);
+    m_pRenderer->DrawText(sStr, D3D12Renderer::Small, prcPos, 0, 0xFFFFFFFF);
 }
 
 void MainScreen::RenderMessage(LPRECT prcMsg, TCHAR* sMsg)
 {
     RECT rcMsg = { 0 };
-    Renderer::FontSize eFontSize = Renderer::Medium;
+    D3D12Renderer::FontSize eFontSize = D3D12Renderer::Medium;
     m_pRenderer->DrawText(sMsg, eFontSize, &rcMsg, DT_CALCRECT, 0xFF000000);
     if (rcMsg.right > m_pRenderer->GetBufferWidth())
     {
-        eFontSize = Renderer::Small;
+        eFontSize = D3D12Renderer::Small;
         m_pRenderer->DrawText(sMsg, eFontSize, &rcMsg, DT_CALCRECT, 0xFF000000);
     }
 

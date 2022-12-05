@@ -33,7 +33,7 @@ public:
     static GameError ChangeState( GameState *pNextState, GameState **pDestObj );
 
     //Constructors
-    GameState( HWND hWnd, Renderer *pRenderer ) : m_hWnd( hWnd ), m_pRenderer( pRenderer ), m_pNextState( NULL ) {};
+    GameState( HWND hWnd, D3D12Renderer *pRenderer ) : m_hWnd( hWnd ), m_pRenderer( pRenderer ), m_pNextState( NULL ) {};
     virtual ~GameState( void ) {};
 
     // Initialize after all other game states have been deleted
@@ -52,14 +52,14 @@ public:
     GameState *NextState() { return m_pNextState; };
 
     void SetHWnd( HWND hWnd ) { m_hWnd = hWnd; }
-    void SetRenderer( Renderer *pRenderer ) { m_pRenderer = pRenderer; }
+    void SetRenderer( D3D12Renderer *pRenderer ) { m_pRenderer = pRenderer; }
 
 protected:
     //Windows info
     HWND m_hWnd;
 
     //Rendering device
-    Renderer *m_pRenderer;
+    D3D12Renderer *m_pRenderer;
 
     GameState *m_pNextState;
 
@@ -80,7 +80,7 @@ struct TrackSettings { ChannelSettings aChannels[16]; };
 class SplashScreen : public GameState
 {
 public:
-    SplashScreen( HWND hWnd, Renderer *pRenderer );
+    SplashScreen( HWND hWnd, D3D12Renderer *pRenderer );
 
     GameError MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
     GameError Init();
@@ -129,7 +129,7 @@ private:
 class IntroScreen : public GameState
 {
 public:
-    IntroScreen( HWND hWnd, Renderer *pRenderer ) : GameState( hWnd, pRenderer ) {}
+    IntroScreen( HWND hWnd, D3D12Renderer *pRenderer ) : GameState( hWnd, pRenderer ) {}
 
     GameError MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
     GameError Init();
@@ -162,7 +162,7 @@ class MainScreen : public GameState
 public:
     static const float KBPercent;
 
-    MainScreen( wstring sMIDIFile, State eGameMode, HWND hWnd, Renderer *pRenderer );
+    MainScreen( wstring sMIDIFile, State eGameMode, HWND hWnd, D3D12Renderer *pRenderer );
 
     // GameState functions
     GameError MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
@@ -216,7 +216,7 @@ private:
     void RenderGlobals();
     void RenderLines();
     void RenderNotes();
-    void RenderNote(thread_work_t& work);
+    void RenderNote(const MIDIChannelEvent* pNote, bool bVisualizeBends);
     void GenNoteXTable();
     float GetNoteX( int iNote );
     void RenderKeys();
