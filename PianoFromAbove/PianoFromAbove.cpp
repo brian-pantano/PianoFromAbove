@@ -172,9 +172,12 @@ DWORD WINAPI GameThread( LPVOID lpParameter )
 
     // Initialize Direct3D
     D3D12Renderer *pRenderer = new D3D12Renderer();
-    if( FAILED( pRenderer->Init( g_hWndGfx, Config::GetConfig().GetVideoSettings().bLimitFPS ) ) )
+    auto init_res = pRenderer->Init(g_hWndGfx, Config::GetConfig().GetVideoSettings().bLimitFPS);
+    if( FAILED(std::get<0>(init_res)) )
     {
-        MessageBox( g_hWnd, TEXT( "Fatal error initializing Direct3D. Is DirectX 9 installed properly?" ), TEXT( "Error" ), MB_OK | MB_ICONEXCLAMATION );
+        wchar_t msg[1024] = {};
+        _snwprintf(msg, 1024, L"Fatal error initializing D3D12.\n%S failed with code 0x%x.", std::get<1>(init_res), std::get<0>(init_res));
+        MessageBox( g_hWnd, msg, TEXT( "Error" ), MB_OK | MB_ICONEXCLAMATION );
         PostMessage( g_hWnd, WM_QUIT, 1, 0 );
         return 1;
     }

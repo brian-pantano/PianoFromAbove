@@ -10,6 +10,8 @@
 #pragma once
 
 #include <Windows.h>
+#include <d3d12.h>
+#include <dxgi1_2.h>
 #include <vector>
 
 class D3D12Renderer
@@ -20,7 +22,7 @@ public:
     D3D12Renderer();
     ~D3D12Renderer();
 
-    HRESULT Init( HWND hWnd, bool bLimitFPS );
+    std::tuple<HRESULT, const char*> Init( HWND hWnd, bool bLimitFPS );
     HRESULT ResetDeviceIfNeeded();
     HRESULT ResetDevice();
     HRESULT Clear( DWORD color );
@@ -45,7 +47,23 @@ public:
     int GetBufferWidth() const { return m_iBufferWidth; }
     int GetBufferHeight() const { return m_iBufferHeight; }
 
-protected:
-    int m_iBufferWidth, m_iBufferHeight;
-    bool m_bLimitFPS;
+private:
+    static constexpr int s_iFrameCount = 3;
+
+    int m_iBufferWidth = 0;
+    int m_iBufferHeight = 0;
+    bool m_bLimitFPS = false;
+
+#ifdef _DEBUG
+    ID3D12Debug* m_pDebug = nullptr;
+#endif
+    IDXGIFactory2* m_pFactory = nullptr;
+    IDXGIAdapter1* m_pAdapter = nullptr;
+    ID3D12Device* m_pDevice = nullptr;
+    ID3D12CommandQueue* m_pCommandQueue = nullptr;
+    IDXGISwapChain1* m_pSwapChain = nullptr;
+    ID3D12DescriptorHeap* m_pRTVDescriptorHeap = nullptr;
+    UINT m_uRTVDescriptorSize = 0;
+    ID3D12Resource* m_pRenderTargets[s_iFrameCount] = {};
+    ID3D12CommandAllocator* m_pCommandAllocator = nullptr;
 };
