@@ -1,10 +1,10 @@
 /*************************************************************************************************
 *
-* File: Renderer.h
+> File: Renderer.h
 *
-* Description: Defines rendering objects. Only one for now.
+> Description: Defines rendering objects. Only one for now.
 *
-* Copyright (c) 2010 Brian Pantano. All rights reserved.
+> Copyright (c) 2010 Brian Pantano. All rights reserved.
 *
 *************************************************************************************************/
 #pragma once
@@ -12,8 +12,11 @@
 #include <Windows.h>
 #include <d3d12.h>
 #include <dxgi1_4.h>
+#include <wrl/client.h>
 #include <string>
 #include <vector>
+
+using Microsoft::WRL::ComPtr;
 
 struct RectVertex {
     float x;
@@ -64,21 +67,21 @@ private:
     int m_iBufferHeight = 0;
     bool m_bLimitFPS = false;
 
-    IDXGIFactory4* m_pFactory = nullptr;
-    IDXGIAdapter3* m_pAdapter = nullptr;
-    ID3D12Device9* m_pDevice = nullptr;
-    ID3D12CommandQueue* m_pCommandQueue = nullptr;
-    IDXGISwapChain3* m_pSwapChain = nullptr;
-    ID3D12DescriptorHeap* m_pRTVDescriptorHeap = nullptr;
+    ComPtr<IDXGIFactory4> m_pFactory;
+    ComPtr<IDXGIAdapter3> m_pAdapter;
+    ComPtr<ID3D12Device9> m_pDevice;
+    ComPtr<ID3D12CommandQueue> m_pCommandQueue;
+    ComPtr<IDXGISwapChain3> m_pSwapChain;
+    ComPtr<ID3D12DescriptorHeap> m_pRTVDescriptorHeap;
     UINT m_uRTVDescriptorSize = 0;
-    ID3D12Resource2* m_pRenderTargets[FrameCount] = {};
-    ID3D12CommandAllocator* m_pCommandAllocator[FrameCount] = {};
-    ID3D12RootSignature* m_pRectRootSignature = nullptr;
-    ID3D12PipelineState* m_pRectPipelineState = nullptr;
-    ID3D12GraphicsCommandList6* m_pCommandList = nullptr;
-    ID3D12Fence1* m_pFence = nullptr;
+    ComPtr<ID3D12Resource2> m_pRenderTargets[FrameCount] = {};
+    ComPtr<ID3D12CommandAllocator> m_pCommandAllocator[FrameCount] = {};
+    ComPtr<ID3D12RootSignature> m_pRectRootSignature;
+    ComPtr<ID3D12PipelineState> m_pRectPipelineState;
+    ComPtr<ID3D12GraphicsCommandList6> m_pCommandList;
+    ComPtr<ID3D12Fence1> m_pFence;
     HANDLE m_hFenceEvent = NULL;
-    ID3D12Resource* m_pIndexBuffer = nullptr;
+    ComPtr<ID3D12Resource> m_pIndexBuffer;
 
     UINT m_uFrameIndex = 0;
     UINT64 m_pFenceValues[FrameCount] = {};

@@ -7,7 +7,6 @@
 * Copyright (c) 2010 Brian Pantano. All rights reserved.
 *
 *************************************************************************************************/
-#define D3DX12_NO_STATE_OBJECT_HELPERS
 #include "d3dx12/d3dx12.h"
 #ifdef _DEBUG
 #include <dxgidebug.h>
@@ -24,30 +23,13 @@ D3D12Renderer::~D3D12Renderer() {
     // HACK: This hangs for some reason. Maybe it's because the hWnd gets destroyed before here?
     //WaitForGPU();
 
-    for (int i = 0; i < FrameCount; i++) {
-        SAFE_RELEASE(m_pRenderTargets[i]);
-        SAFE_RELEASE(m_pCommandAllocator[i]);
-    }
-    SAFE_RELEASE(m_pFactory);
-    SAFE_RELEASE(m_pAdapter);
-    SAFE_RELEASE(m_pDevice);
-    SAFE_RELEASE(m_pCommandQueue);
-    SAFE_RELEASE(m_pSwapChain);
-    SAFE_RELEASE(m_pRTVDescriptorHeap);
-    SAFE_RELEASE(m_pRectRootSignature);
-    SAFE_RELEASE(m_pRectPipelineState);
-    SAFE_RELEASE(m_pCommandList);
-    SAFE_RELEASE(m_pFence);
     if (m_hFenceEvent)
         CloseHandle(m_hFenceEvent);
-    SAFE_RELEASE(m_pIndexBuffer);
 
 #ifdef _DEBUG
-    IDXGIDebug1* dxgi_debug = nullptr;
-    if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgi_debug)))) {
+    ComPtr<IDXGIDebug1> dxgi_debug = nullptr;
+    if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgi_debug))))
         dxgi_debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
-        dxgi_debug->Release();
-    }
 #endif
 }
 
@@ -88,7 +70,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
             continue;
 
-        res = D3D12CreateDevice(m_pAdapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_pDevice));
+        res = D3D12CreateDevice(m_pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_pDevice));
         if (FAILED(res))
             return std::make_tuple(res, "D3D12CreateDevice");
         break;
@@ -126,7 +108,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         .AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED,
         .Flags = 0,
     };
-    res = m_pFactory->CreateSwapChainForHwnd(m_pCommandQueue, hWnd, &swap_chain_desc, nullptr, nullptr, &temp_swapchain);
+    res = m_pFactory->CreateSwapChainForHwnd(m_pCommandQueue.Get(), hWnd, &swap_chain_desc, nullptr, nullptr, &temp_swapchain);
     if (FAILED(res))
         return std::make_tuple(res, "CreateSwapChainForHwnd");
     res = temp_swapchain->QueryInterface(IID_PPV_ARGS(&m_pSwapChain));
@@ -164,7 +146,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         res = m_pSwapChain->GetBuffer(i, IID_PPV_ARGS(&m_pRenderTargets[i]));
         if (FAILED(res))
             return std::make_tuple(res, "GetBuffer");
-        m_pDevice->CreateRenderTargetView(m_pRenderTargets[i], nullptr, rtv_handle);
+        m_pDevice->CreateRenderTargetView(m_pRenderTargets[i].Get(), nullptr, rtv_handle);
         rtv_handle.ptr += m_uRTVDescriptorSize;
     }
 
@@ -176,7 +158,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     }
 
     // Create rectangle root signature
-    ID3DBlob* rect_serialized = nullptr;
+    ComPtr<ID3DBlob> rect_serialized;
     D3D12_ROOT_SIGNATURE_DESC rect_root_sig_desc = {
         .Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
     };
@@ -186,7 +168,6 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     res = m_pDevice->CreateRootSignature(0, rect_serialized->GetBufferPointer(), rect_serialized->GetBufferSize(), IID_PPV_ARGS(&m_pRectRootSignature));
     if (FAILED(res))
         return std::make_tuple(res, "CreateRootSignature (rectangle)");
-    rect_serialized->Release();
 
     // Create pipeline state
     D3D12_INPUT_ELEMENT_DESC vertex_input[] = {
@@ -210,7 +191,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         },
     };
     D3D12_GRAPHICS_PIPELINE_STATE_DESC pipeline_desc = {
-        .pRootSignature = m_pRectRootSignature,
+        .pRootSignature = m_pRectRootSignature.Get(),
         .VS = {
             .pShaderBytecode = g_pRectVertexShader,
             .BytecodeLength = sizeof(g_pRectVertexShader),
@@ -272,7 +253,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     m_pIndexBuffer->SetName(L"Index buffer");
 
     // Create index upload buffer
-    ID3D12Resource2* index_buffer_upload = nullptr;
+    ComPtr<ID3D12Resource2> index_buffer_upload = nullptr;
     auto index_buffer_upload_heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     res = m_pDevice->CreateCommittedResource(
         &index_buffer_upload_heap,
@@ -300,7 +281,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
 
     // Reset the command list
     m_pCommandAllocator[m_uFrameIndex]->Reset();
-    m_pCommandList->Reset(m_pCommandAllocator[m_uFrameIndex], nullptr);
+    m_pCommandList->Reset(m_pCommandAllocator[m_uFrameIndex].Get(), nullptr);
 
     // Upload index buffer to GPU
     D3D12_SUBRESOURCE_DATA index_buffer_data = {
@@ -308,10 +289,10 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         .RowPitch = (LONG_PTR)(index_buffer_vec.size() * sizeof(uint16_t)),
         .SlicePitch = (LONG_PTR)(index_buffer_vec.size() * sizeof(uint16_t)),
     };
-    UpdateSubresources<1>(m_pCommandList, m_pIndexBuffer, index_buffer_upload, 0, 0, 1, &index_buffer_data);
+    UpdateSubresources<1>(m_pCommandList.Get(), m_pIndexBuffer.Get(), index_buffer_upload.Get(), 0, 0, 1, &index_buffer_data);
 
     // Finalize index buffer
-    auto index_buffer_barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pIndexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER);
+    auto index_buffer_barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pIndexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER);
     m_pCommandList->ResourceBarrier(1, &index_buffer_barrier);
 
     // Close the command list
@@ -320,13 +301,13 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         return std::make_tuple(res, "Closing command list for initial buffer upload");
 
     // Execute the command list
-    m_pCommandQueue->ExecuteCommandLists(1, (ID3D12CommandList* const*)&m_pCommandList);
+    ID3D12CommandList* command_lists[] = { m_pCommandList.Get()};
+    m_pCommandQueue->ExecuteCommandLists(1, command_lists);
 
     // Wait for everything to finish
     if (FAILED(WaitForGPU()))
         return std::make_tuple(res, "WaitForGPU");
 
-    index_buffer_upload->Release();
     return std::make_tuple(S_OK, "");
 }
 
@@ -350,7 +331,7 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
 
     // Reset the command list
     cmd_allocator->Reset();
-    m_pCommandList->Reset(cmd_allocator, m_pRectPipelineState);
+    m_pCommandList->Reset(cmd_allocator.Get(), m_pRectPipelineState.Get());
 
     // Set up render state
     D3D12_VIEWPORT viewport = {
@@ -362,13 +343,13 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
         .MaxDepth = 1.0,
     };
     D3D12_RECT scissor = { 0, 0, m_iBufferWidth, m_iBufferHeight };
-    m_pCommandList->SetGraphicsRootSignature(m_pRectRootSignature);
+    m_pCommandList->SetGraphicsRootSignature(m_pRectRootSignature.Get());
     m_pCommandList->RSSetViewports(1, &viewport);
     m_pCommandList->RSSetScissorRects(1, &scissor);
     m_pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     // Transition backbuffer state to render target
-    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(render_target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(render_target.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     m_pCommandList->ResourceBarrier(1, &barrier);
 
     // Bind to output merger
@@ -407,7 +388,7 @@ HRESULT D3D12Renderer::EndScene() {
     auto render_target = m_pRenderTargets[m_uFrameIndex];
 
     // Transition backbuffer state to present
-    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(render_target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(render_target.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     m_pCommandList->ResourceBarrier(1, &barrier);
 
     // Close the command list
@@ -416,7 +397,8 @@ HRESULT D3D12Renderer::EndScene() {
         return res;
 
     // Execute the command list
-    m_pCommandQueue->ExecuteCommandLists(1, (ID3D12CommandList* const*)&m_pCommandList);
+    ID3D12CommandList* command_lists[] = { m_pCommandList.Get() };
+    m_pCommandQueue->ExecuteCommandLists(1, command_lists);
 
     return S_OK;
 }
@@ -430,7 +412,7 @@ HRESULT D3D12Renderer::Present() {
 
     // Signal the fence
     const UINT64 cur_fence_value = m_pFenceValues[m_uFrameIndex];
-    res = m_pCommandQueue->Signal(m_pFence, cur_fence_value);
+    res = m_pCommandQueue->Signal(m_pFence.Get(), cur_fence_value);
     if (FAILED(res))
         return res;
 
@@ -521,7 +503,7 @@ std::wstring D3D12Renderer::GetAdapterName() {
 
 HRESULT D3D12Renderer::WaitForGPU() {
     // Signal the command queue
-    HRESULT res = m_pCommandQueue->Signal(m_pFence, m_pFenceValues[m_uFrameIndex]);
+    HRESULT res = m_pCommandQueue->Signal(m_pFence.Get(), m_pFenceValues[m_uFrameIndex]);
     if (FAILED(res))
         return res;
 
