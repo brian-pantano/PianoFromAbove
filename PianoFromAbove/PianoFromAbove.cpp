@@ -176,7 +176,7 @@ DWORD WINAPI GameThread( LPVOID lpParameter )
     if( FAILED(std::get<0>(init_res)) )
     {
         wchar_t msg[1024] = {};
-        _snwprintf(msg, 1024, L"Fatal error initializing D3D12.\n%S failed with code 0x%x.", std::get<1>(init_res), std::get<0>(init_res));
+        _snwprintf_s(msg, 1024, L"Fatal error initializing D3D12.\n%S failed with code 0x%x.", std::get<1>(init_res), std::get<0>(init_res));
         MessageBox( g_hWnd, msg, TEXT( "Error" ), MB_OK | MB_ICONEXCLAMATION );
         PostMessage( g_hWnd, WM_QUIT, 1, 0 );
         return 1;
@@ -188,6 +188,11 @@ DWORD WINAPI GameThread( LPVOID lpParameter )
     pGameState->SetRenderer( pRenderer );
     pGameState->Init();
     GameState::GameError ge;
+
+    // Put the adapter in the window title
+    wchar_t buf[1024] = {};
+    _snwprintf_s(buf, 1024, L"pfavizkhang %S (D3D12: %s)", __DATE__, pRenderer->GetAdapterName().c_str());
+    SetWindowTextW(g_hWnd, buf);
 
     // Event, logic, render...
     MSG msg = { 0 };

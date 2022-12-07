@@ -302,4 +302,7 @@ private:
     bool m_bDumpFrames = false;
     std::vector<unsigned char> m_vImageData;
     HANDLE m_hVideoPipe;
+
+    // Debug assertion fail workaround
+    bool m_bNextMarkerInited = false;
 };

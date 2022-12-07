@@ -11,8 +11,15 @@
 
 #include <Windows.h>
 #include <d3d12.h>
-#include <dxgi1_2.h>
+#include <dxgi1_4.h>
+#include <string>
 #include <vector>
+
+struct RectVertex {
+    float x;
+    float y;
+    DWORD color;
+};
 
 class D3D12Renderer
 {
@@ -25,8 +32,7 @@ public:
     std::tuple<HRESULT, const char*> Init( HWND hWnd, bool bLimitFPS );
     HRESULT ResetDeviceIfNeeded();
     HRESULT ResetDevice();
-    HRESULT Clear( DWORD color );
-    HRESULT BeginScene();
+    HRESULT ClearAndBeginScene( DWORD color );
     HRESULT EndScene();
     HRESULT Present();
     HRESULT BeginText();
@@ -47,23 +53,35 @@ public:
     int GetBufferWidth() const { return m_iBufferWidth; }
     int GetBufferHeight() const { return m_iBufferHeight; }
 
+    HRESULT WaitForGPU();
+    std::wstring GetAdapterName();
+
 private:
-    static constexpr int s_iFrameCount = 3;
+    static constexpr unsigned FrameCount = 3;
+    static constexpr unsigned RectsPerPass = 10922; // Relatively low limit, allows using a 16-bit index buffer
 
     int m_iBufferWidth = 0;
     int m_iBufferHeight = 0;
     bool m_bLimitFPS = false;
 
-#ifdef _DEBUG
-    ID3D12Debug* m_pDebug = nullptr;
-#endif
-    IDXGIFactory2* m_pFactory = nullptr;
-    IDXGIAdapter1* m_pAdapter = nullptr;
-    ID3D12Device* m_pDevice = nullptr;
+    IDXGIFactory4* m_pFactory = nullptr;
+    IDXGIAdapter3* m_pAdapter = nullptr;
+    ID3D12Device9* m_pDevice = nullptr;
     ID3D12CommandQueue* m_pCommandQueue = nullptr;
-    IDXGISwapChain1* m_pSwapChain = nullptr;
+    IDXGISwapChain3* m_pSwapChain = nullptr;
     ID3D12DescriptorHeap* m_pRTVDescriptorHeap = nullptr;
     UINT m_uRTVDescriptorSize = 0;
-    ID3D12Resource* m_pRenderTargets[s_iFrameCount] = {};
-    ID3D12CommandAllocator* m_pCommandAllocator = nullptr;
+    ID3D12Resource2* m_pRenderTargets[FrameCount] = {};
+    ID3D12CommandAllocator* m_pCommandAllocator[FrameCount] = {};
+    ID3D12RootSignature* m_pRectRootSignature = nullptr;
+    ID3D12PipelineState* m_pRectPipelineState = nullptr;
+    ID3D12GraphicsCommandList6* m_pCommandList = nullptr;
+    ID3D12Fence1* m_pFence = nullptr;
+    HANDLE m_hFenceEvent = NULL;
+    ID3D12Resource* m_pIndexBuffer = nullptr;
+
+    UINT m_uFrameIndex = 0;
+    UINT64 m_pFenceValues[FrameCount] = {};
+
+    std::vector<RectVertex> m_vRectsIntermediate;
 };

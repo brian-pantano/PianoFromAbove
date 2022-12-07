@@ -31,6 +31,9 @@
     <Filter Include="Source Files\Window">
       <UniqueIdentifier>{a2c7b7ec-66fe-4103-af68-597bbb44e45f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\d3dx12">
+      <UniqueIdentifier>{537710c4-3d24-4238-84de-47714d4fd5c5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Config.h">
@@ -68,6 +71,36 @@
     </ClInclude>
     <ClInclude Include="robin_hood.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dx12\d3dx12.h">
+      <Filter>Header Files\d3dx12</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dx12\d3dx12_barriers.h">
+      <Filter>Header Files\d3dx12</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dx12\d3dx12_check_feature_support.h">
+      <Filter>Header Files\d3dx12</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dx12\d3dx12_core.h">
+      <Filter>Header Files\d3dx12</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dx12\d3dx12_default.h">
+      <Filter>Header Files\d3dx12</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dx12\d3dx12_pipeline_state_stream.h">
+      <Filter>Header Files\d3dx12</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dx12\d3dx12_render_pass.h">
+      <Filter>Header Files\d3dx12</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dx12\d3dx12_resource_helpers.h">
+      <Filter>Header Files\d3dx12</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dx12\d3dx12_root_signature.h">
+      <Filter>Header Files\d3dx12</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dx12\d3dx12_state_object.h">
+      <Filter>Header Files\d3dx12</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -132,5 +165,16 @@
     <None Include="Images\Lock.bmp">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="rect.hlsli">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="rect_vs.hlsl">
+      <Filter>Resource Files</Filter>
+    </FxCompile>
+    <FxCompile Include="rect_ps.hlsl">
+      <Filter>Resource Files</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

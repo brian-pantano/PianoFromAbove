@@ -99,14 +99,12 @@ GameState::GameError IntroScreen::Render()
     if ( FAILED( m_pRenderer->ResetDeviceIfNeeded() ) ) return DirectXError;
 
     // Clear the backbuffer to a blue color
-    m_pRenderer->Clear( D3DCOLOR_XRGB( 0, 0, 0 ) );
-
-    m_pRenderer->BeginScene();
+    m_pRenderer->ClearAndBeginScene( D3DCOLOR_XRGB( 0, 0, 0 ) );
     m_pRenderer->DrawRect( 0.0f, 0.0f, static_cast< float >( m_pRenderer->GetBufferWidth() ),
                            static_cast< float >( m_pRenderer->GetBufferHeight() ), 0x00000000 );
-    m_pRenderer->EndScene();
 
     // Present the backbuffer contents to the display
+    m_pRenderer->EndScene();
     m_pRenderer->Present();
     return Success;
 }
@@ -356,15 +354,13 @@ GameState::GameError SplashScreen::Render()
     if ( FAILED( m_pRenderer->ResetDeviceIfNeeded() ) ) return DirectXError;
 
     // Clear the backbuffer to a blue color
-    m_pRenderer->Clear( D3DCOLOR_XRGB( 0, 0, 0 ) );
-
-    m_pRenderer->BeginScene();
+    m_pRenderer->ClearAndBeginScene( D3DCOLOR_XRGB( 0, 0, 0 ) );
     m_pRenderer->DrawRect( 0.0f, 0.0f, static_cast< float >( m_pRenderer->GetBufferWidth() ),
                            static_cast< float >( m_pRenderer->GetBufferHeight() ), 0x00000000 );
     RenderNotes();
-    m_pRenderer->EndScene();
 
     // Present the backbuffer contents to the display
+    m_pRenderer->EndScene();
     m_pRenderer->Present();
     return Success;
 }
@@ -490,7 +486,6 @@ void SplashScreen::RenderNote( int iPos )
     iAlpha <<= 24;
     iAlpha1 <<= 24;
     iAlpha2 <<= 24;
-    // this is forced to be interpreted as d3d9 so the function can be inlined
     m_pRenderer->DrawRect(x, y - cy, cx, cy, csTrack.iVeryDarkRGB | iAlpha);
     m_pRenderer->DrawRect(x + fDeflate, y - cy + fDeflate,
         cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
@@ -1384,7 +1379,8 @@ void MainScreen::AdvanceIterators( long long llTime, bool bIsJump )
 
         auto itCurMarker = m_itNextMarker;
         m_itNextMarker = upper_bound(m_vMarkers.begin(), m_vMarkers.end(), pair< long long, int >(llTime, m_vMetaEvents.size()));
-        if (itCurMarker != m_itNextMarker) {
+        if (!m_bNextMarkerInited || itCurMarker != m_itNextMarker) {
+            m_bNextMarkerInited = true;
             if (m_itNextMarker != m_vMarkers.begin() && (m_itNextMarker - 1)->second != -1) {
                 const auto eEvent = m_vMetaEvents[(m_itNextMarker - 1)->second];
                 ApplyMarker(eEvent->GetData(), eEvent->GetDataLen());
@@ -1521,18 +1517,16 @@ GameState::GameError MainScreen::Render()
 {
     if ( FAILED( m_pRenderer->ResetDeviceIfNeeded() ) ) return DirectXError;
 
-    m_pRenderer->Clear( 0x00000000 );
-
-    m_pRenderer->BeginScene();
+    m_pRenderer->ClearAndBeginScene( 0x00000000 );
     RenderLines();
     RenderNotes();
     if ( m_bShowKB )
         RenderKeys();
     RenderBorder();
     RenderText();
-    m_pRenderer->EndScene();
 
     // Present the backbuffer contents to the display
+    m_pRenderer->EndScene();
     m_pRenderer->Present();
 
     // Dump frame!!!!
