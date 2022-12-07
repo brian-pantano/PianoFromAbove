@@ -106,7 +106,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         .Scaling = DXGI_SCALING_STRETCH,
         .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
         .AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED,
-        .Flags = 0,
+        .Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING,
     };
     res = m_pFactory->CreateSwapChainForHwnd(m_pCommandQueue.Get(), hWnd, &swap_chain_desc, nullptr, nullptr, &temp_swapchain);
     if (FAILED(res))
@@ -159,8 +159,24 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
 
     // Create rectangle root signature
     ComPtr<ID3DBlob> rect_serialized;
+    D3D12_ROOT_PARAMETER rect_root_sig_params[] = {
+        {
+            .ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS,
+            .Constants = {
+                .ShaderRegister = 0,
+                .RegisterSpace = 0,
+                .Num32BitValues = 16,
+            },
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
+        }
+    };
     D3D12_ROOT_SIGNATURE_DESC rect_root_sig_desc = {
-        .Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
+        .NumParameters = _countof(rect_root_sig_params),
+        .pParameters = rect_root_sig_params,
+        .Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+                 D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+                 D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+                 D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS,
     };
     res = D3D12SerializeRootSignature(&rect_root_sig_desc, D3D_ROOT_SIGNATURE_VERSION_1, &rect_serialized, nullptr);
     if (FAILED(res))
@@ -200,10 +216,31 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
             .pShaderBytecode = g_pRectPixelShader,
             .BytecodeLength = sizeof(g_pRectPixelShader),
         },
-        .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+        .BlendState = {
+            .AlphaToCoverageEnable = FALSE,
+            .IndependentBlendEnable = FALSE,
+            .RenderTarget = {
+                {
+                    // PFA is weird and inverts blending operations (0 is opaque, 255 is transparent)
+                    .BlendEnable = TRUE,
+                    .LogicOpEnable = FALSE,
+                    .SrcBlend = D3D12_BLEND_INV_SRC_ALPHA,
+                    .DestBlend = D3D12_BLEND_SRC_ALPHA,
+                    .BlendOp = D3D12_BLEND_OP_ADD,
+                    .SrcBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA,
+                    .DestBlendAlpha = D3D12_BLEND_SRC_ALPHA,
+                    .BlendOpAlpha = D3D12_BLEND_OP_ADD,
+                    .LogicOp = D3D12_LOGIC_OP_NOOP,
+                    .RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL,
+                }
+            }
+        },
         .SampleMask = UINT_MAX,
         .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
-        .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),
+        .DepthStencilState = {
+            .DepthEnable = FALSE,
+            .StencilEnable = FALSE,
+        },
         .InputLayout = {
             .pInputElementDescs = vertex_input,
             .NumElements = _countof(vertex_input),
@@ -237,6 +274,26 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     // Create synchronization fence event
     m_hFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
+    // Create dynamic rect vertex buffers
+    // Each in-flight frame has its own vertex buffer
+    auto vertex_buffer_heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    auto vertex_buffer_desc = CD3DX12_RESOURCE_DESC::Buffer(RectsPerPass * 6 * sizeof(RectVertex));
+    for (int i = 0; i < FrameCount; i++) {
+        res = m_pDevice->CreateCommittedResource(
+            &vertex_buffer_heap,
+            D3D12_HEAP_FLAG_NONE,
+            &vertex_buffer_desc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&m_pVertexBuffers[i])
+        );
+        if (FAILED(res))
+            return std::make_tuple(res, "CreateCommittedResource (vertex buffer)");
+        m_VertexBufferViews[i].BufferLocation = m_pVertexBuffers[i]->GetGPUVirtualAddress();
+        m_VertexBufferViews[i].SizeInBytes = vertex_buffer_desc.Width;
+        m_VertexBufferViews[i].StrideInBytes = sizeof(RectVertex);
+    }
+
     // Create index buffer
     auto index_buffer_heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     auto index_buffer_desc = CD3DX12_RESOURCE_DESC::Buffer(RectsPerPass * 6 * sizeof(uint16_t));
@@ -249,8 +306,11 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         IID_PPV_ARGS(&m_pIndexBuffer)
     );
     if (FAILED(res))
-        return std::make_tuple(res, "CreateCommittedResource2 (index buffer)");
+        return std::make_tuple(res, "CreateCommittedResource (index buffer)");
     m_pIndexBuffer->SetName(L"Index buffer");
+    m_IndexBufferView.BufferLocation = m_pIndexBuffer->GetGPUVirtualAddress();
+    m_IndexBufferView.Format = DXGI_FORMAT_R16_UINT;
+    m_IndexBufferView.SizeInBytes = index_buffer_desc.Width;
 
     // Create index upload buffer
     ComPtr<ID3D12Resource2> index_buffer_upload = nullptr;
@@ -264,7 +324,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         IID_PPV_ARGS(&index_buffer_upload)
     );
     if (FAILED(res))
-        return std::make_tuple(res, "CreateCommittedResource2 (index upload buffer)");
+        return std::make_tuple(res, "CreateCommittedResource (index upload buffer)");
     index_buffer_upload->SetName(L"Index upload buffer");
 
     // Generate index buffer data
@@ -325,13 +385,9 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
     // Clear the intermediate buffers
     m_vRectsIntermediate.clear();
 
-    // Get the resources for the current frame
-    auto cmd_allocator = m_pCommandAllocator[m_uFrameIndex];
-    auto render_target = m_pRenderTargets[m_uFrameIndex];
-
     // Reset the command list
-    cmd_allocator->Reset();
-    m_pCommandList->Reset(cmd_allocator.Get(), m_pRectPipelineState.Get());
+    m_pCommandAllocator[m_uFrameIndex]->Reset();
+    m_pCommandList->Reset(m_pCommandAllocator[m_uFrameIndex].Get(), m_pRectPipelineState.Get());
 
     // Set up render state
     D3D12_VIEWPORT viewport = {
@@ -343,13 +399,28 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
         .MaxDepth = 1.0,
     };
     D3D12_RECT scissor = { 0, 0, m_iBufferWidth, m_iBufferHeight };
+    // https://github.com/ocornut/imgui/blob/master/backends/imgui_impl_dx12.cpp#L99
+    float L = 0;
+    float R = m_iBufferWidth;
+    float T = 0;
+    float B = m_iBufferHeight;
+    float mvp[4][4] =
+    {
+        { 2.0f/(R-L),   0.0f,           0.0f,       0.0f },
+        { 0.0f,         2.0f/(T-B),     0.0f,       0.0f },
+        { 0.0f,         0.0f,           0.5f,       0.0f },
+        { (R+L)/(L-R),  (T+B)/(B-T),    0.5f,       1.0f },
+    };
     m_pCommandList->SetGraphicsRootSignature(m_pRectRootSignature.Get());
+    m_pCommandList->SetGraphicsRoot32BitConstants(0, 16, &mvp, 0);
     m_pCommandList->RSSetViewports(1, &viewport);
     m_pCommandList->RSSetScissorRects(1, &scissor);
     m_pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_pCommandList->IASetVertexBuffers(0, 1, &m_VertexBufferViews[m_uFrameIndex]);
+    m_pCommandList->IASetIndexBuffer(&m_IndexBufferView);
 
     // Transition backbuffer state to render target
-    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(render_target.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pRenderTargets[m_uFrameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     m_pCommandList->ResourceBarrier(1, &barrier);
 
     // Bind to output merger
@@ -384,15 +455,29 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
 }
 
 HRESULT D3D12Renderer::EndScene() {
-    // Get the resources for the current frame
-    auto render_target = m_pRenderTargets[m_uFrameIndex];
+    // Flush the intermediate rect buffer
+    // TODO: Handle more than RectsPerPass
+    auto count = min(m_vRectsIntermediate.size(), RectsPerPass * 4);
+    D3D12_RANGE range = {
+        .Begin = 0,
+        .End = count * sizeof(RectVertex),
+    };
+    RectVertex* vertices = nullptr;
+    HRESULT res = m_pVertexBuffers[m_uFrameIndex]->Map(0, &range, (void**)&vertices);
+    if (FAILED(res))
+        return res;
+    memcpy(vertices, m_vRectsIntermediate.data(), count * sizeof(RectVertex));
+    m_pVertexBuffers[m_uFrameIndex]->Unmap(0, &range);
+
+    // Draw the rects
+    m_pCommandList->DrawIndexedInstanced(count / 4 * 6, 1, 0, 0, 0);
 
     // Transition backbuffer state to present
-    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(render_target.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pRenderTargets[m_uFrameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     m_pCommandList->ResourceBarrier(1, &barrier);
 
     // Close the command list
-    HRESULT res = m_pCommandList->Close();
+    res = m_pCommandList->Close();
     if (FAILED(res))
         return res;
 
@@ -405,8 +490,11 @@ HRESULT D3D12Renderer::EndScene() {
 
 HRESULT D3D12Renderer::Present() {
     // Present the frame
-    DXGI_PRESENT_PARAMETERS present_params = {};
-    HRESULT res = m_pSwapChain->Present1(0, 0, &present_params);
+    HRESULT res;
+    if (m_bLimitFPS)
+        res = m_pSwapChain->Present(1, 0);
+    else
+        res = m_pSwapChain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
     if (FAILED(res))
         return res;
 
@@ -460,8 +548,8 @@ HRESULT D3D12Renderer::DrawRect(float x, float y, float cx, float cy, DWORD c1, 
     m_vRectsIntermediate.insert(m_vRectsIntermediate.end(), {
         {x,      y,      c1},
         {x + cx, y,      c2},
-        {x + cx, y + cx, c3},
-        {x,      y + cx, c4},
+        {x + cx, y + cy, c3},
+        {x,      y + cy, c4},
     });
     return S_OK;
 }
@@ -486,7 +574,6 @@ HRESULT D3D12Renderer::RenderBatch(bool bWithDepth) {
 }
 
 HRESULT D3D12Renderer::SetLimitFPS(bool bLimitFPS) {
-    // TODO
     m_bLimitFPS = bLimitFPS;
     return S_OK;
 }

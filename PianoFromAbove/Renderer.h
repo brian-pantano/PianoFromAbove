@@ -74,14 +74,17 @@ private:
     ComPtr<IDXGISwapChain3> m_pSwapChain;
     ComPtr<ID3D12DescriptorHeap> m_pRTVDescriptorHeap;
     UINT m_uRTVDescriptorSize = 0;
-    ComPtr<ID3D12Resource2> m_pRenderTargets[FrameCount] = {};
-    ComPtr<ID3D12CommandAllocator> m_pCommandAllocator[FrameCount] = {};
+    ComPtr<ID3D12Resource> m_pRenderTargets[FrameCount];
+    ComPtr<ID3D12CommandAllocator> m_pCommandAllocator[FrameCount];
     ComPtr<ID3D12RootSignature> m_pRectRootSignature;
     ComPtr<ID3D12PipelineState> m_pRectPipelineState;
     ComPtr<ID3D12GraphicsCommandList6> m_pCommandList;
     ComPtr<ID3D12Fence1> m_pFence;
     HANDLE m_hFenceEvent = NULL;
     ComPtr<ID3D12Resource> m_pIndexBuffer;
+    D3D12_INDEX_BUFFER_VIEW m_IndexBufferView;
+    ComPtr<ID3D12Resource> m_pVertexBuffers[FrameCount];
+    D3D12_VERTEX_BUFFER_VIEW m_VertexBufferViews[FrameCount];
 
     UINT m_uFrameIndex = 0;
     UINT64 m_pFenceValues[FrameCount] = {};
