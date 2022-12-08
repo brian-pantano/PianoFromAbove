@@ -56,6 +56,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
 
     // Create device
     // TODO: Allow device selection for people with multiple GPUs
+    m_hWnd = hWnd;
     IDXGIAdapter1* adapter1 = nullptr;
     for (UINT i = 0; m_pFactory->EnumAdapters1(i, &adapter1) != DXGI_ERROR_NOT_FOUND; i++) {
         res = adapter1->QueryInterface(IID_PPV_ARGS(&m_pAdapter));
@@ -80,6 +81,15 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         exit(1);
     }
 
+#ifdef _DEBUG
+    // Break on errors
+    ComPtr<ID3D12InfoQueue> info_queue;
+    if (SUCCEEDED(m_pDevice->QueryInterface(IID_PPV_ARGS(&info_queue)))) {
+        info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+        info_queue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+    }
+#endif
+
     // Create command queue
     D3D12_COMMAND_QUEUE_DESC queue_desc = {
         .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
@@ -90,43 +100,6 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     res = m_pDevice->CreateCommandQueue(&queue_desc, IID_PPV_ARGS(&m_pCommandQueue));
     if (FAILED(res))
         return std::make_tuple(res, "CreateCommandQueue");
-
-    // Create swap chain
-    IDXGISwapChain1* temp_swapchain = nullptr;
-    DXGI_SWAP_CHAIN_DESC1 swap_chain_desc = {
-        .Width = 0,
-        .Height = 0,
-        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
-        .Stereo = FALSE,
-        .SampleDesc = {
-            .Count = 1,
-        },
-        .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
-        .BufferCount = FrameCount,
-        .Scaling = DXGI_SCALING_STRETCH,
-        .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
-        .AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED,
-        .Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING,
-    };
-    res = m_pFactory->CreateSwapChainForHwnd(m_pCommandQueue.Get(), hWnd, &swap_chain_desc, nullptr, nullptr, &temp_swapchain);
-    if (FAILED(res))
-        return std::make_tuple(res, "CreateSwapChainForHwnd");
-    res = temp_swapchain->QueryInterface(IID_PPV_ARGS(&m_pSwapChain));
-    if (FAILED(res))
-        return std::make_tuple(res, "IDXGISwapChain1 -> IDXGISwapChain3");
-
-    // Read backbuffer width and height
-    // TODO: Handle resizing
-    DXGI_SWAP_CHAIN_DESC1 actual_swap_desc = {};
-    res = m_pSwapChain->GetDesc1(&actual_swap_desc);
-    if (FAILED(res))
-        return std::make_tuple(res, "GetDesc1");
-    m_iBufferWidth = actual_swap_desc.Width;
-    m_iBufferHeight = actual_swap_desc.Height;
-
-    // Disable ALT+ENTER
-    // TODO: Make fullscreen work
-    m_pFactory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER);
 
     // Create render target view descriptor heap
     D3D12_DESCRIPTOR_HEAP_DESC heap_desc = {
@@ -140,22 +113,15 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         return std::make_tuple(res, "CreateDescriptorHeap");
     m_uRTVDescriptorSize = m_pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-    // Create render target views
-    D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = m_pRTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-    for (int i = 0; i < FrameCount; i++) {
-        res = m_pSwapChain->GetBuffer(i, IID_PPV_ARGS(&m_pRenderTargets[i]));
-        if (FAILED(res))
-            return std::make_tuple(res, "GetBuffer");
-        m_pDevice->CreateRenderTargetView(m_pRenderTargets[i].Get(), nullptr, rtv_handle);
-        rtv_handle.ptr += m_uRTVDescriptorSize;
-    }
-
     // Create command allocators
     for (int i = 0; i < FrameCount; i++) {
         res = m_pDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_pCommandAllocator[i]));
         if (FAILED(res))
-            return std::make_tuple(res, "CreateCommandAllocator");
+            return std::make_tuple(res, "CreateCommandAllocator (direct)");
     }
+    res = m_pDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_BUNDLE, IID_PPV_ARGS(&m_pBundleAllocator));
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateCommandAllocator (bundle)");
 
     // Create rectangle root signature
     ComPtr<ID3DBlob> rect_serialized;
@@ -368,6 +334,105 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     if (FAILED(WaitForGPU()))
         return std::make_tuple(res, "WaitForGPU");
 
+    // Make the swap chain
+    auto res2 = CreateWindowDependentObjects(hWnd);
+    if (FAILED(std::get<0>(res2)))
+        return res2;
+
+    return std::make_tuple(S_OK, "");
+}
+
+std::tuple<HRESULT, const char*> D3D12Renderer::CreateWindowDependentObjects(HWND hWnd) {
+    HRESULT res;
+    if (m_pSwapChain) {
+        // Wait for the GPU to finish any remaining work
+        WaitForGPU();
+
+        // Release the current render target views
+        for (int i = 0; i < FrameCount; i++) {
+            m_pRenderTargets[i].Reset();
+            m_pFenceValues[i] = m_pFenceValues[m_uFrameIndex];
+        }
+
+        // Resize the swap chain
+        res = m_pSwapChain->ResizeBuffers(FrameCount, 0, 0, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING);
+        if (FAILED(res))
+            return std::make_tuple(res, "ResizeBuffers");
+    } else {
+        // Create swap chain
+        IDXGISwapChain1* temp_swapchain = nullptr;
+        DXGI_SWAP_CHAIN_DESC1 swap_chain_desc = {
+            .Width = 0,
+            .Height = 0,
+            .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+            .Stereo = FALSE,
+            .SampleDesc = {
+                .Count = 1,
+            },
+            .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
+            .BufferCount = FrameCount,
+            .Scaling = DXGI_SCALING_NONE,
+            .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
+            .AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED,
+            .Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING,
+        };
+        res = m_pFactory->CreateSwapChainForHwnd(m_pCommandQueue.Get(), hWnd, &swap_chain_desc, nullptr, nullptr, &temp_swapchain);
+        if (FAILED(res))
+            return std::make_tuple(res, "CreateSwapChainForHwnd");
+        res = temp_swapchain->QueryInterface(IID_PPV_ARGS(&m_pSwapChain));
+        if (FAILED(res))
+            return std::make_tuple(res, "IDXGISwapChain1 -> IDXGISwapChain3");
+    }
+
+    // Read backbuffer width and height
+    // TODO: Handle resizing
+    DXGI_SWAP_CHAIN_DESC1 actual_swap_desc = {};
+    res = m_pSwapChain->GetDesc1(&actual_swap_desc);
+    if (FAILED(res))
+        return std::make_tuple(res, "GetDesc1");
+    m_iBufferWidth = actual_swap_desc.Width;
+    m_iBufferHeight = actual_swap_desc.Height;
+
+    // Disable ALT+ENTER
+    // TODO: Make fullscreen work
+    m_pFactory->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER);
+
+    // Create render target views
+    D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = m_pRTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+    for (int i = 0; i < FrameCount; i++) {
+        res = m_pSwapChain->GetBuffer(i, IID_PPV_ARGS(&m_pRenderTargets[i]));
+        if (FAILED(res))
+            return std::make_tuple(res, "GetBuffer");
+        m_pDevice->CreateRenderTargetView(m_pRenderTargets[i].Get(), nullptr, rtv_handle);
+        rtv_handle.ptr += m_uRTVDescriptorSize;
+    }
+
+    // Reset the current frame index
+    m_uFrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
+
+    // Create render state initialization bundle
+    res = m_pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_BUNDLE, m_pBundleAllocator.Get(), m_pRectPipelineState.Get(), IID_PPV_ARGS(&m_pBundle));
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateCommandList (bundle)");
+
+    // https://github.com/ocornut/imgui/blob/master/backends/imgui_impl_dx12.cpp#L99
+    float L = 0;
+    float R = m_iBufferWidth;
+    float T = 0;
+    float B = m_iBufferHeight;
+    float mvp[4][4] =
+    {
+        { 2.0f/(R-L),   0.0f,           0.0f,       0.0f },
+        { 0.0f,         2.0f/(T-B),     0.0f,       0.0f },
+        { 0.0f,         0.0f,           0.5f,       0.0f },
+        { (R+L)/(L-R),  (T+B)/(B-T),    0.5f,       1.0f },
+    };
+    m_pBundle->SetGraphicsRootSignature(m_pRectRootSignature.Get());
+    m_pBundle->SetGraphicsRoot32BitConstants(0, 16, &mvp, 0);
+    m_pBundle->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_pBundle->IASetIndexBuffer(&m_IndexBufferView);
+    m_pBundle->Close();
+
     return std::make_tuple(S_OK, "");
 }
 
@@ -377,7 +442,9 @@ HRESULT D3D12Renderer::ResetDeviceIfNeeded() {
 }
 
 HRESULT D3D12Renderer::ResetDevice() {
-    // TODO
+    auto res = CreateWindowDependentObjects(m_hWnd);
+    if (FAILED(std::get<0>(res)))
+        return std::get<0>(res);
     return S_OK;
 }
 
@@ -399,25 +466,10 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
         .MaxDepth = 1.0,
     };
     D3D12_RECT scissor = { 0, 0, m_iBufferWidth, m_iBufferHeight };
-    // https://github.com/ocornut/imgui/blob/master/backends/imgui_impl_dx12.cpp#L99
-    float L = 0;
-    float R = m_iBufferWidth;
-    float T = 0;
-    float B = m_iBufferHeight;
-    float mvp[4][4] =
-    {
-        { 2.0f/(R-L),   0.0f,           0.0f,       0.0f },
-        { 0.0f,         2.0f/(T-B),     0.0f,       0.0f },
-        { 0.0f,         0.0f,           0.5f,       0.0f },
-        { (R+L)/(L-R),  (T+B)/(B-T),    0.5f,       1.0f },
-    };
-    m_pCommandList->SetGraphicsRootSignature(m_pRectRootSignature.Get());
-    m_pCommandList->SetGraphicsRoot32BitConstants(0, 16, &mvp, 0);
+    m_pCommandList->ExecuteBundle(m_pBundle.Get());
+    m_pCommandList->IASetVertexBuffers(0, 1, &m_VertexBufferViews[m_uFrameIndex]);
     m_pCommandList->RSSetViewports(1, &viewport);
     m_pCommandList->RSSetScissorRects(1, &scissor);
-    m_pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_pCommandList->IASetVertexBuffers(0, 1, &m_VertexBufferViews[m_uFrameIndex]);
-    m_pCommandList->IASetIndexBuffer(&m_IndexBufferView);
 
     // Transition backbuffer state to render target
     auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pRenderTargets[m_uFrameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);

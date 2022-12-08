@@ -60,13 +60,16 @@ public:
     std::wstring GetAdapterName();
 
 private:
-    static constexpr unsigned FrameCount = 3;
+    std::tuple<HRESULT, const char*> CreateWindowDependentObjects(HWND hWnd);
+
+    static constexpr unsigned FrameCount = 2;
     static constexpr unsigned RectsPerPass = 10922; // Relatively low limit, allows using a 16-bit index buffer
 
     int m_iBufferWidth = 0;
     int m_iBufferHeight = 0;
     bool m_bLimitFPS = false;
 
+    HWND m_hWnd = NULL;
     ComPtr<IDXGIFactory4> m_pFactory;
     ComPtr<IDXGIAdapter3> m_pAdapter;
     ComPtr<ID3D12Device9> m_pDevice;
@@ -76,6 +79,7 @@ private:
     UINT m_uRTVDescriptorSize = 0;
     ComPtr<ID3D12Resource> m_pRenderTargets[FrameCount];
     ComPtr<ID3D12CommandAllocator> m_pCommandAllocator[FrameCount];
+    ComPtr<ID3D12CommandAllocator> m_pBundleAllocator;
     ComPtr<ID3D12RootSignature> m_pRectRootSignature;
     ComPtr<ID3D12PipelineState> m_pRectPipelineState;
     ComPtr<ID3D12GraphicsCommandList6> m_pCommandList;
@@ -85,6 +89,7 @@ private:
     D3D12_INDEX_BUFFER_VIEW m_IndexBufferView;
     ComPtr<ID3D12Resource> m_pVertexBuffers[FrameCount];
     D3D12_VERTEX_BUFFER_VIEW m_VertexBufferViews[FrameCount];
+    ComPtr<ID3D12GraphicsCommandList6> m_pBundle;
 
     UINT m_uFrameIndex = 0;
     UINT64 m_pFenceValues[FrameCount] = {};
