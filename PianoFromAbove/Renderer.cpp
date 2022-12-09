@@ -14,6 +14,7 @@
 #include "RectPixelShader.h"
 #include "RectVertexShader.h"
 #include "NoteVertexShader.h"
+#include "Globals.h"
 #include "Renderer.h"
 
 #define SAFE_RELEASE(x) if (x) x->Release();
@@ -130,7 +131,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     // Create shader resource view heap
     D3D12_DESCRIPTOR_HEAP_DESC srv_heap_desc = {
         .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-        .NumDescriptors = FrameCount,
+        .NumDescriptors = FrameCount + 3,
         .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
         .NodeMask = 0,
     };
@@ -157,6 +158,22 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         m_pDevice->CreateShaderResourceView(m_pNoteBuffers[i].Get(), &srv_desc, srv_handle);
         srv_handle.ptr += m_uSRVDescriptorSize;
     }
+    D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {
+        .Format = DXGI_FORMAT_UNKNOWN,
+        .ViewDimension = D3D12_SRV_DIMENSION_BUFFER,
+        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+        .Buffer = {
+            .FirstElement = 0,
+            .NumElements = 1,
+            .StructureByteStride = sizeof(FixedSizeConstants),
+            .Flags = D3D12_BUFFER_SRV_FLAG_NONE,
+        }
+    };
+    m_pDevice->CreateShaderResourceView(m_pGenericUpload.Get(), &srv_desc, srv_handle);
+    srv_handle.ptr += m_uSRVDescriptorSize;
+    m_pDevice->CreateShaderResourceView(m_pFixedBuffer.Get(), &srv_desc, srv_handle);
+    srv_handle.ptr += m_uSRVDescriptorSize;
+    m_pDevice->CreateShaderResourceView(m_pTrackColorBuffer.Get(), &srv_desc, srv_handle);
 
     // Create command allocators
     for (int i = 0; i < FrameCount; i++) {
@@ -164,9 +181,6 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         if (FAILED(res))
             return std::make_tuple(res, "CreateCommandAllocator (direct)");
     }
-    res = m_pDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_BUNDLE, IID_PPV_ARGS(&m_pBundleAllocator));
-    if (FAILED(res))
-        return std::make_tuple(res, "CreateCommandAllocator (bundle)");
 
     // Create rectangle root signature
     ComPtr<ID3DBlob> rect_serialized;
@@ -294,9 +308,11 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         }
     };
     */
-    CD3DX12_ROOT_PARAMETER1 note_root_sig_params[2];
+    CD3DX12_ROOT_PARAMETER1 note_root_sig_params[4];
     note_root_sig_params[0].InitAsConstants(sizeof(RootConstants) / 4, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
     note_root_sig_params[1].InitAsShaderResourceView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
+    note_root_sig_params[2].InitAsShaderResourceView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
+    note_root_sig_params[3].InitAsShaderResourceView(3, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
     D3D12_VERSIONED_ROOT_SIGNATURE_DESC note_root_sig_desc = {
         .Version = D3D_ROOT_SIGNATURE_VERSION_1_1,
         .Desc_1_1 = {
@@ -349,13 +365,53 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     // Create synchronization fence event
     m_hFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 
+    // Create generic upload buffer
+    auto generic_upload_desc = CD3DX12_RESOURCE_DESC::Buffer(GenericUploadSize);
+    auto upload_heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    auto default_heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    res = m_pDevice->CreateCommittedResource(
+        &upload_heap,
+        D3D12_HEAP_FLAG_NONE,
+        &generic_upload_desc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&m_pGenericUpload)
+    );
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateCommittedResource (generic upload buffer)");
+
+    // Create fixed size constants buffer
+    auto fixed_desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(FixedSizeConstants));
+    res = m_pDevice->CreateCommittedResource(
+        &default_heap,
+        D3D12_HEAP_FLAG_NONE,
+        &fixed_desc,
+        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+        nullptr,
+        IID_PPV_ARGS(&m_pFixedBuffer)
+    );
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateCommittedResource (fixed buffer)");
+
+    // Create track color buffer
+    auto track_color_desc = CD3DX12_RESOURCE_DESC::Buffer(MaxTrackColors * 16 * sizeof(TrackColor));
+    res = m_pDevice->CreateCommittedResource(
+        &default_heap,
+        D3D12_HEAP_FLAG_NONE,
+        &track_color_desc,
+        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+        nullptr,
+        IID_PPV_ARGS(&m_pTrackColorBuffer)
+    );
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateCommittedResource (track color buffer)");
+
     // Create dynamic rect vertex buffers
     // Each in-flight frame has its own vertex buffer
-    auto vertex_buffer_heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto vertex_buffer_desc = CD3DX12_RESOURCE_DESC::Buffer(RectsPerPass * 6 * sizeof(RectVertex));
     for (int i = 0; i < FrameCount; i++) {
         res = m_pDevice->CreateCommittedResource(
-            &vertex_buffer_heap,
+            &upload_heap,
             D3D12_HEAP_FLAG_NONE,
             &vertex_buffer_desc,
             D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
@@ -371,11 +427,10 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     }
 
     // Create dynamic note buffers
-    auto note_buffer_heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     auto note_buffer_desc = CD3DX12_RESOURCE_DESC::Buffer(NotesPerPass * sizeof(NoteData));
     for (int i = 0; i < FrameCount; i++) {
         res = m_pDevice->CreateCommittedResource(
-            &note_buffer_heap,
+            &upload_heap,
             D3D12_HEAP_FLAG_NONE,
             &note_buffer_desc,
             D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
@@ -388,10 +443,9 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     }
 
     // Create index buffer
-    auto index_buffer_heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     auto index_buffer_desc = CD3DX12_RESOURCE_DESC::Buffer(IndexBufferCount * sizeof(uint32_t));
     res = m_pDevice->CreateCommittedResource(
-        &index_buffer_heap,
+        &default_heap,
         D3D12_HEAP_FLAG_NONE,
         &index_buffer_desc,
         D3D12_RESOURCE_STATE_COPY_DEST,
@@ -407,9 +461,8 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
 
     // Create index upload buffer
     ComPtr<ID3D12Resource2> index_buffer_upload = nullptr;
-    auto index_buffer_upload_heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     res = m_pDevice->CreateCommittedResource(
-        &index_buffer_upload_heap,
+        &upload_heap,
         D3D12_HEAP_FLAG_NONE,
         &index_buffer_desc,
         D3D12_RESOURCE_STATE_GENERIC_READ,
@@ -465,29 +518,6 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     auto res2 = CreateWindowDependentObjects(hWnd);
     if (FAILED(std::get<0>(res2)))
         return res2;
-
-    // Create rect render state initialization bundle
-    res = m_pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_BUNDLE, m_pBundleAllocator.Get(), nullptr, IID_PPV_ARGS(&m_pRectBundle));
-    if (FAILED(res))
-        return std::make_tuple(res, "CreateCommandList (rect bundle)");
-
-    m_pRectBundle->SetPipelineState(m_pRectPipelineState.Get());
-    m_pRectBundle->SetGraphicsRootSignature(m_pRectRootSignature.Get());
-    m_pRectBundle->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_pRectBundle->IASetIndexBuffer(&m_IndexBufferView);
-    m_pRectBundle->Close();
-
-    // Create note render state initialization bundle
-    res = m_pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_BUNDLE, m_pBundleAllocator.Get(), nullptr, IID_PPV_ARGS(&m_pNoteBundle));
-    if (FAILED(res))
-        return std::make_tuple(res, "CreateCommandList (note bundle)");
-
-    m_pNoteBundle->SetPipelineState(m_pNotePipelineState.Get());
-    m_pNoteBundle->SetGraphicsRootSignature(m_pNoteRootSignature.Get());
-    m_pNoteBundle->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_pNoteBundle->IASetVertexBuffers(0, 0, nullptr);
-    m_pNoteBundle->IASetIndexBuffer(&m_IndexBufferView);
-    m_pNoteBundle->Close();
 
     return std::make_tuple(S_OK, "");
 }
@@ -601,7 +631,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::CreateWindowDependentObjects(HWN
         { 0.0f,         0.0f,           0.5f,       0.0f },
         { (R+L)/(L-R),  (T+B)/(B-T),    0.5f,       1.0f },
     };
-    memcpy(m_RootConstants.mvp, mvp, sizeof(mvp));
+    memcpy(m_RootConstants.proj, mvp, sizeof(mvp));
 
     return std::make_tuple(S_OK, "");
 }
@@ -639,10 +669,47 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
     };
     D3D12_RECT scissor = { 0, 0, m_iBufferWidth, m_iBufferHeight };
     SetPipeline(Pipeline::Rect);
-    m_pCommandList->IASetVertexBuffers(0, 1, &m_VertexBufferViews[m_uFrameIndex]);
     m_pCommandList->RSSetViewports(1, &viewport);
     m_pCommandList->RSSetScissorRects(1, &scissor);
     m_pCommandList->SetGraphicsRoot32BitConstants(0, sizeof(m_RootConstants) / 4, &m_RootConstants, 0);
+    if (memcmp(&m_FixedConstants, &m_OldFixedConstants, sizeof(FixedSizeConstants))) {
+        memcpy(&m_OldFixedConstants, &m_FixedConstants, sizeof(FixedSizeConstants));
+
+        // Transition the fixed size data buffer to an upload target
+        auto fixed_barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pFixedBuffer.Get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_COPY_DEST);
+        m_pCommandList->ResourceBarrier(1, &fixed_barrier);
+
+        // Upload the new fixed upload data to the GPU
+        D3D12_SUBRESOURCE_DATA fixed_upload_data = {
+            .pData = &m_FixedConstants,
+            .RowPitch = (LONG_PTR)(sizeof(m_FixedConstants)),
+            .SlicePitch = (LONG_PTR)(sizeof(m_FixedConstants)),
+        };
+        UpdateSubresources(m_pCommandList.Get(), m_pFixedBuffer.Get(), m_pGenericUpload.Get(), 0, 0, 1, &fixed_upload_data);
+
+        // Transition the fixed size data buffer back to the original state
+        fixed_barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pFixedBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+        m_pCommandList->ResourceBarrier(1, &fixed_barrier);
+    }
+    if (memcmp(&m_TrackColors, &m_OldTrackColors, sizeof(m_TrackColors))) {
+        memcpy(&m_OldTrackColors, &m_TrackColors, sizeof(m_TrackColors));
+
+        // Transition the track color buffer to an upload target
+        auto fixed_barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pTrackColorBuffer.Get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_COPY_DEST);
+        m_pCommandList->ResourceBarrier(1, &fixed_barrier);
+
+        // Upload the new fixed upload data to the GPU
+        D3D12_SUBRESOURCE_DATA track_color_upload_data = {
+            .pData = &m_TrackColors,
+            .RowPitch = (LONG_PTR)(sizeof(m_TrackColors)),
+            .SlicePitch = (LONG_PTR)(sizeof(m_TrackColors)),
+        };
+        UpdateSubresources(m_pCommandList.Get(), m_pTrackColorBuffer.Get(), m_pGenericUpload.Get(), sizeof(m_FixedConstants), 0, 1, &track_color_upload_data);
+
+        // Transition the fixed size data buffer back to the original state
+        fixed_barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pTrackColorBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+        m_pCommandList->ResourceBarrier(1, &fixed_barrier);
+    }
 
     // Transition backbuffer state to render target
     auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pRenderTargets[m_uFrameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -707,7 +774,9 @@ HRESULT D3D12Renderer::EndScene() {
     // TODO: Handle more than NotesPerPass
     if (!m_vNotesIntermediate.empty()) {
         SetPipeline(Pipeline::Note);
-        m_pCommandList->SetGraphicsRootShaderResourceView(1, m_pNoteBuffers[m_uFrameIndex]->GetGPUVirtualAddress());
+        m_pCommandList->SetGraphicsRootShaderResourceView(1, m_pFixedBuffer->GetGPUVirtualAddress());
+        m_pCommandList->SetGraphicsRootShaderResourceView(2, m_pTrackColorBuffer->GetGPUVirtualAddress());
+        m_pCommandList->SetGraphicsRootShaderResourceView(3, m_pNoteBuffers[m_uFrameIndex]->GetGPUVirtualAddress());
         auto note_count = min(m_vNotesIntermediate.size(), NotesPerPass);
         D3D12_RANGE note_range = {
             .Begin = 0,
@@ -771,7 +840,12 @@ HRESULT D3D12Renderer::Present() {
         res = m_pFence->SetEventOnCompletion(m_pFenceValues[m_uFrameIndex], m_hFenceEvent);
         if (FAILED(res))
             return res;
-        WaitForSingleObjectEx(m_hFenceEvent, INFINITE, FALSE);
+
+        // HACK: There's a race condition between the hWnd being destroyed and this wait
+        while (WaitForSingleObjectEx(m_hFenceEvent, 1000, FALSE) == WAIT_TIMEOUT) {
+            if (g_bGfxDestroyed)
+                break;
+        }
     }
 
     // Set the fence value for the next frame
@@ -871,12 +945,18 @@ HRESULT D3D12Renderer::WaitForGPU() {
 void D3D12Renderer::SetPipeline(Pipeline pipeline) {
     switch (pipeline) {
     case Pipeline::Rect:
-        m_pCommandList->ExecuteBundle(m_pRectBundle.Get());
-        m_pCommandList->SetGraphicsRootSignature(m_pRectRootSignature.Get()); // RenderDoc crash workaround
+        m_pCommandList->SetPipelineState(m_pRectPipelineState.Get());
+        m_pCommandList->SetGraphicsRootSignature(m_pRectRootSignature.Get());
+        m_pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        m_pCommandList->IASetVertexBuffers(0, 1, &m_VertexBufferViews[m_uFrameIndex]);
+        m_pCommandList->IASetIndexBuffer(&m_IndexBufferView);
         break;
     case Pipeline::Note:
-        m_pCommandList->ExecuteBundle(m_pNoteBundle.Get());
-        m_pCommandList->SetGraphicsRootSignature(m_pNoteRootSignature.Get()); // RenderDoc crash workaround
+        m_pCommandList->SetPipelineState(m_pNotePipelineState.Get());
+        m_pCommandList->SetGraphicsRootSignature(m_pNoteRootSignature.Get());
+        m_pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        m_pCommandList->IASetVertexBuffers(0, 0, nullptr);
+        m_pCommandList->IASetIndexBuffer(&m_IndexBufferView);
         break;
     }
 }

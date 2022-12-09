@@ -31,6 +31,7 @@ HINSTANCE g_hInstance = NULL;
 HWND g_hWnd = NULL;
 HWND g_hWndBar = NULL;
 HWND g_hWndGfx = NULL;
+bool g_bGfxDestroyed = false;
 TSQueue< MSG > g_MsgQueue; // Producer/consumer to hold events for our game thread
 
 //-----------------------------------------------------------------------------

@@ -165,7 +165,7 @@
     <None Include="Images\Lock.bmp">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="rect.hlsli">
+    <None Include="common.hlsli">
       <Filter>Resource Files</Filter>
     </None>
     <None Include="tables.hlsli">

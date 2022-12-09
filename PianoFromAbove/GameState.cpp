@@ -320,11 +320,27 @@ GameState::GameError SplashScreen::Logic()
 
     // Update root constants
     auto& root_consts = m_pRenderer->GetRootConstants();
-    root_consts.notes_x = m_fNotesX;
     root_consts.notes_y = m_fNotesY;
     root_consts.notes_cy = m_fNotesCY;
     root_consts.white_cx = m_fWhiteCX;
     root_consts.timespan = TimeSpan;
+
+    // Update fixed size constants
+    auto& fixed_consts = m_pRenderer->GetFixedSizeConstants();
+    memcpy(&fixed_consts.note_x, &notex_table, sizeof(float) * 128);
+
+    // Update track colors
+    // TODO: Only update track colors lazily
+    auto* track_colors = m_pRenderer->GetTrackColors();
+    for (int i = 0; i < min(m_vTrackSettings.size(), MaxTrackColors); i++) {
+        for (int j = 0; j < 16; j++) {
+            auto& src = m_vTrackSettings[i].aChannels[j];
+            auto& dst = track_colors[i * 16 + j];
+            dst.primary = src.iPrimaryRGB;
+            dst.dark = src.iDarkRGB;
+            dst.darker = src.iVeryDarkRGB;
+        }
+    }
 
     return Success;
 }
@@ -458,6 +474,8 @@ void SplashScreen::RenderGlobals()
     long long llMicroSecsPP = static_cast< long long >( TimeSpan / m_fNotesCY + 0.5f );
     m_llRndStartTime = m_llStartTime - ( m_llStartTime < 0 ? llMicroSecsPP : 0 );
     m_llRndStartTime = ( m_llRndStartTime / llMicroSecsPP ) * llMicroSecsPP;
+
+    GenNoteXTable();
 }
 
 void SplashScreen::RenderNotes()
@@ -574,17 +592,24 @@ void SplashScreen::RenderNote(MIDIChannelEvent* pNote)
     );
 }
 
-float SplashScreen::GetNoteX( int iNote )
-{
-    int iWhiteKeys = MIDI::WhiteCount( m_iStartNote, iNote );
-    float fStartX = ( MIDI::IsSharp( m_iStartNote ) - MIDI::IsSharp( iNote ) ) * SharpRatio / 2.0f;
-    if ( MIDI::IsSharp( iNote ) )
-    {
-        MIDI::Note eNote = MIDI::NoteVal( iNote );
-        if ( eNote == MIDI::CS || eNote == MIDI::FS ) fStartX -= SharpRatio / 5.0f;
-        else if ( eNote == MIDI::AS || eNote == MIDI::DS ) fStartX += SharpRatio / 5.0f;
+void SplashScreen::GenNoteXTable() {
+    int min_key = min(max(0, m_iStartNote), 127);
+    int max_key = min(max(0, m_iEndNote), 127);
+    for (int i = min_key; i <= max_key; i++) {
+        int iWhiteKeys = MIDI::WhiteCount(m_iStartNote, i);
+        float fStartX = (MIDI::IsSharp(m_iStartNote) - MIDI::IsSharp(i)) * SharpRatio / 2.0f;
+        if (MIDI::IsSharp(i))
+        {
+            MIDI::Note eNote = MIDI::NoteVal(i);
+            if (eNote == MIDI::CS || eNote == MIDI::FS) fStartX -= SharpRatio / 5.0f;
+            else if (eNote == MIDI::AS || eNote == MIDI::DS) fStartX += SharpRatio / 5.0f;
+        }
+        notex_table[i] = m_fNotesX + m_fWhiteCX * (iWhiteKeys + fStartX);
     }
-    return m_fNotesX + m_fWhiteCX * ( iWhiteKeys + fStartX );
+}
+
+float SplashScreen::GetNoteX(int iNote) {
+    return notex_table[iNote];
 }
 
 //-----------------------------------------------------------------------------
@@ -1138,7 +1163,7 @@ GameState::GameError MainScreen::Logic( void )
     if ( !m_bPaused )
     {
         // Advance start position updating initial state as we pass stale events
-        // Also PLAYS THE MUSIC
+        // Also PLAYS THE MUSICm
         while ( m_iStartPos < iEventCount && m_vEvents[m_iStartPos]->GetAbsMicroSec() <= m_llStartTime )
         {
             MIDIChannelEvent *pEvent = m_vEvents[m_iStartPos];
@@ -1180,11 +1205,27 @@ GameState::GameError MainScreen::Logic( void )
 
     // Update root constants
     auto& root_consts = m_pRenderer->GetRootConstants();
-    root_consts.notes_x = m_fNotesX;
     root_consts.notes_y = m_fNotesY;
     root_consts.notes_cy = m_fNotesCY;
     root_consts.white_cx = m_fWhiteCX;
     root_consts.timespan = (float)m_llTimeSpan;
+
+    // Update fixed size constants
+    auto& fixed_consts = m_pRenderer->GetFixedSizeConstants();
+    memcpy(&fixed_consts.note_x, &notex_table, sizeof(float) * 128);
+
+    // Update track colors
+    // TODO: Only update track colors lazily
+    auto* track_colors = m_pRenderer->GetTrackColors();
+    for (int i = 0; i < min(m_vTrackSettings.size(), MaxTrackColors); i++) {
+        for (int j = 0; j < 16; j++) {
+            auto& src = m_vTrackSettings[i].aChannels[j];
+            auto& dst = track_colors[i * 16 + j];
+            dst.primary = src.iPrimaryRGB;
+            dst.dark = src.iDarkRGB;
+            dst.darker = src.iVeryDarkRGB;
+        }
+    }
 
     return Success;
 }

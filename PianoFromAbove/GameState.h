@@ -99,6 +99,7 @@ private:
     void RenderNotes();
     void RenderNote(MIDIChannelEvent* pNote);
     float GetNoteX( int iNote );
+    void GenNoteXTable();
 
     // MIDI info
     MIDI m_MIDI; // The song to display
@@ -124,6 +125,8 @@ private:
     int m_iAllWhiteKeys; // Number of white keys are on the screen
     float m_fWhiteCX; // Width of the white keys
     long long m_llRndStartTime; // Rounded start time to make stuff drop at the same time
+
+    float notex_table[128];
 };
 
 class IntroScreen : public GameState

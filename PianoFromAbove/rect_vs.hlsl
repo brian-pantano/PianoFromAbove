@@ -1,6 +1,6 @@
-#include "rect.hlsli"
+#include "common.hlsli"
 
-ConstantBuffer<ConstantBufferData> consts : register(b0);
+ConstantBuffer<RootSignatureData> consts : register(b0);
 
 PSInput main(float2 position : POSITION, float4 color : COLOR) {
     PSInput result;

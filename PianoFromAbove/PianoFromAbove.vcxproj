@@ -233,7 +233,7 @@
     <None Include="Images\PFA Icon.ico" />
     <None Include="Images\mediaiconssmall.bmp" />
     <None Include="images\Welcome.ico" />
-    <None Include="rect.hlsli" />
+    <None Include="common.hlsli" />
     <None Include="tables.hlsli" />
   </ItemGroup>
   <ItemGroup>

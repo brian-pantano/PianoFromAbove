@@ -393,6 +393,7 @@ LRESULT WINAPI GfxProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                 CheckActivity( FALSE );
             return 0;
         case WM_DESTROY:
+            g_bGfxDestroyed = true;
             DestroyMenu( hMenu );
             KillTimer( hWnd, IDC_INACTIVITYTIMER );
             return 0;

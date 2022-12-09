@@ -37,15 +37,25 @@ struct NoteData {
     float length;
 };
 
+struct TrackColor {
+    DWORD primary;
+    DWORD dark;
+    DWORD darker;
+};
+
 struct RootConstants {
-    float mvp[4][4];
-    float notes_x;
+    float proj[4][4];
     float notes_y;
     float notes_cy;
     float white_cx;
     float timespan;
 };
 static_assert(sizeof(RootConstants) % 4 == 0);
+
+constexpr unsigned MaxTrackColors = 1024;
+struct FixedSizeConstants {
+    float note_x[128];
+};
 
 class D3D12Renderer {
 public:
@@ -82,16 +92,19 @@ public:
     std::wstring GetAdapterName();
     void SetPipeline(Pipeline pipeline);
     RootConstants& GetRootConstants() { return m_RootConstants; };
+    FixedSizeConstants& GetFixedSizeConstants() { return m_FixedConstants; };
+    TrackColor* GetTrackColors() { return m_TrackColors; };
     inline void PushNoteData(NoteData data) { m_vNotesIntermediate.push_back(data); };
     void SplitRect() { m_iRectSplit = (int)m_vRectsIntermediate.size(); }
 
 private:
     std::tuple<HRESULT, const char*> CreateWindowDependentObjects(HWND hWnd);
 
-    static constexpr unsigned FrameCount = 3;
+    static constexpr unsigned FrameCount = 2;
     static constexpr unsigned RectsPerPass = 10000; // Relatively low limit, but not many rects are supposed to be rendered anyway
     static constexpr unsigned NotesPerPass = 5000000;
     static constexpr unsigned IndexBufferCount = max(RectsPerPass, NotesPerPass) * 6;
+    static constexpr unsigned GenericUploadSize = sizeof(FixedSizeConstants) + MaxTrackColors * 16 * sizeof(TrackColor);
 
     int m_iBufferWidth = 0;
     int m_iBufferHeight = 0;
@@ -112,7 +125,6 @@ private:
     ComPtr<ID3D12Resource> m_pRenderTargets[FrameCount];
     ComPtr<ID3D12Resource> m_pDepthBuffer;
     ComPtr<ID3D12CommandAllocator> m_pCommandAllocator[FrameCount];
-    ComPtr<ID3D12CommandAllocator> m_pBundleAllocator;
     ComPtr<ID3D12RootSignature> m_pRectRootSignature;
     ComPtr<ID3D12PipelineState> m_pRectPipelineState;
     ComPtr<ID3D12RootSignature> m_pNoteRootSignature;
@@ -125,9 +137,14 @@ private:
     ComPtr<ID3D12Resource> m_pVertexBuffers[FrameCount];
     D3D12_VERTEX_BUFFER_VIEW m_VertexBufferViews[FrameCount];
     ComPtr<ID3D12Resource> m_pNoteBuffers[FrameCount];
-    ComPtr<ID3D12GraphicsCommandList6> m_pRectBundle;
-    ComPtr<ID3D12GraphicsCommandList6> m_pNoteBundle;
+    ComPtr<ID3D12Resource> m_pGenericUpload;
+    ComPtr<ID3D12Resource> m_pFixedBuffer;
+    ComPtr<ID3D12Resource> m_pTrackColorBuffer;
     RootConstants m_RootConstants = {};
+    FixedSizeConstants m_FixedConstants = {};
+    FixedSizeConstants m_OldFixedConstants = {};
+    TrackColor m_TrackColors[MaxTrackColors * 16] = {};
+    TrackColor m_OldTrackColors[MaxTrackColors * 16] = {};
 
     UINT m_uFrameIndex = 0;
     UINT64 m_pFenceValues[FrameCount] = {};
