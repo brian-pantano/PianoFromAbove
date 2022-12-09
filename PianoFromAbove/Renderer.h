@@ -18,14 +18,35 @@
 
 using Microsoft::WRL::ComPtr;
 
+enum class Pipeline {
+    Rect,
+    Note,
+};
+
 struct RectVertex {
     float x;
     float y;
     DWORD color;
 };
 
-class D3D12Renderer
-{
+struct NoteData {
+    uint8_t key;
+    uint8_t channel;
+    uint16_t track;
+    float pos;
+    float length;
+};
+
+struct RootConstants {
+    float mvp[4][4];
+    float notes_y;
+    float notes_cy;
+    float white_cx;
+    float timespan;
+};
+static_assert(sizeof(RootConstants) % 4 == 0);
+
+class D3D12Renderer {
 public:
     enum FontSize { Small, SmallBold, SmallComic, Medium, Large };
 
@@ -58,12 +79,17 @@ public:
 
     HRESULT WaitForGPU();
     std::wstring GetAdapterName();
+    void SetPipeline(Pipeline pipeline);
+    RootConstants& GetRootConstants() { return m_RootConstants; };
+    inline void PushNoteData(NoteData data) { m_vNotesIntermediate.push_back(data); };
 
 private:
     std::tuple<HRESULT, const char*> CreateWindowDependentObjects(HWND hWnd);
 
     static constexpr unsigned FrameCount = 2;
-    static constexpr unsigned RectsPerPass = 10922; // Relatively low limit, allows using a 16-bit index buffer
+    static constexpr unsigned RectsPerPass = 10000; // Relatively low limit, but not many rects are supposed to be rendered anyway
+    static constexpr unsigned NotesPerPass = 5000000;
+    static constexpr unsigned IndexBufferCount = max(RectsPerPass, NotesPerPass) * 6;
 
     int m_iBufferWidth = 0;
     int m_iBufferHeight = 0;
@@ -77,11 +103,18 @@ private:
     ComPtr<IDXGISwapChain3> m_pSwapChain;
     ComPtr<ID3D12DescriptorHeap> m_pRTVDescriptorHeap;
     UINT m_uRTVDescriptorSize = 0;
+    ComPtr<ID3D12DescriptorHeap> m_pDSVDescriptorHeap;
+    UINT m_uDSVDescriptorSize = 0;
+    ComPtr<ID3D12DescriptorHeap> m_pSRVDescriptorHeap;
+    UINT m_uSRVDescriptorSize = 0;
     ComPtr<ID3D12Resource> m_pRenderTargets[FrameCount];
+    ComPtr<ID3D12Resource> m_pDepthBuffer;
     ComPtr<ID3D12CommandAllocator> m_pCommandAllocator[FrameCount];
     ComPtr<ID3D12CommandAllocator> m_pBundleAllocator;
     ComPtr<ID3D12RootSignature> m_pRectRootSignature;
     ComPtr<ID3D12PipelineState> m_pRectPipelineState;
+    ComPtr<ID3D12RootSignature> m_pNoteRootSignature;
+    ComPtr<ID3D12PipelineState> m_pNotePipelineState;
     ComPtr<ID3D12GraphicsCommandList6> m_pCommandList;
     ComPtr<ID3D12Fence1> m_pFence;
     HANDLE m_hFenceEvent = NULL;
@@ -89,10 +122,14 @@ private:
     D3D12_INDEX_BUFFER_VIEW m_IndexBufferView;
     ComPtr<ID3D12Resource> m_pVertexBuffers[FrameCount];
     D3D12_VERTEX_BUFFER_VIEW m_VertexBufferViews[FrameCount];
-    ComPtr<ID3D12GraphicsCommandList6> m_pBundle;
+    ComPtr<ID3D12Resource> m_pNoteBuffers[FrameCount];
+    ComPtr<ID3D12GraphicsCommandList6> m_pRectBundle;
+    ComPtr<ID3D12GraphicsCommandList6> m_pNoteBundle;
+    RootConstants m_RootConstants = {};
 
     UINT m_uFrameIndex = 0;
     UINT64 m_pFenceValues[FrameCount] = {};
 
     std::vector<RectVertex> m_vRectsIntermediate;
+    std::vector<NoteData> m_vNotesIntermediate;
 };

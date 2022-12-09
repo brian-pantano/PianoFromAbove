@@ -13,6 +13,7 @@
 #endif
 #include "RectPixelShader.h"
 #include "RectVertexShader.h"
+#include "NoteVertexShader.h"
 #include "Renderer.h"
 
 #define SAFE_RELEASE(x) if (x) x->Release();
@@ -57,6 +58,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     // Create device
     // TODO: Allow device selection for people with multiple GPUs
     m_hWnd = hWnd;
+    m_bLimitFPS = bLimitFPS;
     IDXGIAdapter1* adapter1 = nullptr;
     for (UINT i = 0; m_pFactory->EnumAdapters1(i, &adapter1) != DXGI_ERROR_NOT_FOUND; i++) {
         res = adapter1->QueryInterface(IID_PPV_ARGS(&m_pAdapter));
@@ -102,16 +104,59 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         return std::make_tuple(res, "CreateCommandQueue");
 
     // Create render target view descriptor heap
-    D3D12_DESCRIPTOR_HEAP_DESC heap_desc = {
+    D3D12_DESCRIPTOR_HEAP_DESC rtv_heap_desc = {
         .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
         .NumDescriptors = FrameCount,
         .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
         .NodeMask = 0,
     };
-    res = m_pDevice->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(&m_pRTVDescriptorHeap));
+    res = m_pDevice->CreateDescriptorHeap(&rtv_heap_desc, IID_PPV_ARGS(&m_pRTVDescriptorHeap));
     if (FAILED(res))
-        return std::make_tuple(res, "CreateDescriptorHeap");
+        return std::make_tuple(res, "CreateDescriptorHeap (RTV)");
     m_uRTVDescriptorSize = m_pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+    // Create depth stencil view descriptor heap
+    D3D12_DESCRIPTOR_HEAP_DESC dsv_heap_desc = {
+        .Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
+        .NumDescriptors = 1,
+        .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
+        .NodeMask = 0,
+    };
+    res = m_pDevice->CreateDescriptorHeap(&dsv_heap_desc, IID_PPV_ARGS(&m_pDSVDescriptorHeap));
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateDescriptorHeap (DSV)");
+    m_uDSVDescriptorSize = m_pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+    // Create shader resource view heap
+    D3D12_DESCRIPTOR_HEAP_DESC srv_heap_desc = {
+        .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+        .NumDescriptors = FrameCount,
+        .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+        .NodeMask = 0,
+    };
+    res = m_pDevice->CreateDescriptorHeap(&srv_heap_desc, IID_PPV_ARGS(&m_pSRVDescriptorHeap));
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateDescriptorHeap (SRV)");
+    m_uSRVDescriptorSize = m_pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+    // Allocate note shader resource views
+    D3D12_CPU_DESCRIPTOR_HANDLE srv_handle = m_pSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+    for (int i = 0; i < FrameCount; i++) {
+        D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {
+            .Format = DXGI_FORMAT_UNKNOWN,
+            .ViewDimension = D3D12_SRV_DIMENSION_BUFFER,
+            .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+            .Buffer = {
+                .FirstElement = 0,
+                .NumElements = NotesPerPass,
+                .StructureByteStride = sizeof(NoteData),
+                .Flags = D3D12_BUFFER_SRV_FLAG_NONE,
+            }
+        };
+
+        m_pDevice->CreateShaderResourceView(m_pNoteBuffers[i].Get(), &srv_desc, srv_handle);
+        srv_handle.ptr += m_uSRVDescriptorSize;
+    }
 
     // Create command allocators
     for (int i = 0; i < FrameCount; i++) {
@@ -131,7 +176,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
             .Constants = {
                 .ShaderRegister = 0,
                 .RegisterSpace = 0,
-                .Num32BitValues = 16,
+                .Num32BitValues = sizeof(RootConstants) / 4,
             },
             .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
         }
@@ -151,8 +196,8 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     if (FAILED(res))
         return std::make_tuple(res, "CreateRootSignature (rectangle)");
 
-    // Create pipeline state
-    D3D12_INPUT_ELEMENT_DESC vertex_input[] = {
+    // Create rect pipeline
+    D3D12_INPUT_ELEMENT_DESC rect_vertex_input[] = {
         {
             .SemanticName = "POSITION",
             .SemanticIndex = 0,
@@ -172,7 +217,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
             .InstanceDataStepRate = 0,
         },
     };
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC pipeline_desc = {
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC rect_pipeline_desc = {
         .pRootSignature = m_pRectRootSignature.Get(),
         .VS = {
             .pShaderBytecode = g_pRectVertexShader,
@@ -208,8 +253,8 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
             .StencilEnable = FALSE,
         },
         .InputLayout = {
-            .pInputElementDescs = vertex_input,
-            .NumElements = _countof(vertex_input),
+            .pInputElementDescs = rect_vertex_input,
+            .NumElements = _countof(rect_vertex_input),
         },
         .IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
         .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
@@ -222,9 +267,73 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
             .Count = 1
         },
     };
-    res = m_pDevice->CreateGraphicsPipelineState(&pipeline_desc, IID_PPV_ARGS(&m_pRectPipelineState));
+    res = m_pDevice->CreateGraphicsPipelineState(&rect_pipeline_desc, IID_PPV_ARGS(&m_pRectPipelineState));
     if (FAILED(res))
-        return std::make_tuple(res, "CreateGraphicsPipelineState");
+        return std::make_tuple(res, "CreateGraphicsPipelineState (rect)");
+    
+    // Create note root signature
+    ComPtr<ID3DBlob> note_serialized;
+    /*
+    D3D12_ROOT_PARAMETER note_root_sig_params[] = {
+        {
+            .ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS,
+            .Constants = {
+                .ShaderRegister = 0,
+                .RegisterSpace = 0,
+                .Num32BitValues = sizeof(RootConstants) / 4,
+            },
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
+        },
+        {
+            .ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
+            .Descriptor {
+                .ShaderRegister = 1,
+                .RegisterSpace = 0,
+            },
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
+        }
+    };
+    */
+    CD3DX12_ROOT_PARAMETER1 note_root_sig_params[2];
+    note_root_sig_params[0].InitAsConstants(sizeof(RootConstants) / 4, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+    note_root_sig_params[1].InitAsShaderResourceView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
+    D3D12_VERSIONED_ROOT_SIGNATURE_DESC note_root_sig_desc = {
+        .Version = D3D_ROOT_SIGNATURE_VERSION_1_1,
+        .Desc_1_1 = {
+            .NumParameters = _countof(note_root_sig_params),
+            .pParameters = note_root_sig_params,
+            .Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+                     D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+                     D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+                     D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+                     D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS,
+        }
+    };
+    res = D3D12SerializeVersionedRootSignature(&note_root_sig_desc, &note_serialized, nullptr);
+    if (FAILED(res))
+        return std::make_tuple(res, "D3D12SerializeRootSignature (note)");
+    res = m_pDevice->CreateRootSignature(0, note_serialized->GetBufferPointer(), note_serialized->GetBufferSize(), IID_PPV_ARGS(&m_pNoteRootSignature));
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateRootSignature (note)");
+
+    // Create note pipeline
+    auto note_pipeline_desc = rect_pipeline_desc;
+    note_pipeline_desc.pRootSignature = m_pNoteRootSignature.Get();
+    note_pipeline_desc.VS = {
+        .pShaderBytecode = g_pNoteVertexShader,
+        .BytecodeLength = sizeof(g_pNoteVertexShader),
+    };
+    note_pipeline_desc.DepthStencilState = {
+        .DepthEnable = TRUE,
+        .DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL,
+        .DepthFunc = D3D12_COMPARISON_FUNC_LESS,
+    };
+    note_pipeline_desc.InputLayout = {
+        .NumElements = 0,
+    };
+    res = m_pDevice->CreateGraphicsPipelineState(&note_pipeline_desc, IID_PPV_ARGS(&m_pNotePipelineState));
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateGraphicsPipelineState (note)");
 
     // Create command list
     res = m_pDevice->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&m_pCommandList));
@@ -255,14 +364,32 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         );
         if (FAILED(res))
             return std::make_tuple(res, "CreateCommittedResource (vertex buffer)");
+        m_pVertexBuffers[i]->SetName(L"Vertex buffer");
         m_VertexBufferViews[i].BufferLocation = m_pVertexBuffers[i]->GetGPUVirtualAddress();
         m_VertexBufferViews[i].SizeInBytes = vertex_buffer_desc.Width;
         m_VertexBufferViews[i].StrideInBytes = sizeof(RectVertex);
     }
 
+    // Create dynamic note buffers
+    auto note_buffer_heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    auto note_buffer_desc = CD3DX12_RESOURCE_DESC::Buffer(NotesPerPass * sizeof(NoteData));
+    for (int i = 0; i < FrameCount; i++) {
+        res = m_pDevice->CreateCommittedResource(
+            &note_buffer_heap,
+            D3D12_HEAP_FLAG_NONE,
+            &note_buffer_desc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&m_pNoteBuffers[i])
+        );
+        if (FAILED(res))
+            return std::make_tuple(res, "CreateCommittedResource (note buffer)");
+        m_pNoteBuffers[i]->SetName(L"Note buffer");
+    }
+
     // Create index buffer
     auto index_buffer_heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    auto index_buffer_desc = CD3DX12_RESOURCE_DESC::Buffer(RectsPerPass * 6 * sizeof(uint16_t));
+    auto index_buffer_desc = CD3DX12_RESOURCE_DESC::Buffer(IndexBufferCount * sizeof(uint32_t));
     res = m_pDevice->CreateCommittedResource(
         &index_buffer_heap,
         D3D12_HEAP_FLAG_NONE,
@@ -275,7 +402,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         return std::make_tuple(res, "CreateCommittedResource (index buffer)");
     m_pIndexBuffer->SetName(L"Index buffer");
     m_IndexBufferView.BufferLocation = m_pIndexBuffer->GetGPUVirtualAddress();
-    m_IndexBufferView.Format = DXGI_FORMAT_R16_UINT;
+    m_IndexBufferView.Format = DXGI_FORMAT_R32_UINT;
     m_IndexBufferView.SizeInBytes = index_buffer_desc.Width;
 
     // Create index upload buffer
@@ -294,9 +421,9 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     index_buffer_upload->SetName(L"Index upload buffer");
 
     // Generate index buffer data
-    std::vector<uint16_t> index_buffer_vec;
-    index_buffer_vec.resize(RectsPerPass * 6);
-    for (int i = 0; i < RectsPerPass; i++) {
+    std::vector<uint32_t> index_buffer_vec;
+    index_buffer_vec.resize(IndexBufferCount);
+    for (int i = 0; i < IndexBufferCount / 6; i++) {
         index_buffer_vec[i * 6] = i * 4;
         index_buffer_vec[i * 6 + 1] = i * 4 + 1;
         index_buffer_vec[i * 6 + 2] = i * 4 + 2;
@@ -312,8 +439,8 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     // Upload index buffer to GPU
     D3D12_SUBRESOURCE_DATA index_buffer_data = {
         .pData = index_buffer_vec.data(),
-        .RowPitch = (LONG_PTR)(index_buffer_vec.size() * sizeof(uint16_t)),
-        .SlicePitch = (LONG_PTR)(index_buffer_vec.size() * sizeof(uint16_t)),
+        .RowPitch = (LONG_PTR)(index_buffer_vec.size() * sizeof(uint32_t)),
+        .SlicePitch = (LONG_PTR)(index_buffer_vec.size() * sizeof(uint32_t)),
     };
     UpdateSubresources<1>(m_pCommandList.Get(), m_pIndexBuffer.Get(), index_buffer_upload.Get(), 0, 0, 1, &index_buffer_data);
 
@@ -338,6 +465,29 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     auto res2 = CreateWindowDependentObjects(hWnd);
     if (FAILED(std::get<0>(res2)))
         return res2;
+
+    // Create rect render state initialization bundle
+    res = m_pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_BUNDLE, m_pBundleAllocator.Get(), nullptr, IID_PPV_ARGS(&m_pRectBundle));
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateCommandList (rect bundle)");
+
+    m_pRectBundle->SetPipelineState(m_pRectPipelineState.Get());
+    m_pRectBundle->SetGraphicsRootSignature(m_pRectRootSignature.Get());
+    m_pRectBundle->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_pRectBundle->IASetIndexBuffer(&m_IndexBufferView);
+    m_pRectBundle->Close();
+
+    // Create note render state initialization bundle
+    res = m_pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_BUNDLE, m_pBundleAllocator.Get(), nullptr, IID_PPV_ARGS(&m_pNoteBundle));
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateCommandList (rect bundle)");
+
+    m_pNoteBundle->SetPipelineState(m_pNotePipelineState.Get());
+    m_pNoteBundle->SetGraphicsRootSignature(m_pNoteRootSignature.Get());
+    m_pNoteBundle->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_pNoteBundle->IASetVertexBuffers(0, 0, nullptr);
+    m_pNoteBundle->IASetIndexBuffer(&m_IndexBufferView);
+    m_pNoteBundle->Close();
 
     return std::make_tuple(S_OK, "");
 }
@@ -407,31 +557,50 @@ std::tuple<HRESULT, const char*> D3D12Renderer::CreateWindowDependentObjects(HWN
         rtv_handle.ptr += m_uRTVDescriptorSize;
     }
 
+    // Create depth buffer view
+    D3D12_CPU_DESCRIPTOR_HANDLE dsv_handle = m_pDSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+    auto dsv_heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    auto dsv_res_desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, m_iBufferWidth, m_iBufferHeight, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+    D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc = {
+        .Format = DXGI_FORMAT_D32_FLOAT,
+        .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
+        .Flags = D3D12_DSV_FLAG_NONE,
+    };
+    D3D12_CLEAR_VALUE clear_value = {
+        .Format = DXGI_FORMAT_D32_FLOAT,
+        .DepthStencil = {
+            .Depth = 1.0f,
+            .Stencil = 0,
+        }
+    };
+    res = m_pDevice->CreateCommittedResource(
+        &dsv_heap,
+        D3D12_HEAP_FLAG_NONE,
+        &dsv_res_desc,
+        D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        &clear_value,
+        IID_PPV_ARGS(&m_pDepthBuffer)
+    );
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateCommittedResource (depth buffer)");
+    m_pDevice->CreateDepthStencilView(m_pDepthBuffer.Get(), &dsv_desc, dsv_handle);
+
     // Reset the current frame index
     m_uFrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
 
-    // Create render state initialization bundle
-    res = m_pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_BUNDLE, m_pBundleAllocator.Get(), m_pRectPipelineState.Get(), IID_PPV_ARGS(&m_pBundle));
-    if (FAILED(res))
-        return std::make_tuple(res, "CreateCommandList (bundle)");
-
+    // Set up root constants
     // https://github.com/ocornut/imgui/blob/master/backends/imgui_impl_dx12.cpp#L99
     float L = 0;
     float R = m_iBufferWidth;
     float T = 0;
     float B = m_iBufferHeight;
-    float mvp[4][4] =
-    {
+    float mvp[4][4] = {
         { 2.0f/(R-L),   0.0f,           0.0f,       0.0f },
         { 0.0f,         2.0f/(T-B),     0.0f,       0.0f },
         { 0.0f,         0.0f,           0.5f,       0.0f },
         { (R+L)/(L-R),  (T+B)/(B-T),    0.5f,       1.0f },
     };
-    m_pBundle->SetGraphicsRootSignature(m_pRectRootSignature.Get());
-    m_pBundle->SetGraphicsRoot32BitConstants(0, 16, &mvp, 0);
-    m_pBundle->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_pBundle->IASetIndexBuffer(&m_IndexBufferView);
-    m_pBundle->Close();
+    memcpy(m_RootConstants.mvp, mvp, sizeof(mvp));
 
     return std::make_tuple(S_OK, "");
 }
@@ -451,6 +620,7 @@ HRESULT D3D12Renderer::ResetDevice() {
 HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
     // Clear the intermediate buffers
     m_vRectsIntermediate.clear();
+    m_vNotesIntermediate.clear();
 
     // Reset the command list
     m_pCommandAllocator[m_uFrameIndex]->Reset();
@@ -466,10 +636,11 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
         .MaxDepth = 1.0,
     };
     D3D12_RECT scissor = { 0, 0, m_iBufferWidth, m_iBufferHeight };
-    m_pCommandList->ExecuteBundle(m_pBundle.Get());
+    SetPipeline(Pipeline::Rect);
     m_pCommandList->IASetVertexBuffers(0, 1, &m_VertexBufferViews[m_uFrameIndex]);
     m_pCommandList->RSSetViewports(1, &viewport);
     m_pCommandList->RSSetScissorRects(1, &scissor);
+    m_pCommandList->SetGraphicsRoot32BitConstants(0, sizeof(m_RootConstants) / 4, &m_RootConstants, 0);
 
     // Transition backbuffer state to render target
     auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pRenderTargets[m_uFrameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -477,7 +648,8 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
 
     // Bind to output merger
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(m_pRTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_uFrameIndex, m_uRTVDescriptorSize);
-    m_pCommandList->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsv(m_pDSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    m_pCommandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 
     // Send a clear render target command
     float float_color[4] = { (float)((color >> 16) & 0xFF) / 255.0f, (float)((color >> 8) & 0xFF) / 255.0f, (float)(color & 0xFF) / 255.0f, 1.0f };
@@ -501,6 +673,7 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
         break;
     }
     */
+    m_pCommandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     m_pCommandList->ClearRenderTargetView(rtv, float_color, 0, nullptr);
 
     return S_OK;
@@ -508,21 +681,46 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
 
 HRESULT D3D12Renderer::EndScene() {
     // Flush the intermediate rect buffer
+    // TODO: Split this in two to have proper ordering
     // TODO: Handle more than RectsPerPass
-    auto count = min(m_vRectsIntermediate.size(), RectsPerPass * 4);
-    D3D12_RANGE range = {
-        .Begin = 0,
-        .End = count * sizeof(RectVertex),
-    };
-    RectVertex* vertices = nullptr;
-    HRESULT res = m_pVertexBuffers[m_uFrameIndex]->Map(0, &range, (void**)&vertices);
-    if (FAILED(res))
-        return res;
-    memcpy(vertices, m_vRectsIntermediate.data(), count * sizeof(RectVertex));
-    m_pVertexBuffers[m_uFrameIndex]->Unmap(0, &range);
+    HRESULT res = S_OK;
+    if (!m_vRectsIntermediate.empty()) {
+        auto rect_count = min(m_vRectsIntermediate.size(), RectsPerPass * 4);
+        D3D12_RANGE rect_range = {
+            .Begin = 0,
+            .End = rect_count * sizeof(RectVertex),
+        };
+        RectVertex* vertices = nullptr;
+        res = m_pVertexBuffers[m_uFrameIndex]->Map(0, &rect_range, (void**)&vertices);
+        if (FAILED(res))
+            return res;
+        memcpy(vertices, m_vRectsIntermediate.data(), rect_count * sizeof(RectVertex));
+        m_pVertexBuffers[m_uFrameIndex]->Unmap(0, &rect_range);
 
-    // Draw the rects
-    m_pCommandList->DrawIndexedInstanced(count / 4 * 6, 1, 0, 0, 0);
+        // Draw the rects
+        m_pCommandList->DrawIndexedInstanced(rect_count / 4 * 6, 1, 0, 0, 0);
+    }
+
+    // Flush the intermediate note buffer
+    // TODO: Handle more than NotesPerPass
+    if (!m_vNotesIntermediate.empty()) {
+        SetPipeline(Pipeline::Note);
+        m_pCommandList->SetGraphicsRootShaderResourceView(1, m_pNoteBuffers[m_uFrameIndex]->GetGPUVirtualAddress());
+        auto note_count = min(m_vNotesIntermediate.size(), NotesPerPass);
+        D3D12_RANGE note_range = {
+            .Begin = 0,
+            .End = note_count * sizeof(NoteData),
+        };
+        NoteData* notes = nullptr;
+        res = m_pNoteBuffers[m_uFrameIndex]->Map(0, &note_range, (void**)&notes);
+        if (FAILED(res))
+            return res;
+        memcpy(notes, m_vNotesIntermediate.data(), note_count * sizeof(NoteData));
+        m_pNoteBuffers[m_uFrameIndex]->Unmap(0, &note_range);
+
+        // Draw the notes
+        m_pCommandList->DrawIndexedInstanced(note_count * 6, 1, 0, 0, 0);
+    }
 
     // Transition backbuffer state to present
     auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pRenderTargets[m_uFrameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -659,4 +857,15 @@ HRESULT D3D12Renderer::WaitForGPU() {
     m_pFenceValues[m_uFrameIndex]++;
 
     return S_OK;
+}
+
+void D3D12Renderer::SetPipeline(Pipeline pipeline) {
+    switch (pipeline) {
+    case Pipeline::Rect:
+        m_pCommandList->ExecuteBundle(m_pRectBundle.Get());
+        break;
+    case Pipeline::Note:
+        m_pCommandList->ExecuteBundle(m_pNoteBundle.Get());
+        break;
+    }
 }

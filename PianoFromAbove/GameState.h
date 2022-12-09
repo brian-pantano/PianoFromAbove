@@ -97,7 +97,7 @@ private:
 
     void RenderGlobals();
     void RenderNotes();
-    void RenderNote( int iPos );
+    void RenderNote(MIDIChannelEvent* pNote);
     float GetNoteX( int iNote );
 
     // MIDI info
@@ -106,7 +106,7 @@ private:
     int m_iStartPos;
     int m_iEndPos;
     long long m_llStartTime;
-    vector< int > m_vState;  // The notes that are on at time m_llStartTime.
+    vector<int> m_vState[128];  // The notes that are on at time m_llStartTime.
     Timer m_Timer; // Frame timers
     double m_dVolume;
     bool m_bPaused;

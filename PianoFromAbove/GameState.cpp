@@ -143,7 +143,8 @@ SplashScreen::SplashScreen( HWND hWnd, D3D12Renderer *pRenderer ) : GameState( h
 
     // Allocate
     m_vTrackSettings.resize( m_MIDI.GetInfo().iNumTracks );
-    m_vState.reserve( 128 );
+    for (int i = 0; i < 128; i++)
+        m_vState[i].reserve(128);
 
     // Initialize
     InitNotes( vEvents );
@@ -317,32 +318,100 @@ GameState::GameError SplashScreen::Logic()
         m_iStartPos++;
     }
 
+    // Update root constants
+    auto& root_consts = m_pRenderer->GetRootConstants();
+    root_consts.notes_y = m_fNotesY;
+    root_consts.notes_cy = m_fNotesCY;
+    root_consts.white_cx = m_fWhiteCX;
+    root_consts.timespan = TimeSpan;
+
     return Success;
 }
 
-void SplashScreen::UpdateState( int iPos )
+// https://github.com/WojciechMula/simd-search/blob/master/sse-binsearch-block.cpp
+int sse_bin_search(const std::vector<int>& data, int key) {
+
+    const __m128i keys = _mm_set1_epi32(key);
+    __m128i v;
+
+    int limit = data.size() - 1;
+    int a = 0;
+    int b = limit;
+
+    while (a <= b) {
+        const int c = (a + b) / 2;
+
+        if (data[c] == key) {
+            return c;
+        }
+
+        if (key < data[c]) {
+            b = c - 1;
+
+            if (b >= 4) {
+                v = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&data[b - 4]));
+                v = _mm_cmpeq_epi32(v, keys);
+                const uint16_t mask = _mm_movemask_epi8(v);
+                if (mask) {
+                    return b - 4 + __builtin_ctz(mask) / 4;
+                }
+            }
+        }
+        else {
+            a = c + 1;
+
+            if (a + 4 < limit) {
+                v = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&data[a]));
+                v = _mm_cmpeq_epi32(v, keys);
+                const uint16_t mask = _mm_movemask_epi8(v);
+                if (mask) {
+                    return a + __builtin_ctz(mask) / 4;
+                }
+            }
+        }
+    }
+
+    return -1;
+}
+
+void SplashScreen::UpdateState(int iPos)
 {
     // Event data
-    MIDIChannelEvent *pEvent = m_vEvents[iPos];
-    if ( !pEvent->GetSister() ) return;
+    MIDIChannelEvent* pEvent = m_vEvents[iPos];
+    if (!pEvent->GetSister()) return;
 
     MIDIChannelEvent::ChannelEventType eEventType = pEvent->GetChannelEventType();
+    int iNote = pEvent->GetParam1();
     int iVelocity = pEvent->GetParam2();
 
+    int iSisterIdx = pEvent->GetSisterIdx();
+    auto& note_state = m_vState[iNote];
+
     // Turn note on
-    if ( eEventType == MIDIChannelEvent::NoteOn && iVelocity > 0 )
-        m_vState.push_back( iPos );
+    if (eEventType == MIDIChannelEvent::NoteOn && iVelocity > 0)
+        note_state.push_back(iPos);
     else
     {
-        MIDIChannelEvent *pSearch = pEvent->GetSister();
-        // linear search and erase. No biggie given N is number of simultaneous notes being played
-        vector< int >::iterator it = m_vState.begin();
-        while ( it != m_vState.end() )
-        {
-            if ( m_vEvents[*it] == pSearch )
-                it = m_vState.erase( it );
-            else
-                ++it;
+        if (iSisterIdx != -1) {
+            // binary search
+            auto pos = sse_bin_search(note_state, iSisterIdx);
+            if (pos != -1)
+                note_state.erase(note_state.begin() + pos);
+        }
+        else {
+            // slow path, should rarely happen
+            vector< int >::iterator it = note_state.begin();
+            MIDIChannelEvent* pSearch = pEvent->GetSister();
+            while (it != note_state.end())
+            {
+                if (m_vEvents[*it] == pSearch) {
+                    it = note_state.erase(it);
+                    break;
+                }
+                else {
+                    ++it;
+                }
+            }
         }
     }
 }
@@ -396,50 +465,46 @@ void SplashScreen::RenderNotes()
     if ( m_iEndPos < 0 || m_iStartPos >= static_cast< int >( m_vEvents.size() ) )
         return;
 
-    // Render notes. Regular notes then sharps to  make sure they're not hidden
-    bool bHasSharp = false;
-    for ( vector< int >::iterator it = m_vState.begin(); it != m_vState.end(); ++it )
-        if ( !MIDI::IsSharp( m_vEvents[*it]->GetParam1() ) )
-            RenderNote( *it );
-        else
-            bHasSharp = true;
-
-    for ( int i = m_iStartPos; i <= m_iEndPos; i++ )
-    {
-        MIDIChannelEvent *pEvent = m_vEvents[i];
-        if ( pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
-             pEvent->GetParam2() > 0 && pEvent->GetSister() )
-        {
-            if ( !MIDI::IsSharp( pEvent->GetParam1() ) )
-                RenderNote( i );
-            else
-                bHasSharp = true;
+    for (int i = m_iEndPos; i >= m_iStartPos; i--) {
+        MIDIChannelEvent* pEvent = m_vEvents[i];
+        if (pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
+            pEvent->GetParam2() > 0 && pEvent->GetSister() &&
+            MIDI::IsSharp(pEvent->GetParam1())) {
+            RenderNote(pEvent);
+        }
+    }
+    for (int i = 0; i < 128; i++) {
+        if (MIDI::IsSharp(i)) {
+            for (vector< int >::reverse_iterator it = (m_vState[i]).rbegin(); it != (m_vState[i]).rend(); it++) {
+                RenderNote(m_vEvents[*it]);
+            }
         }
     }
 
-    // Do it all again, but only for the sharps
-    if ( bHasSharp )
-    {
-        for ( vector< int >::iterator it = m_vState.begin(); it != m_vState.end(); ++it )
-            if ( MIDI::IsSharp( m_vEvents[*it]->GetParam1() ) )
-                RenderNote( *it );
-
-        for ( int i = m_iStartPos; i <= m_iEndPos; i++ )
+    for (int i = m_iEndPos; i >= m_iStartPos; i--) {
+        MIDIChannelEvent* pEvent = m_vEvents[i];
+        if (pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
+            pEvent->GetParam2() > 0 && pEvent->GetSister())
         {
-            MIDIChannelEvent *pEvent = m_vEvents[i];
-            if ( pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
-                 pEvent->GetParam2() > 0 && pEvent->GetSister() &&
-                 MIDI::IsSharp( pEvent->GetParam1() ) )
-                RenderNote( i );                
+            if (!MIDI::IsSharp(pEvent->GetParam1())) {
+                RenderNote(pEvent);
+            }
+        }
+    }
+    for (int i = 0; i < 128; i++) {
+        if (!MIDI::IsSharp(i)) {
+            for (vector< int >::reverse_iterator it = (m_vState[i]).rbegin(); it != (m_vState[i]).rend(); it++) {
+                RenderNote(m_vEvents[*it]);
+            }
         }
     }
 
     m_pRenderer->RenderBatch();
 }
 
-void SplashScreen::RenderNote( int iPos )
+void SplashScreen::RenderNote(MIDIChannelEvent* pNote)
 {
-    const MIDIChannelEvent *pNote = m_vEvents[iPos];
+    /*
     int iNote = pNote->GetParam1();
     int iTrack = pNote->GetTrack();
     int iChannel = pNote->GetChannel();
@@ -486,10 +551,26 @@ void SplashScreen::RenderNote( int iPos )
     iAlpha <<= 24;
     iAlpha1 <<= 24;
     iAlpha2 <<= 24;
-    m_pRenderer->DrawRect(x, y - cy, cx, cy, csTrack.iVeryDarkRGB | iAlpha);
     m_pRenderer->DrawRect(x + fDeflate, y - cy + fDeflate,
         cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
         csTrack.iPrimaryRGB | iAlpha1, csTrack.iDarkRGB | iAlpha1, csTrack.iDarkRGB | iAlpha2, csTrack.iPrimaryRGB | iAlpha2);
+    m_pRenderer->DrawRect(x, y - cy, cx, cy, csTrack.iVeryDarkRGB | iAlpha);
+    */
+
+    int iNote = pNote->GetParam1();
+    int iTrack = pNote->GetTrack();
+    int iChannel = pNote->GetChannel();
+    long long llNoteStart = pNote->GetAbsMicroSec();
+    long long llNoteEnd = pNote->GetSister()->GetAbsMicroSec();
+    m_pRenderer->PushNoteData(
+        NoteData {
+            .key = (uint8_t)iNote,
+            .channel = (uint8_t)iChannel,
+            .track = (uint16_t)iTrack,
+            .pos = static_cast<float>(llNoteStart - m_llRndStartTime),
+            .length = static_cast<float>(llNoteEnd - llNoteStart),
+        }
+    );
 }
 
 float SplashScreen::GetNoteX( int iNote )
@@ -1095,53 +1176,15 @@ GameState::GameError MainScreen::Logic( void )
 
     if (m_Timer.m_bManualTimer)
         m_Timer.IncrementFrame();
+
+    // Update root constants
+    auto& root_consts = m_pRenderer->GetRootConstants();
+    root_consts.notes_y = m_fNotesY;
+    root_consts.notes_cy = m_fNotesCY;
+    root_consts.white_cx = m_fWhiteCX;
+    root_consts.timespan = (float)m_llTimeSpan;
+
     return Success;
-}
-
-// https://github.com/WojciechMula/simd-search/blob/master/sse-binsearch-block.cpp
-int sse_bin_search(const std::vector<int>& data, int key) {
-
-    const __m128i keys = _mm_set1_epi32(key);
-    __m128i v;
-
-    int limit = data.size() - 1;
-    int a = 0;
-    int b = limit;
-
-    while (a <= b) {
-        const int c = (a + b) / 2;
-
-        if (data[c] == key) {
-            return c;
-        }
-
-        if (key < data[c]) {
-            b = c - 1;
-
-            if (b >= 4) {
-                v = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&data[b - 4]));
-                v = _mm_cmpeq_epi32(v, keys);
-                const uint16_t mask = _mm_movemask_epi8(v);
-                if (mask) {
-                    return b - 4 + __builtin_ctz(mask) / 4;
-                }
-            }
-        }
-        else {
-            a = c + 1;
-
-            if (a + 4 < limit) {
-                v = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&data[a]));
-                v = _mm_cmpeq_epi32(v, keys);
-                const uint16_t mask = _mm_movemask_epi8(v);
-                if (mask) {
-                    return a + __builtin_ctz(mask) / 4;
-                }
-            }
-        }
-    }
-
-    return -1;
 }
 
 void MainScreen::UpdateState( int iPos )
