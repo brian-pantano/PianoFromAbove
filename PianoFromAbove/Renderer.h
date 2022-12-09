@@ -15,6 +15,9 @@
 #include <wrl/client.h>
 #include <string>
 #include <vector>
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_dx12.h"
+#include "imgui/imgui_impl_win32.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -95,7 +98,14 @@ public:
     FixedSizeConstants& GetFixedSizeConstants() { return m_FixedConstants; };
     TrackColor* GetTrackColors() { return m_TrackColors; };
     inline void PushNoteData(NoteData data) { m_vNotesIntermediate.push_back(data); };
+    size_t GetRenderedNotesCount() { return m_vNotesIntermediate.size(); };
     void SplitRect() { m_iRectSplit = (int)m_vRectsIntermediate.size(); }
+
+    void ImguiStartFrame() {
+        ImGui_ImplDX12_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+    }
 
 private:
     std::tuple<HRESULT, const char*> CreateWindowDependentObjects(HWND hWnd);
@@ -122,6 +132,7 @@ private:
     UINT m_uDSVDescriptorSize = 0;
     ComPtr<ID3D12DescriptorHeap> m_pSRVDescriptorHeap;
     UINT m_uSRVDescriptorSize = 0;
+    ComPtr<ID3D12DescriptorHeap> m_pImGuiSRVDescriptorHeap;
     ComPtr<ID3D12Resource> m_pRenderTargets[FrameCount];
     ComPtr<ID3D12Resource> m_pDepthBuffer;
     ComPtr<ID3D12CommandAllocator> m_pCommandAllocator[FrameCount];

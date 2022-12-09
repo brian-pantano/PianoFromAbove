@@ -32,7 +32,7 @@ PSInput main(uint id : SV_VertexID) {
     float deflate = outline ? 0 : clamp(round(root.white_cx * 0.15f / 2.0f), 1.0f, 3.0f);
     float x = consts1[0].note_x[note] + deflate;
     //float x = note_x[note] * root.white_cx + deflate;
-    float y = round(root.notes_y + root.notes_cy * (1.0f - note_data[note_index].pos / root.timespan) + deflate);
+    float y = round(root.notes_y + root.notes_cy * (1.0f - note_data[note_index].pos / root.timespan) - deflate);
     float cx = (sharp ? root.white_cx * 0.65f : root.white_cx) - deflate * 2.0;
     float cy = max(round(root.notes_cy * (note_data[note_index].length / root.timespan) - deflate * 2.0), 0);
 

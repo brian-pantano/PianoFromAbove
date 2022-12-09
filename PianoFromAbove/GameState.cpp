@@ -261,6 +261,9 @@ GameState::GameError SplashScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, 
 
 GameState::GameError SplashScreen::Logic()
 {
+    // Start new ImGui frame
+    m_pRenderer->ImguiStartFrame();
+
     static Config &config = Config::GetConfig();
     static PlaybackSettings &cPlayback = config.GetPlaybackSettings();
     const MIDI::MIDIInfo &mInfo = m_MIDI.GetInfo();
@@ -1058,6 +1061,9 @@ GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LP
 
 GameState::GameError MainScreen::Logic( void )
 {
+    // Start new ImGui frame
+    m_pRenderer->ImguiStartFrame();
+
     static Config &config = Config::GetConfig();
     static PlaybackSettings &cPlayback = config.GetPlaybackSettings();
     static const ViewSettings &cView = config.GetViewSettings();
@@ -2133,6 +2139,7 @@ void MainScreen::RenderText()
     rcMsg.right = m_pRenderer->GetBufferWidth();
     rcMsg.bottom = rcMsg.top + iMsgCY;
 
+    /*
     // Draw the backgrounds
     unsigned iBkgColor = 0x40000000;
     m_pRenderer->DrawRect(static_cast<float>(rcStatus.left), static_cast<float>(rcStatus.top),
@@ -2144,6 +2151,7 @@ void MainScreen::RenderText()
     if (m_bZoomMove)
         m_pRenderer->DrawRect(static_cast<float>(rcMsg.left), static_cast<float>(rcMsg.top),
             static_cast<float>(rcMsg.right - rcMsg.left), static_cast<float>(rcMsg.bottom - rcMsg.top), iBkgColor);
+    */
 
     // Draw the text
     m_pRenderer->BeginText();
@@ -2157,8 +2165,24 @@ void MainScreen::RenderText()
     m_pRenderer->EndText();
 }
 
+void MainScreen::RenderStatusLine(const char* left, const char* format, ...) {
+    va_list varargs;
+    va_start(varargs, format);
+
+    char buf[1024] = {};
+    vsnprintf_s(buf, sizeof(buf), format, varargs);
+
+    ImGui::Text("%s", left);
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(ImGui::GetWindowWidth() - ImGui::CalcTextSize(buf).x - ImGui::GetScrollX() - ImGui::GetStyle().ItemSpacing.x);
+    ImGui::Text("%s", buf);
+
+    va_end(varargs);
+}
+
 void MainScreen::RenderStatus(LPRECT prcStatus)
 {
+    /*
     // Build the time text
     TCHAR sTime[128];
     const MIDI::MIDIInfo& mInfo = m_MIDI.GetInfo();
@@ -2238,6 +2262,40 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
         m_pRenderer->DrawText(TEXT("Speed:"), D3D12Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
         m_pRenderer->DrawText(sSpeed, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
     }
+    */
+
+    constexpr float width = 170.0f;
+    ImGui::SetNextWindowPos(ImVec2(m_pRenderer->GetBufferWidth() - width, 0.0f));
+    ImGui::SetNextWindowSize(ImVec2(width, 0.0f), ImGuiCond_Once);
+    ImGui::Begin("stats", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoNav |
+        ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
+
+    // Time
+    const MIDI::MIDIInfo& mInfo = m_MIDI.GetInfo();
+    if (m_llStartTime >= 0)
+        RenderStatusLine("Time:", "%lld:%04.1lf / %lld:%04.1lf",
+            m_llStartTime / 60000000, (m_llStartTime % 60000000) / 1000000.0,
+            mInfo.llTotalMicroSecs / 60000000, (mInfo.llTotalMicroSecs % 60000000) / 1000000.0);
+    else
+        RenderStatusLine("Time:", "\t-%lld:%04.1lf / %lld:%04.1lf",
+            -m_llStartTime / 60000000, (-m_llStartTime % 60000000) / 1000000.0,
+            mInfo.llTotalMicroSecs / 60000000, (mInfo.llTotalMicroSecs % 60000000) / 1000000.0);
+    
+    // Tempo
+    RenderStatusLine("Tempo:", "%.3lf", 60000000.0 / m_iMicroSecsPerBeat);
+
+    // Framerate
+    if (m_bShowFPS && !m_bDumpFrames)
+        RenderStatusLine("FPS:", "%.1lf", m_dFPS);
+
+    // Nerd stats
+    Config& config = Config::GetConfig();
+    VizSettings viz = config.GetVizSettings();
+    if (viz.bNerdStats)
+        RenderStatusLine("Rendered notes:", "%llu", m_pRenderer->GetRenderedNotesCount());
+
+    ImGui::End();
 }
 
 void MainScreen::RenderMarker(LPRECT prcPos, const wchar_t* sStr)

@@ -175,6 +175,17 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     srv_handle.ptr += m_uSRVDescriptorSize;
     m_pDevice->CreateShaderResourceView(m_pTrackColorBuffer.Get(), &srv_desc, srv_handle);
 
+    // Create ImGui shader resource view heap
+    D3D12_DESCRIPTOR_HEAP_DESC imgui_srv_heap_desc = {
+        .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+        .NumDescriptors = 1,
+        .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+        .NodeMask = 0,
+    };
+    res = m_pDevice->CreateDescriptorHeap(&imgui_srv_heap_desc, IID_PPV_ARGS(&m_pImGuiSRVDescriptorHeap));
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateDescriptorHeap (ImGui SRV)");
+
     // Create command allocators
     for (int i = 0; i < FrameCount; i++) {
         res = m_pDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_pCommandAllocator[i]));
@@ -519,6 +530,15 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     if (FAILED(std::get<0>(res2)))
         return res2;
 
+    // Initialize ImGui
+    auto imgui_heap = m_pImGuiSRVDescriptorHeap.Get();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = nullptr;
+
+    ImGui_ImplWin32_Init(hWnd);
+    ImGui_ImplDX12_Init(m_pDevice.Get(), FrameCount, DXGI_FORMAT_R8G8B8A8_UNORM, imgui_heap, imgui_heap->GetCPUDescriptorHandleForHeapStart(), imgui_heap->GetGPUDescriptorHandleForHeapStart());
+
     return std::make_tuple(S_OK, "");
 }
 
@@ -749,6 +769,9 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
 }
 
 HRESULT D3D12Renderer::EndScene() {
+    // Generate ImGui render data
+    ImGui::Render();
+
     // Flush the intermediate rect buffer
     // TODO: Handle more than RectsPerPass
     HRESULT res = S_OK;
@@ -799,6 +822,11 @@ HRESULT D3D12Renderer::EndScene() {
         m_pCommandList->IASetVertexBuffers(0, 1, &m_VertexBufferViews[m_uFrameIndex]);
         m_pCommandList->DrawIndexedInstanced((rect_count - rect_split) / 4 * 6, 1, rect_split / 4 * 6, 0, 0);
     }
+
+    // Draw ImGui
+    ID3D12DescriptorHeap* heaps[] = { m_pImGuiSRVDescriptorHeap.Get()};
+    m_pCommandList->SetDescriptorHeaps(_countof(heaps), heaps);
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_pCommandList.Get());
 
     // Transition backbuffer state to present
     auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pRenderTargets[m_uFrameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);

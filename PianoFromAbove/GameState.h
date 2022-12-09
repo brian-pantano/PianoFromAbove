@@ -225,6 +225,7 @@ private:
     void RenderKeys();
     void RenderBorder();
     void RenderText();
+    void RenderStatusLine(const char* left, const char* format, ...);
     void RenderStatus( LPRECT prcPos );
     void RenderMarker(LPRECT prcPos, const wchar_t* sStr);
     void RenderMessage( LPRECT prcMsg, TCHAR *sMsg );
