@@ -1726,6 +1726,7 @@ void MainScreen::RenderNotes()
 
     bool visualize_bends = Config::GetConfig().GetVizSettings().bVisualizePitchBends;
 
+    /*
     for (int i = m_iEndPos; i >= m_iStartPos; i--) {
         MIDIChannelEvent* pEvent = m_vEvents[i];
         if (pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
@@ -1757,6 +1758,21 @@ void MainScreen::RenderNotes()
             for (vector< int >::reverse_iterator it = (m_vState[i]).rbegin(); it != (m_vState[i]).rend(); it++) {
                 RenderNote(m_vEvents[*it], visualize_bends);
             }
+        }
+    }
+    */
+
+    for (int i = m_iEndPos; i >= m_iStartPos; i--) {
+        MIDIChannelEvent* pEvent = m_vEvents[i];
+        if (pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn &&
+            pEvent->GetParam2() > 0 && pEvent->GetSister()) {
+            RenderNote(pEvent, visualize_bends);
+        }
+    }
+
+    for (int i = 0; i < 128; i++) {
+        for (vector< int >::reverse_iterator it = (m_vState[i]).rbegin(); it != (m_vState[i]).rend(); it++) {
+            RenderNote(m_vEvents[*it], visualize_bends);
         }
     }
 
