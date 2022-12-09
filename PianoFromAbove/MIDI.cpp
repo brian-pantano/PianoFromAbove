@@ -226,9 +226,12 @@ MIDI::Note MIDI::NoteVal( int iNote )
 
 bool MIDI::IsSharp( int iNote )
 {
+    /*
     InitArrays();
     if ( iNote < 0 || iNote >= MIDI::KEYS ) return false;
     return aIsSharp[iNote];
+    */
+    return (1 << (iNote % 12)) & 0b010101001010;
 }
 
 // Number of white keys in [iMinNote, iMaxNote)

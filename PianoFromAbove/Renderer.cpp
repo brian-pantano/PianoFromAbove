@@ -480,7 +480,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     // Create note render state initialization bundle
     res = m_pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_BUNDLE, m_pBundleAllocator.Get(), nullptr, IID_PPV_ARGS(&m_pNoteBundle));
     if (FAILED(res))
-        return std::make_tuple(res, "CreateCommandList (rect bundle)");
+        return std::make_tuple(res, "CreateCommandList (note bundle)");
 
     m_pNoteBundle->SetPipelineState(m_pNotePipelineState.Get());
     m_pNoteBundle->SetGraphicsRootSignature(m_pNoteRootSignature.Get());
@@ -554,6 +554,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::CreateWindowDependentObjects(HWN
         if (FAILED(res))
             return std::make_tuple(res, "GetBuffer");
         m_pDevice->CreateRenderTargetView(m_pRenderTargets[i].Get(), nullptr, rtv_handle);
+        m_pRenderTargets[i]->SetName(L"Render target");
         rtv_handle.ptr += m_uRTVDescriptorSize;
     }
 
@@ -621,6 +622,7 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
     // Clear the intermediate buffers
     m_vRectsIntermediate.clear();
     m_vNotesIntermediate.clear();
+    m_iRectSplit = -1;
 
     // Reset the command list
     m_pCommandAllocator[m_uFrameIndex]->Reset();
@@ -681,11 +683,11 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
 
 HRESULT D3D12Renderer::EndScene() {
     // Flush the intermediate rect buffer
-    // TODO: Split this in two to have proper ordering
     // TODO: Handle more than RectsPerPass
     HRESULT res = S_OK;
+    auto rect_count = min(m_vRectsIntermediate.size(), RectsPerPass * 4);
+    auto rect_split = min(m_iRectSplit < 0 ? rect_count : m_iRectSplit, RectsPerPass * 4);
     if (!m_vRectsIntermediate.empty()) {
-        auto rect_count = min(m_vRectsIntermediate.size(), RectsPerPass * 4);
         D3D12_RANGE rect_range = {
             .Begin = 0,
             .End = rect_count * sizeof(RectVertex),
@@ -697,8 +699,8 @@ HRESULT D3D12Renderer::EndScene() {
         memcpy(vertices, m_vRectsIntermediate.data(), rect_count * sizeof(RectVertex));
         m_pVertexBuffers[m_uFrameIndex]->Unmap(0, &rect_range);
 
-        // Draw the rects
-        m_pCommandList->DrawIndexedInstanced(rect_count / 4 * 6, 1, 0, 0, 0);
+        // Draw the first rect batch
+        m_pCommandList->DrawIndexedInstanced(rect_split / 4 * 6, 1, 0, 0, 0);
     }
 
     // Flush the intermediate note buffer
@@ -719,7 +721,14 @@ HRESULT D3D12Renderer::EndScene() {
         m_pNoteBuffers[m_uFrameIndex]->Unmap(0, &note_range);
 
         // Draw the notes
-        m_pCommandList->DrawIndexedInstanced(note_count * 6, 1, 0, 0, 0);
+        m_pCommandList->DrawIndexedInstanced(note_count * 6 * 2, 1, 0, 0, 0);
+    }
+
+    // Draw the second rect batch
+    if (rect_count > rect_split) {
+        SetPipeline(Pipeline::Rect);
+        m_pCommandList->IASetVertexBuffers(0, 1, &m_VertexBufferViews[m_uFrameIndex]);
+        m_pCommandList->DrawIndexedInstanced((rect_count - rect_split) / 4 * 6, 1, rect_split / 4 * 6, 0, 0);
     }
 
     // Transition backbuffer state to present
@@ -863,9 +872,11 @@ void D3D12Renderer::SetPipeline(Pipeline pipeline) {
     switch (pipeline) {
     case Pipeline::Rect:
         m_pCommandList->ExecuteBundle(m_pRectBundle.Get());
+        m_pCommandList->SetGraphicsRootSignature(m_pRectRootSignature.Get()); // RenderDoc crash workaround
         break;
     case Pipeline::Note:
         m_pCommandList->ExecuteBundle(m_pNoteBundle.Get());
+        m_pCommandList->SetGraphicsRootSignature(m_pNoteRootSignature.Get()); // RenderDoc crash workaround
         break;
     }
 }

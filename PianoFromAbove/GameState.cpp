@@ -320,6 +320,7 @@ GameState::GameError SplashScreen::Logic()
 
     // Update root constants
     auto& root_consts = m_pRenderer->GetRootConstants();
+    root_consts.notes_x = m_fNotesX;
     root_consts.notes_y = m_fNotesY;
     root_consts.notes_cy = m_fNotesCY;
     root_consts.white_cx = m_fWhiteCX;
@@ -1179,6 +1180,7 @@ GameState::GameError MainScreen::Logic( void )
 
     // Update root constants
     auto& root_consts = m_pRenderer->GetRootConstants();
+    root_consts.notes_x = m_fNotesX;
     root_consts.notes_y = m_fNotesY;
     root_consts.notes_cy = m_fNotesCY;
     root_consts.white_cx = m_fWhiteCX;
@@ -1621,11 +1623,11 @@ void MainScreen::RenderGlobals()
 
     // Round down start time. This is only used for rendering purposes
     if (m_bTickMode) {
-        m_fRndStartTime = m_iStartTick;
+        m_llRndStartTime = m_iStartTick;
     } else {
         long long llMicroSecsPP = static_cast< long long >( m_llTimeSpan / m_fNotesCY + 0.5f );
-        m_fRndStartTime = m_llStartTime - ( m_llStartTime < 0 ? llMicroSecsPP : 0 );
-        m_fRndStartTime = ( m_fRndStartTime / llMicroSecsPP ) * llMicroSecsPP;
+        m_llRndStartTime = m_llStartTime - ( m_llStartTime < 0 ? llMicroSecsPP : 0 );
+        m_llRndStartTime = (m_llRndStartTime / llMicroSecsPP ) * llMicroSecsPP;
     }
 
     GenNoteXTable();
@@ -1700,7 +1702,7 @@ void MainScreen::RenderLines()
             int iNextBeat = GetBeat( iNextBeatTick, iBeatType, iLastSignatureTick );
             bool bIsMeasure = !( ( iNextBeat < 0 ? -iNextBeat : iNextBeat ) % iBeatsPerMeasure );
             llNextBeatTime = GetTickTime( iNextBeatTick, iLastTempoTick, llLastTempoTime, iMicroSecsPerBeat ); 
-            float y = m_fNotesY + m_fNotesCY * ( 1.0f - ( (float)(m_bTickMode ? iNextBeatTick : llNextBeatTime) - m_fRndStartTime ) / m_llTimeSpan );
+            float y = m_fNotesY + m_fNotesCY * ( 1.0f - ( (float)(m_bTickMode ? iNextBeatTick : llNextBeatTime) - m_llRndStartTime) / m_llTimeSpan );
             y = floor( y + 0.5f );
             if ( bIsMeasure && y + 1.0f > m_fNotesY )
                 m_pRenderer->DrawRect( m_fNotesX, y - 1.0f, m_fNotesCX, 3.0f,
@@ -1718,6 +1720,9 @@ void MainScreen::RenderNotes()
     // Do we have any notes to render?
     if ( m_iEndPos < 0 || m_iStartPos >= static_cast< int >( m_vEvents.size() ) )
         return;
+
+    // Ensure that any rects rendered after this point render over the notes
+    m_pRenderer->SplitRect();
 
     bool visualize_bends = Config::GetConfig().GetVizSettings().bVisualizePitchBends;
 
@@ -1761,6 +1766,7 @@ void MainScreen::RenderNotes()
 
 void MainScreen::RenderNote(const MIDIChannelEvent* pNote, bool bVisualizeBends)
 {
+    /*
     int iNote = pNote->GetParam1();
     int iTrack = pNote->GetTrack();
     int iChannel = pNote->GetChannel();
@@ -1811,6 +1817,26 @@ void MainScreen::RenderNote(const MIDIChannelEvent* pNote, bool bVisualizeBends)
         cx - fDeflate * 2.0f, cy - fDeflate * 2.0f,
         csTrack.iPrimaryRGB, csTrack.iDarkRGB, csTrack.iDarkRGB, csTrack.iPrimaryRGB);
     m_pRenderer->DrawRect(x, y - cy, cx, cy, csTrack.iVeryDarkRGB);
+    */
+
+    int iNote = pNote->GetParam1();
+    int iTrack = pNote->GetTrack();
+    int iChannel = pNote->GetChannel();
+    long long llNoteStart = pNote->GetAbsMicroSec();
+    long long llNoteEnd = pNote->GetSister()->GetAbsMicroSec();
+    if (m_bTickMode) {
+        llNoteStart = pNote->GetAbsT();
+        llNoteEnd = pNote->GetSister()->GetAbsT();
+    }
+    m_pRenderer->PushNoteData(
+        NoteData{
+            .key = (uint8_t)iNote,
+            .channel = (uint8_t)iChannel,
+            .track = (uint16_t)iTrack,
+            .pos = static_cast<float>(llNoteStart - m_llRndStartTime),
+            .length = static_cast<float>(llNoteEnd - llNoteStart),
+        }
+    );
 }
 
 void MainScreen::GenNoteXTable() {

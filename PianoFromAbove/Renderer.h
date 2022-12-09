@@ -39,6 +39,7 @@ struct NoteData {
 
 struct RootConstants {
     float mvp[4][4];
+    float notes_x;
     float notes_y;
     float notes_cy;
     float white_cx;
@@ -82,11 +83,12 @@ public:
     void SetPipeline(Pipeline pipeline);
     RootConstants& GetRootConstants() { return m_RootConstants; };
     inline void PushNoteData(NoteData data) { m_vNotesIntermediate.push_back(data); };
+    void SplitRect() { m_iRectSplit = (int)m_vRectsIntermediate.size(); }
 
 private:
     std::tuple<HRESULT, const char*> CreateWindowDependentObjects(HWND hWnd);
 
-    static constexpr unsigned FrameCount = 2;
+    static constexpr unsigned FrameCount = 3;
     static constexpr unsigned RectsPerPass = 10000; // Relatively low limit, but not many rects are supposed to be rendered anyway
     static constexpr unsigned NotesPerPass = 5000000;
     static constexpr unsigned IndexBufferCount = max(RectsPerPass, NotesPerPass) * 6;
@@ -132,4 +134,5 @@ private:
 
     std::vector<RectVertex> m_vRectsIntermediate;
     std::vector<NoteData> m_vNotesIntermediate;
+    int m_iRectSplit = -1;
 };

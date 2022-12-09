@@ -1,5 +1,6 @@
 struct ConstantBufferData {
     float4x4 proj;
+    float notes_x;
     float notes_y;
     float notes_cy;
     float white_cx;
