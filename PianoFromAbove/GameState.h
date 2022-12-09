@@ -286,7 +286,7 @@ private:
     ChannelSettings m_csKBRed, m_csKBWhite, m_csKBSharp, m_csKBBackground;
     vector< TrackSettings > m_vTrackSettings;
     vector< thread_work_t > m_vThreadWork;
-    int m_pBends[16] = {};
+    float m_pBends[16] = {};
 
     float m_fZoomX, m_fOffsetX, m_fOffsetY;
     float m_fTempZoomX, m_fTempOffsetX, m_fTempOffsetY;

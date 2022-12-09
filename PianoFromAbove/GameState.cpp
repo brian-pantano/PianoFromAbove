@@ -331,6 +331,7 @@ GameState::GameError SplashScreen::Logic()
     // Update fixed size constants
     auto& fixed_consts = m_pRenderer->GetFixedSizeConstants();
     memcpy(&fixed_consts.note_x, &notex_table, sizeof(float) * 128);
+    memset(&fixed_consts.bends, 0, sizeof(float) * 16);
 
     // Update track colors
     // TODO: Only update track colors lazily
@@ -1176,8 +1177,10 @@ GameState::GameError MainScreen::Logic( void )
             if (pEvent->GetChannelEventType() != MIDIChannelEvent::NoteOn) {
                 if (config.m_bPianoOverride && pEvent->GetChannelEventType() == MIDIChannelEvent::ProgramChange && pEvent->GetChannel() != MIDI::Drums)
                     pEvent->SetParam1(0);
-                if (pEvent->GetChannelEventType() == MIDIChannelEvent::PitchBend)
-                    m_pBends[pEvent->GetChannel()] = (short)(((pEvent->GetParam2() << 7) | pEvent->GetParam1()) - 8192);
+                if (pEvent->GetChannelEventType() == MIDIChannelEvent::PitchBend) {
+                    //m_pBends[pEvent->GetChannel()] = (short)(((pEvent->GetParam2() << 7) | pEvent->GetParam1()) - 8192);
+                    m_pBends[pEvent->GetChannel()] = (notex_table[1] - notex_table[0]) * (((short)(((pEvent->GetParam2() << 7) | pEvent->GetParam1()) - 8192)) / (8192.0f / 12.0f));
+                }
                 m_OutDevice.PlayEvent(pEvent->GetEventCode(), pEvent->GetParam1(), pEvent->GetParam2());
             }
             else if (!m_bMute && !m_vTrackSettings[pEvent->GetTrack()].aChannels[pEvent->GetChannel()].bMuted) {
@@ -1219,6 +1222,10 @@ GameState::GameError MainScreen::Logic( void )
     // Update fixed size constants
     auto& fixed_consts = m_pRenderer->GetFixedSizeConstants();
     memcpy(&fixed_consts.note_x, &notex_table, sizeof(float) * 128);
+    if (cViz.bVisualizePitchBends)
+        memcpy(&fixed_consts.bends, &m_pBends, sizeof(float) * 16);
+    else
+        memset(&fixed_consts.bends, 0, sizeof(float) * 16);
 
     // Update track colors
     // TODO: Only update track colors lazily
@@ -2265,7 +2272,7 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
     */
 
     constexpr float width = 170.0f;
-    ImGui::SetNextWindowPos(ImVec2(m_pRenderer->GetBufferWidth() - width, 0.0f));
+    ImGui::SetNextWindowPos(ImVec2(m_pRenderer->GetBufferWidth() - width + 1, -1.0f));
     ImGui::SetNextWindowSize(ImVec2(width, 0.0f), ImGuiCond_Once);
     ImGui::Begin("stats", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoNav |

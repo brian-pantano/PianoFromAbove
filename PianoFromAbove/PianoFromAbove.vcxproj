@@ -250,7 +250,6 @@
     <None Include="Images\mediaiconssmall.bmp" />
     <None Include="images\Welcome.ico" />
     <None Include="common.hlsli" />
-    <None Include="tables.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="note_vs.hlsl">

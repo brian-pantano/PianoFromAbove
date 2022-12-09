@@ -58,6 +58,7 @@ static_assert(sizeof(RootConstants) % 4 == 0);
 constexpr unsigned MaxTrackColors = 1024;
 struct FixedSizeConstants {
     float note_x[128];
+    float bends[16];
 };
 
 class D3D12Renderer {

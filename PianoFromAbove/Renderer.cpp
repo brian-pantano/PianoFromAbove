@@ -864,6 +864,7 @@ HRESULT D3D12Renderer::Present() {
     m_uFrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
 
     // Wait for the next frame to be ready
+    // TODO: Rework this to have better CPU and GPU parallelism
     if (m_pFence->GetCompletedValue() < m_pFenceValues[m_uFrameIndex]) {
         res = m_pFence->SetEventOnCompletion(m_pFenceValues[m_uFrameIndex], m_hFenceEvent);
         if (FAILED(res))

@@ -1,5 +1,4 @@
 #include "common.hlsli"
-#include "tables.hlsli"
 
 struct NoteData {
     uint packed;
@@ -7,8 +6,18 @@ struct NoteData {
     float length;
 };
 
+#define MAX_TRACK_COLORS 1024
+struct TrackColor {
+    uint colors[3]; // primary, dark, darker
+};
+
+struct FixedSizeData {
+    float note_x[128];
+    float bends[16];
+};
+
 ConstantBuffer<RootSignatureData> root : register(b0);
-StructuredBuffer<FixedSizeData> consts1 : register(t1);
+StructuredBuffer<FixedSizeData> fixed : register(t1);
 StructuredBuffer<TrackColor> colors : register(t2);
 StructuredBuffer<NoteData> note_data : register(t3);
 
@@ -30,8 +39,7 @@ PSInput main(uint id : SV_VertexID) {
     bool sharp = ((1 << (note % 12)) & 0x54A) != 0;
 
     float deflate = outline ? 0 : clamp(round(root.white_cx * 0.15f / 2.0f), 1.0f, 3.0f);
-    float x = consts1[0].note_x[note] + deflate;
-    //float x = note_x[note] * root.white_cx + deflate;
+    float x = fixed[0].note_x[note] + fixed[0].bends[chan] + deflate;
     float y = round(root.notes_y + root.notes_cy * (1.0f - note_data[note_index].pos / root.timespan) - deflate);
     float cx = (sharp ? root.white_cx * 0.65f : root.white_cx) - deflate * 2.0;
     float cy = max(round(root.notes_cy * (note_data[note_index].length / root.timespan) - deflate * 2.0), 0);
