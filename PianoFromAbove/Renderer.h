@@ -141,7 +141,7 @@ private:
     ComPtr<ID3D12PipelineState> m_pRectPipelineState;
     ComPtr<ID3D12RootSignature> m_pNoteRootSignature;
     ComPtr<ID3D12PipelineState> m_pNotePipelineState;
-    ComPtr<ID3D12GraphicsCommandList6> m_pCommandList;
+    ComPtr<ID3D12GraphicsCommandList> m_pCommandList;
     ComPtr<ID3D12Fence1> m_pFence;
     HANDLE m_hFenceEvent = NULL;
     ComPtr<ID3D12Resource> m_pIndexBuffer;
