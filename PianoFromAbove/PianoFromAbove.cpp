@@ -192,7 +192,7 @@ DWORD WINAPI GameThread( LPVOID lpParameter )
 
     // Put the adapter in the window title
     wchar_t buf[1024] = {};
-    _snwprintf_s(buf, 1024, L"pfavizkhang %S (D3D12: %s)", __DATE__, pRenderer->GetAdapterName().c_str());
+    _snwprintf_s(buf, 1024, L"pfavizkhang %S (D3D12 TEST BUILD! Device: %s)", __DATE__, pRenderer->GetAdapterName().c_str());
     SetWindowTextW(g_hWnd, buf);
 
     // Event, logic, render...

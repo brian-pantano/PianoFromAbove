@@ -11,7 +11,7 @@
 
 #include <Windows.h>
 #include <d3d12.h>
-#include <dxgi1_4.h>
+#include <dxgi1_6.h>
 #include <wrl/client.h>
 #include <string>
 #include <vector>
@@ -122,7 +122,7 @@ private:
     bool m_bLimitFPS = false;
 
     HWND m_hWnd = NULL;
-    ComPtr<IDXGIFactory4> m_pFactory;
+    ComPtr<IDXGIFactory6> m_pFactory;
     ComPtr<IDXGIAdapter3> m_pAdapter;
     ComPtr<ID3D12Device9> m_pDevice;
     ComPtr<ID3D12CommandQueue> m_pCommandQueue;

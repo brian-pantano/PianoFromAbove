@@ -60,9 +60,10 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     // TODO: Allow device selection for people with multiple GPUs
     m_hWnd = hWnd;
     m_bLimitFPS = bLimitFPS;
-    IDXGIAdapter1* adapter1 = nullptr;
-    for (UINT i = 0; m_pFactory->EnumAdapters1(i, &adapter1) != DXGI_ERROR_NOT_FOUND; i++) {
-        res = adapter1->QueryInterface(IID_PPV_ARGS(&m_pAdapter));
+    ComPtr<IDXGIAdapter1> adapter;
+    std::vector<ComPtr<IDXGIAdapter1>> adapters;
+    for (UINT i = 0; m_pFactory->EnumAdapterByGpuPreference(i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter)) != DXGI_ERROR_NOT_FOUND; i++) {
+        res = adapter->QueryInterface(IID_PPV_ARGS(&m_pAdapter));
         if (FAILED(res))
             continue;
 
