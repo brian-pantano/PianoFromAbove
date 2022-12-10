@@ -39,11 +39,13 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     HRESULT res;
 #ifdef _DEBUG
     // Initialize D3D12 debug interface
-    ID3D12Debug* d3d12_debug = nullptr;
+    ID3D12Debug1* d3d12_debug = nullptr;
     res = D3D12GetDebugInterface(IID_PPV_ARGS(&d3d12_debug));
     if (FAILED(res))
         return std::make_tuple(res, "D3D12GetDebugInterface");
     d3d12_debug->EnableDebugLayer();
+    d3d12_debug->SetEnableGPUBasedValidation(true);
+    d3d12_debug->SetEnableSynchronizedCommandQueueValidation(true);
     d3d12_debug->Release();
 #endif
 
@@ -54,15 +56,15 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     res = CreateDXGIFactory2(0, IID_PPV_ARGS(&m_pFactory));
 #endif
     if (FAILED(res))
-        return std::make_tuple(res, "CreateDXGIFactory1");
+        return std::make_tuple(res, "CreateDXGIFactory2");
 
     // Create device
     // TODO: Allow device selection for people with multiple GPUs
     m_hWnd = hWnd;
     m_bLimitFPS = bLimitFPS;
-    ComPtr<IDXGIAdapter1> adapter;
-    std::vector<ComPtr<IDXGIAdapter1>> adapters;
-    for (UINT i = 0; m_pFactory->EnumAdapterByGpuPreference(i, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter)) != DXGI_ERROR_NOT_FOUND; i++) {
+    IDXGIAdapter* adapter = nullptr;
+    //std::vector<ComPtr<IDXGIAdapter1>> adapters;
+    for (UINT i = 0; m_pFactory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND; i++) {
         res = adapter->QueryInterface(IID_PPV_ARGS(&m_pAdapter));
         if (FAILED(res))
             continue;
@@ -365,9 +367,13 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         return std::make_tuple(res, "CreateGraphicsPipelineState (note)");
 
     // Create command list
-    res = m_pDevice->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&m_pCommandList));
+    //res = m_pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&m_pCommandList));
+    res = m_pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_pCommandAllocator[m_uFrameIndex].Get(), nullptr, IID_PPV_ARGS(&m_pCommandList));
     if (FAILED(res))
-        return std::make_tuple(res, "CreateCommandList1");
+        return std::make_tuple(res, "CreateCommandList");
+    res = m_pCommandList->Close();
+    if (FAILED(res))
+        return std::make_tuple(res, "Closing command list");
 
     // Create synchronization fence
     res = m_pDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_pFence));
@@ -399,7 +405,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         &default_heap,
         D3D12_HEAP_FLAG_NONE,
         &fixed_desc,
-        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+        D3D12_RESOURCE_STATE_COMMON,
         nullptr,
         IID_PPV_ARGS(&m_pFixedBuffer)
     );
@@ -412,7 +418,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         &default_heap,
         D3D12_HEAP_FLAG_NONE,
         &track_color_desc,
-        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+        D3D12_RESOURCE_STATE_COMMON,
         nullptr,
         IID_PPV_ARGS(&m_pTrackColorBuffer)
     );
@@ -461,7 +467,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         &default_heap,
         D3D12_HEAP_FLAG_NONE,
         &index_buffer_desc,
-        D3D12_RESOURCE_STATE_COPY_DEST,
+        D3D12_RESOURCE_STATE_COMMON,
         nullptr,
         IID_PPV_ARGS(&m_pIndexBuffer)
     );
@@ -473,7 +479,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     m_IndexBufferView.SizeInBytes = index_buffer_desc.Width;
 
     // Create index upload buffer
-    ComPtr<ID3D12Resource2> index_buffer_upload = nullptr;
+    ComPtr<ID3D12Resource> index_buffer_upload = nullptr;
     res = m_pDevice->CreateCommittedResource(
         &upload_heap,
         D3D12_HEAP_FLAG_NONE,
@@ -698,7 +704,7 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
         memcpy(&m_OldFixedConstants, &m_FixedConstants, sizeof(FixedSizeConstants));
 
         // Transition the fixed size data buffer to an upload target
-        auto fixed_barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pFixedBuffer.Get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_COPY_DEST);
+        auto fixed_barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pFixedBuffer.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
         m_pCommandList->ResourceBarrier(1, &fixed_barrier);
 
         // Upload the new fixed upload data to the GPU
@@ -710,14 +716,14 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
         UpdateSubresources(m_pCommandList.Get(), m_pFixedBuffer.Get(), m_pGenericUpload.Get(), 0, 0, 1, &fixed_upload_data);
 
         // Transition the fixed size data buffer back to the original state
-        fixed_barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pFixedBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+        fixed_barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pFixedBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         m_pCommandList->ResourceBarrier(1, &fixed_barrier);
     }
     if (memcmp(&m_TrackColors, &m_OldTrackColors, sizeof(m_TrackColors))) {
         memcpy(&m_OldTrackColors, &m_TrackColors, sizeof(m_TrackColors));
 
         // Transition the track color buffer to an upload target
-        auto fixed_barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pTrackColorBuffer.Get(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_COPY_DEST);
+        auto fixed_barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pTrackColorBuffer.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
         m_pCommandList->ResourceBarrier(1, &fixed_barrier);
 
         // Upload the new fixed upload data to the GPU
@@ -729,7 +735,7 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
         UpdateSubresources(m_pCommandList.Get(), m_pTrackColorBuffer.Get(), m_pGenericUpload.Get(), sizeof(m_FixedConstants), 0, 1, &track_color_upload_data);
 
         // Transition the fixed size data buffer back to the original state
-        fixed_barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pTrackColorBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+        fixed_barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pTrackColorBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         m_pCommandList->ResourceBarrier(1, &fixed_barrier);
     }
 
@@ -802,6 +808,7 @@ HRESULT D3D12Renderer::EndScene() {
         m_pCommandList->SetGraphicsRootShaderResourceView(1, m_pFixedBuffer->GetGPUVirtualAddress());
         m_pCommandList->SetGraphicsRootShaderResourceView(2, m_pTrackColorBuffer->GetGPUVirtualAddress());
         m_pCommandList->SetGraphicsRootShaderResourceView(3, m_pNoteBuffers[m_uFrameIndex]->GetGPUVirtualAddress());
+
         auto note_count = min(m_vNotesIntermediate.size(), NotesPerPass);
         D3D12_RANGE note_range = {
             .Begin = 0,
@@ -816,6 +823,11 @@ HRESULT D3D12Renderer::EndScene() {
 
         // Draw the notes
         m_pCommandList->DrawIndexedInstanced(note_count * 6 * 2, 1, 0, 0, 0);
+
+        // Unbind because fuck Intel drivers
+        m_pCommandList->SetGraphicsRootShaderResourceView(1, 0);
+        m_pCommandList->SetGraphicsRootShaderResourceView(2, 0);
+        m_pCommandList->SetGraphicsRootShaderResourceView(3, 0);
     }
 
     // Draw the second rect batch
@@ -986,7 +998,8 @@ void D3D12Renderer::SetPipeline(Pipeline pipeline) {
         m_pCommandList->SetPipelineState(m_pNotePipelineState.Get());
         m_pCommandList->SetGraphicsRootSignature(m_pNoteRootSignature.Get());
         m_pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        m_pCommandList->IASetVertexBuffers(0, 0, nullptr);
+        //m_pCommandList->IASetVertexBuffers(0, 0, nullptr);
+        m_pCommandList->IASetVertexBuffers(0, 1, &m_VertexBufferViews[m_uFrameIndex]);
         m_pCommandList->IASetIndexBuffer(&m_IndexBufferView);
         break;
     }

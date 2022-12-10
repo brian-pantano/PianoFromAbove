@@ -122,9 +122,9 @@ private:
     bool m_bLimitFPS = false;
 
     HWND m_hWnd = NULL;
-    ComPtr<IDXGIFactory6> m_pFactory;
+    ComPtr<IDXGIFactory2> m_pFactory;
     ComPtr<IDXGIAdapter2> m_pAdapter;
-    ComPtr<ID3D12Device4> m_pDevice;
+    ComPtr<ID3D12Device> m_pDevice;
     ComPtr<ID3D12CommandQueue> m_pCommandQueue;
     ComPtr<IDXGISwapChain3> m_pSwapChain;
     ComPtr<ID3D12DescriptorHeap> m_pRTVDescriptorHeap;
@@ -142,7 +142,7 @@ private:
     ComPtr<ID3D12RootSignature> m_pNoteRootSignature;
     ComPtr<ID3D12PipelineState> m_pNotePipelineState;
     ComPtr<ID3D12GraphicsCommandList> m_pCommandList;
-    ComPtr<ID3D12Fence1> m_pFence;
+    ComPtr<ID3D12Fence> m_pFence;
     HANDLE m_hFenceEvent = NULL;
     ComPtr<ID3D12Resource> m_pIndexBuffer;
     D3D12_INDEX_BUFFER_VIEW m_IndexBufferView;
