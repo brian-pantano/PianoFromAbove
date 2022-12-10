@@ -77,7 +77,8 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
 
         res = D3D12CreateDevice(m_pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_pDevice));
         if (FAILED(res))
-            return std::make_tuple(res, "D3D12CreateDevice");
+            continue;
+            //return std::make_tuple(res, "D3D12CreateDevice");
         break;
     }
     if (m_pDevice == nullptr) {

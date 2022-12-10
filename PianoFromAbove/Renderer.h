@@ -123,8 +123,8 @@ private:
 
     HWND m_hWnd = NULL;
     ComPtr<IDXGIFactory6> m_pFactory;
-    ComPtr<IDXGIAdapter3> m_pAdapter;
-    ComPtr<ID3D12Device9> m_pDevice;
+    ComPtr<IDXGIAdapter2> m_pAdapter;
+    ComPtr<ID3D12Device4> m_pDevice;
     ComPtr<ID3D12CommandQueue> m_pCommandQueue;
     ComPtr<IDXGISwapChain3> m_pSwapChain;
     ComPtr<ID3D12DescriptorHeap> m_pRTVDescriptorHeap;
