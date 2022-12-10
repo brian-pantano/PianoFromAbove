@@ -227,7 +227,7 @@ private:
     void RenderText();
     void RenderStatusLine(const char* left, const char* format, ...);
     void RenderStatus( LPRECT prcPos );
-    void RenderMarker(LPRECT prcPos, const wchar_t* sStr);
+    void RenderMarker(LPRECT prcPos, const char* sStr);
     void RenderMessage( LPRECT prcMsg, TCHAR *sMsg );
 
     // MIDI info
@@ -247,7 +247,7 @@ private:
     int m_iMicroSecsPerBeat, m_iLastTempoTick; // Tempo
     long long m_llLastTempoTime; // Tempo
     int m_iBeatsPerMeasure, m_iBeatType, m_iClocksPerMet, m_iLastSignatureTick; // Time signature
-    std::wstring m_wsMarker; // Current marker to display on the screen
+    std::string m_sMarker; // Current marker to display on the screen
     unsigned char* m_pMarkerData = nullptr; // Used for refreshing marker data when changing encoding on the fly
     size_t m_iMarkerSize = 0;
     int m_iCurEncoding;

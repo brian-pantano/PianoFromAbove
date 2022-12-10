@@ -90,6 +90,9 @@ GameState::GameError IntroScreen::Init()
 
 GameState::GameError IntroScreen::Logic()
 {
+    // Start new ImGui frame
+    m_pRenderer->ImguiStartFrame();
+
     Sleep( 10 );
     return Success;
 }
@@ -1421,20 +1424,30 @@ void MainScreen::ApplyMarker(unsigned char* data, size_t size) {
         memcpy(temp_str, data, size);
         temp_str[size] = '\0';
         
-        auto wide_len = MultiByteToWideChar(codepages[viz.eMarkerEncoding], 0, temp_str, size + 1, NULL, 0);
-        auto wide_temp_str = new WCHAR[wide_len];
-        MultiByteToWideChar(codepages[viz.eMarkerEncoding], 0, temp_str, size + 1, wide_temp_str, wide_len);
+        if (codepages[viz.eMarkerEncoding] != CP_UTF8) {
+            // Yes, I have to convert to wide and then back to UTF-8...
+            auto wide_len = MultiByteToWideChar(codepages[viz.eMarkerEncoding], 0, temp_str, size + 1, NULL, 0);
+            auto wide_temp_str = new WCHAR[wide_len];
+            MultiByteToWideChar(codepages[viz.eMarkerEncoding], 0, temp_str, size + 1, wide_temp_str, wide_len);
 
-        m_wsMarker = std::wstring(wide_temp_str);
+            auto utf8_len = WideCharToMultiByte(CP_UTF8, 0, wide_temp_str, -1, 0, 0, 0, 0);
+            auto utf8_temp_str = new char[utf8_len];
+            WideCharToMultiByte(CP_UTF8, 0, wide_temp_str, -1, utf8_temp_str, utf8_len, 0, 0);
+
+            m_sMarker = std::string(utf8_temp_str);
+            delete[] wide_temp_str;
+            delete[] utf8_temp_str;
+        } else {
+            m_sMarker = temp_str;
+        }
 
         // blacklist common "unset marker" stuff
-        if (m_wsMarker == L"Setup")
-            m_wsMarker = std::wstring();
+        if (m_sMarker == "Setup" || m_sMarker == "Start")
+            m_sMarker = std::string();
 
         delete[] temp_str;
-        delete[] wide_temp_str;
     } else {
-        m_wsMarker = std::wstring();
+        m_sMarker = std::string();
     }
 }
 
@@ -2138,7 +2151,7 @@ void MainScreen::RenderText()
 
     // Current marker (if there is one)
     RECT rcMarker;
-    m_pRenderer->DrawText(m_wsMarker.c_str(), D3D12Renderer::Small, &rcMarker, DT_CALCRECT, 0);
+    //m_pRenderer->DrawText(m_wsMarker.c_str(), D3D12Renderer::Small, &rcMarker, DT_CALCRECT, 0);
     rcMarker = { 0, rcMarker.top, rcMarker.right - rcMarker.left + 12, rcMarker.bottom + 6 };
 
     int iMsgCY = 200;
@@ -2165,7 +2178,7 @@ void MainScreen::RenderText()
 
     RenderStatus(&rcStatus);
     if (viz.bShowMarkers)
-        RenderMarker(&rcMarker, m_wsMarker.c_str());
+        RenderMarker(&rcMarker, m_sMarker.c_str());
     if (m_bZoomMove)
         RenderMessage(&rcMsg, TEXT("- Left-click and drag to move the screen\n- Right-click and drag to zoom horizontally\n- Press Escape to abort changes\n- Press Ctrl+V to save changes"));
 
@@ -2305,14 +2318,28 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
     ImGui::End();
 }
 
-void MainScreen::RenderMarker(LPRECT prcPos, const wchar_t* sStr)
+void MainScreen::RenderMarker(LPRECT prcPos, const char* sStr)
 {
+    /*
     InflateRect(prcPos, -6, -3);
 
     OffsetRect(prcPos, 2, 1);
     m_pRenderer->DrawText(sStr, D3D12Renderer::Small, prcPos, 0, 0xFF404040);
     OffsetRect(prcPos, -2, -1);
     m_pRenderer->DrawText(sStr, D3D12Renderer::Small, prcPos, 0, 0xFFFFFFFF);
+    */
+
+    if (strlen(sStr)) {
+        ImGui::SetNextWindowPos(ImVec2(-1.0f, -1.0f));
+        ImGui::SetNextWindowSize(ImVec2(0.0f, 0.0f), ImGuiCond_Once);
+        ImGui::Begin("marker", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoNav |
+            ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing);
+
+        ImGui::Text("%s", sStr);
+
+        ImGui::End();
+    }
 }
 
 void MainScreen::RenderMessage(LPRECT prcMsg, TCHAR* sMsg)
