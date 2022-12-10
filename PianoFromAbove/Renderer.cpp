@@ -427,7 +427,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
             &upload_heap,
             D3D12_HEAP_FLAG_NONE,
             &vertex_buffer_desc,
-            D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
             IID_PPV_ARGS(&m_pVertexBuffers[i])
         );
@@ -446,7 +446,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
             &upload_heap,
             D3D12_HEAP_FLAG_NONE,
             &note_buffer_desc,
-            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr,
             IID_PPV_ARGS(&m_pNoteBuffers[i])
         );
