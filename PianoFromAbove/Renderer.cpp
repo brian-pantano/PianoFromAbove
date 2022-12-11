@@ -302,7 +302,6 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     
     // Create note root signature
     ComPtr<ID3DBlob> note_serialized;
-    /*
     D3D12_ROOT_PARAMETER note_root_sig_params[] = {
         {
             .ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS,
@@ -315,32 +314,38 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         },
         {
             .ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
-            .Descriptor {
+            .Descriptor = {
                 .ShaderRegister = 1,
                 .RegisterSpace = 0,
             },
             .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
-        }
+        },
+        {
+            .ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
+            .Descriptor = {
+                .ShaderRegister = 2,
+                .RegisterSpace = 0,
+            },
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
+        },
+        {
+            .ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
+            .Descriptor = {
+                .ShaderRegister = 3,
+                .RegisterSpace = 0,
+            },
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
+        },
     };
-    */
-    CD3DX12_ROOT_PARAMETER1 note_root_sig_params[4];
-    note_root_sig_params[0].InitAsConstants(sizeof(RootConstants) / 4, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-    note_root_sig_params[1].InitAsShaderResourceView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
-    note_root_sig_params[2].InitAsShaderResourceView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
-    note_root_sig_params[3].InitAsShaderResourceView(3, 0, D3D12_ROOT_DESCRIPTOR_FLAG_NONE, D3D12_SHADER_VISIBILITY_VERTEX);
-    D3D12_VERSIONED_ROOT_SIGNATURE_DESC note_root_sig_desc = {
-        .Version = D3D_ROOT_SIGNATURE_VERSION_1_1,
-        .Desc_1_1 = {
-            .NumParameters = _countof(note_root_sig_params),
-            .pParameters = note_root_sig_params,
-            .Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-                     D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-                     D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-                     D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
-                     D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS,
-        }
+    D3D12_ROOT_SIGNATURE_DESC note_root_sig_desc = {
+        .NumParameters = _countof(note_root_sig_params),
+        .pParameters = note_root_sig_params,
+        .Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+                 D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+                 D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+                 D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS,
     };
-    res = D3D12SerializeVersionedRootSignature(&note_root_sig_desc, &note_serialized, nullptr);
+    res = D3D12SerializeRootSignature(&note_root_sig_desc, D3D_ROOT_SIGNATURE_VERSION_1, &note_serialized, nullptr);
     if (FAILED(res))
         return std::make_tuple(res, "D3D12SerializeRootSignature (note)");
     res = m_pDevice->CreateRootSignature(0, note_serialized->GetBufferPointer(), note_serialized->GetBufferSize(), IID_PPV_ARGS(&m_pNoteRootSignature));
@@ -823,11 +828,6 @@ HRESULT D3D12Renderer::EndScene() {
 
         // Draw the notes
         m_pCommandList->DrawIndexedInstanced(note_count * 6 * 2, 1, 0, 0, 0);
-
-        // Unbind because fuck Intel drivers
-        m_pCommandList->SetGraphicsRootShaderResourceView(1, 0);
-        m_pCommandList->SetGraphicsRootShaderResourceView(2, 0);
-        m_pCommandList->SetGraphicsRootShaderResourceView(3, 0);
     }
 
     // Draw the second rect batch
@@ -998,8 +998,8 @@ void D3D12Renderer::SetPipeline(Pipeline pipeline) {
         m_pCommandList->SetPipelineState(m_pNotePipelineState.Get());
         m_pCommandList->SetGraphicsRootSignature(m_pNoteRootSignature.Get());
         m_pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        //m_pCommandList->IASetVertexBuffers(0, 0, nullptr);
-        m_pCommandList->IASetVertexBuffers(0, 1, &m_VertexBufferViews[m_uFrameIndex]);
+        m_pCommandList->IASetVertexBuffers(0, 0, nullptr);
+        //m_pCommandList->IASetVertexBuffers(0, 1, &m_VertexBufferViews[m_uFrameIndex]);
         m_pCommandList->IASetIndexBuffer(&m_IndexBufferView);
         break;
     }
