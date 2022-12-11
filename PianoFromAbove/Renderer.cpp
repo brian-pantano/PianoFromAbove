@@ -208,7 +208,32 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
                 .Num32BitValues = sizeof(RootConstants) / 4,
             },
             .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
-        }
+        },
+        // The rect shader doesn't actually use any of this, but I have to put it here because of Intel's shit iGPU drivers
+        {
+            .ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
+            .Descriptor = {
+                .ShaderRegister = 1,
+                .RegisterSpace = 0,
+            },
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
+        },
+        {
+            .ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
+            .Descriptor = {
+                .ShaderRegister = 2,
+                .RegisterSpace = 0,
+            },
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
+        },
+        {
+            .ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
+            .Descriptor = {
+                .ShaderRegister = 3,
+                .RegisterSpace = 0,
+            },
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
+        },
     };
     D3D12_ROOT_SIGNATURE_DESC rect_root_sig_desc = {
         .NumParameters = _countof(rect_root_sig_params),
