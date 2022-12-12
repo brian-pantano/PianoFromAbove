@@ -2313,7 +2313,7 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
     Config& config = Config::GetConfig();
     VizSettings viz = config.GetVizSettings();
     if (viz.bNerdStats)
-        RenderStatusLine("Rendered notes:", "%llu", m_pRenderer->GetRenderedNotesCount());
+        RenderStatusLine("Rendered:", "%llu", m_pRenderer->GetRenderedNotesCount());
 
     ImGui::End();
 }
