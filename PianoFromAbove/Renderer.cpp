@@ -677,6 +677,45 @@ std::tuple<HRESULT, const char*> D3D12Renderer::CreateWindowDependentObjects(HWN
     // Reset the current frame index
     m_uFrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
 
+    // Get backbuffer pitch
+    auto desc = m_pRenderTargets[m_uFrameIndex]->GetDesc();
+    m_pDevice->GetCopyableFootprints(&desc, 0, 1, 0, nullptr, nullptr, &m_ullScreenshotPitch, nullptr);
+
+    // Round up the pitch to a multiple of 256
+    // Not sure if this is required, just got it from DirectXTK12 ScreenGrab.cpp
+    m_ullScreenshotPitch = (m_ullScreenshotPitch + 255) & ~0xFFu;
+
+    // Create screenshot staging buffer
+    CD3DX12_HEAP_PROPERTIES readback_heap(D3D12_HEAP_TYPE_READBACK);
+    D3D12_RESOURCE_DESC screenshot_staging_desc = {
+        .Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
+        .Alignment = 0,
+        .Width = m_ullScreenshotPitch * m_iBufferHeight,
+        .Height = 1,
+        .DepthOrArraySize = 1,
+        .MipLevels = 1,
+        .Format = DXGI_FORMAT_UNKNOWN,
+        .SampleDesc = {
+            .Count = 1,
+        },
+        .Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+        .Flags = D3D12_RESOURCE_FLAG_NONE,
+    };
+    res = m_pDevice->CreateCommittedResource(
+        &readback_heap,
+        D3D12_HEAP_FLAG_NONE,
+        &screenshot_staging_desc,
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        nullptr,
+        IID_PPV_ARGS(&m_pScreenshotStaging)
+    );
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateCommittedResource (screenshot staging buffer)");
+    m_pScreenshotStaging->SetName(L"Screenshot staging buffer");
+
+    // Resize screenshot target buffer
+    m_vScreenshotOutput.resize(m_iBufferWidth * m_iBufferHeight * 4);
+
     // Set up root constants
     // https://github.com/ocornut/imgui/blob/master/backends/imgui_impl_dx12.cpp#L99
     float L = 0;
@@ -1042,4 +1081,57 @@ void D3D12Renderer::SetupCommandList() {
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(m_pRTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_uFrameIndex, m_uRTVDescriptorSize);
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsv(m_pDSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
     m_pCommandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+}
+
+char* D3D12Renderer::Screenshot() {
+    // Reset the command list
+    m_pCommandAllocator[m_uFrameIndex]->Reset();
+    m_pCommandList->Reset(m_pCommandAllocator[m_uFrameIndex].Get(), m_pRectPipelineState.Get());
+
+    // Transition backbuffer state to copy source
+    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pRenderTargets[m_uFrameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    m_pCommandList->ResourceBarrier(1, &barrier);
+
+    // Copy the backbuffer to the staging texture
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {
+        .Offset = 0,
+        .Footprint = {
+            .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+            .Width = (UINT)m_iBufferWidth,
+            .Height = (UINT)m_iBufferHeight,
+            .Depth = 1,
+            .RowPitch = (UINT)m_ullScreenshotPitch,
+        },
+    };
+    CD3DX12_TEXTURE_COPY_LOCATION copy_dst(m_pScreenshotStaging.Get(), footprint);
+    CD3DX12_TEXTURE_COPY_LOCATION copy_src(m_pRenderTargets[m_uFrameIndex].Get(), 0);
+    m_pCommandList->CopyTextureRegion(&copy_dst, 0, 0, 0, &copy_src, nullptr);
+
+    // Transition backbuffer state to present
+    barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pRenderTargets[m_uFrameIndex].Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PRESENT);
+    m_pCommandList->ResourceBarrier(1, &barrier);
+
+    // Execute the command list
+    m_pCommandList->Close();
+    ID3D12CommandList* command_lists[] = { m_pCommandList.Get() };
+    m_pCommandQueue->ExecuteCommandLists(1, command_lists);
+
+    // Wait for the GPU
+    // TODO: Definitely need some actual error handling here
+    if (FAILED(WaitForGPU()))
+        return nullptr;
+
+    // Copy the staging buffer to system memory
+    D3D12_RANGE staging_range = {
+        .Begin = 0,
+        .End = m_ullScreenshotPitch * m_iBufferHeight,
+    };
+    char* staging = nullptr;
+    if (FAILED(m_pScreenshotStaging->Map(0, &staging_range, (void**)&staging)))
+        return nullptr;
+    for (size_t y = 0; y < m_iBufferHeight; y++)
+        memcpy(&m_vScreenshotOutput[y * m_iBufferWidth * 4], &staging[y * m_ullScreenshotPitch], m_iBufferWidth * 4);
+    m_pScreenshotStaging->Unmap(0, &staging_range);
+
+    return m_vScreenshotOutput.data();
 }

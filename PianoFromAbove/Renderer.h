@@ -95,12 +95,16 @@ public:
     HRESULT WaitForGPU();
     std::wstring GetAdapterName();
     void SetPipeline(Pipeline pipeline);
+
     RootConstants& GetRootConstants() { return m_RootConstants; };
     FixedSizeConstants& GetFixedSizeConstants() { return m_FixedConstants; };
     TrackColor* GetTrackColors() { return m_TrackColors; };
+
     inline void PushNoteData(NoteData data) { m_vNotesIntermediate.push_back(data); };
     size_t GetRenderedNotesCount() { return m_vNotesIntermediate.size(); };
     void SplitRect() { m_iRectSplit = (int)m_vRectsIntermediate.size(); }
+
+    char* Screenshot();
 
     void ImguiStartFrame() {
         ImGui_ImplDX12_NewFrame();
@@ -161,6 +165,10 @@ private:
 
     UINT m_uFrameIndex = 0;
     UINT64 m_pFenceValues[FrameCount] = {};
+
+    ComPtr<ID3D12Resource> m_pScreenshotStaging;
+    std::vector<char> m_vScreenshotOutput;
+    UINT64 m_ullScreenshotPitch;
 
     std::vector<RectVertex> m_vRectsIntermediate;
     std::vector<NoteData> m_vNotesIntermediate;

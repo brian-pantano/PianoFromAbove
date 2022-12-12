@@ -1643,7 +1643,17 @@ GameState::GameError MainScreen::Render()
 
     // Dump frame!!!!
     if (m_bDumpFrames) {
-        // TODO: Implement
+        // Get the current frame
+        auto* frame = m_pRenderer->Screenshot();
+
+        // Write to pipe
+        WriteFile(m_hVideoPipe, frame, static_cast<DWORD>(m_pRenderer->GetBufferWidth() * m_pRenderer->GetBufferHeight() * 4), nullptr, nullptr);
+
+        // Show dump speed on the title bar
+        const std::wstring& name = m_MIDI.GetInfo().sFilename;
+        TCHAR sTitle[1024];
+        _stprintf_s(sTitle, TEXT("%ws (%.1lf%%)"), name.c_str() + (name.find_last_of(L'\\') + 1), (m_dFPS / m_Timer.m_dFramerate) * 100.0);
+        SetWindowText(g_hWnd, sTitle);
     }
     return Success;
 }
