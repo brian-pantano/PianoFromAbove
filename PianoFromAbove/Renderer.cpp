@@ -887,7 +887,7 @@ HRESULT D3D12Renderer::Present() {
     // Present the frame
     HRESULT res;
     if (m_bLimitFPS)
-        res = m_pSwapChain->Present(1, 0);
+        res = m_pSwapChain->Present(0, 0);
     else
         res = m_pSwapChain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
     if (FAILED(res))
