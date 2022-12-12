@@ -110,11 +110,12 @@ public:
 
 private:
     std::tuple<HRESULT, const char*> CreateWindowDependentObjects(HWND hWnd);
+    void SetupCommandList();
 
     static constexpr unsigned FrameCount = 2;
     static constexpr unsigned RectsPerPass = 10000; // Relatively low limit, but not many rects are supposed to be rendered anyway
     static constexpr unsigned NotesPerPass = 5000000;
-    static constexpr unsigned IndexBufferCount = max(RectsPerPass, NotesPerPass) * 6;
+    static constexpr unsigned IndexBufferCount = max(RectsPerPass, NotesPerPass * 2) * 6;
     static constexpr unsigned GenericUploadSize = sizeof(FixedSizeConstants) + MaxTrackColors * 16 * sizeof(TrackColor);
 
     int m_iBufferWidth = 0;

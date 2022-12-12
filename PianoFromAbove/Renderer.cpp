@@ -717,19 +717,8 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
     m_pCommandList->Reset(m_pCommandAllocator[m_uFrameIndex].Get(), m_pRectPipelineState.Get());
 
     // Set up render state
-    D3D12_VIEWPORT viewport = {
-        .TopLeftX = 0,
-        .TopLeftY = 0,
-        .Width = (float)m_iBufferWidth,
-        .Height = (float)m_iBufferHeight,
-        .MinDepth = 0.0,
-        .MaxDepth = 1.0,
-    };
-    D3D12_RECT scissor = { 0, 0, m_iBufferWidth, m_iBufferHeight };
     SetPipeline(Pipeline::Rect);
-    m_pCommandList->RSSetViewports(1, &viewport);
-    m_pCommandList->RSSetScissorRects(1, &scissor);
-    m_pCommandList->SetGraphicsRoot32BitConstants(0, sizeof(m_RootConstants) / 4, &m_RootConstants, 0);
+    SetupCommandList();
     if (memcmp(&m_FixedConstants, &m_OldFixedConstants, sizeof(FixedSizeConstants))) {
         memcpy(&m_OldFixedConstants, &m_FixedConstants, sizeof(FixedSizeConstants));
 
@@ -773,33 +762,10 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
     auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pRenderTargets[m_uFrameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     m_pCommandList->ResourceBarrier(1, &barrier);
 
-    // Bind to output merger
+    // Send a clear render target command
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(m_pRTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_uFrameIndex, m_uRTVDescriptorSize);
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsv(m_pDSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-    m_pCommandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
-
-    // Send a clear render target command
     float float_color[4] = { (float)((color >> 16) & 0xFF) / 255.0f, (float)((color >> 8) & 0xFF) / 255.0f, (float)(color & 0xFF) / 255.0f, 1.0f };
-    /*
-    // Seizure-inducing debug stuff
-    switch (m_uFrameIndex) {
-    case 0:
-        float_color[0] = 1.0;
-        float_color[1] = 0.0;
-        float_color[2] = 0.0;
-        break;
-    case 1:
-        float_color[0] = 0.0;
-        float_color[1] = 1.0;
-        float_color[2] = 0.0;
-        break;
-    case 2:
-        float_color[0] = 0.0;
-        float_color[1] = 0.0;
-        float_color[2] = 1.0;
-        break;
-    }
-    */
     m_pCommandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     m_pCommandList->ClearRenderTargetView(rtv, float_color, 0, nullptr);
 
@@ -832,27 +798,52 @@ HRESULT D3D12Renderer::EndScene() {
     }
 
     // Flush the intermediate note buffer
-    // TODO: Handle more than NotesPerPass
     if (!m_vNotesIntermediate.empty()) {
-        SetPipeline(Pipeline::Note);
-        m_pCommandList->SetGraphicsRootShaderResourceView(1, m_pFixedBuffer->GetGPUVirtualAddress());
-        m_pCommandList->SetGraphicsRootShaderResourceView(2, m_pTrackColorBuffer->GetGPUVirtualAddress());
-        m_pCommandList->SetGraphicsRootShaderResourceView(3, m_pNoteBuffers[m_uFrameIndex]->GetGPUVirtualAddress());
+        for (size_t i = 0; i < m_vNotesIntermediate.size(); i += NotesPerPass) {
+            if (i == 0)
+                SetPipeline(Pipeline::Note);
 
-        auto note_count = min(m_vNotesIntermediate.size(), NotesPerPass);
-        D3D12_RANGE note_range = {
-            .Begin = 0,
-            .End = note_count * sizeof(NoteData),
-        };
-        NoteData* notes = nullptr;
-        res = m_pNoteBuffers[m_uFrameIndex]->Map(0, &note_range, (void**)&notes);
-        if (FAILED(res))
-            return res;
-        memcpy(notes, m_vNotesIntermediate.data(), note_count * sizeof(NoteData));
-        m_pNoteBuffers[m_uFrameIndex]->Unmap(0, &note_range);
+            auto remaining = m_vNotesIntermediate.size() - i;
+            auto note_count = min(remaining, NotesPerPass);
+            D3D12_RANGE note_range = {
+                .Begin = 0,
+                .End = note_count * sizeof(NoteData),
+            };
+            NoteData* notes = nullptr;
+            res = m_pNoteBuffers[m_uFrameIndex]->Map(0, &note_range, (void**)&notes);
+            if (FAILED(res))
+                return res;
+            memcpy(notes, &m_vNotesIntermediate[i], note_count * sizeof(NoteData));
+            m_pNoteBuffers[m_uFrameIndex]->Unmap(0, &note_range);
 
-        // Draw the notes
-        m_pCommandList->DrawIndexedInstanced(note_count * 6 * 2, 1, 0, 0, 0);
+            // Draw the notes
+            m_pCommandList->DrawIndexedInstanced(note_count * 6 * 2, 1, 0, 0, 0);
+
+            if (remaining - note_count != 0) {
+                // Still more notes to go! Render the current batch and wait for the GPU to finish rendering it
+                // Close the command list
+                res = m_pCommandList->Close();
+                if (FAILED(res))
+                    return res;
+
+                // Execute the command list
+                ID3D12CommandList* command_lists[] = { m_pCommandList.Get() };
+                m_pCommandQueue->ExecuteCommandLists(1, command_lists);
+
+                // Wait for the GPU to finish rendering the frame
+                res = WaitForGPU();
+                if (FAILED(res))
+                    return res;
+
+                // Reset the command list
+                m_pCommandAllocator[m_uFrameIndex]->Reset();
+                m_pCommandList->Reset(m_pCommandAllocator[m_uFrameIndex].Get(), m_pRectPipelineState.Get());
+
+                // Set up the state again
+                SetPipeline(Pipeline::Note);
+                SetupCommandList();
+            }
+        }
     }
 
     // Draw the second rect batch
@@ -1024,8 +1015,31 @@ void D3D12Renderer::SetPipeline(Pipeline pipeline) {
         m_pCommandList->SetGraphicsRootSignature(m_pNoteRootSignature.Get());
         m_pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         m_pCommandList->IASetVertexBuffers(0, 0, nullptr);
-        //m_pCommandList->IASetVertexBuffers(0, 1, &m_VertexBufferViews[m_uFrameIndex]);
         m_pCommandList->IASetIndexBuffer(&m_IndexBufferView);
+        m_pCommandList->SetGraphicsRootShaderResourceView(1, m_pFixedBuffer->GetGPUVirtualAddress());
+        m_pCommandList->SetGraphicsRootShaderResourceView(2, m_pTrackColorBuffer->GetGPUVirtualAddress());
+        m_pCommandList->SetGraphicsRootShaderResourceView(3, m_pNoteBuffers[m_uFrameIndex]->GetGPUVirtualAddress());
         break;
     }
+}
+
+void D3D12Renderer::SetupCommandList() {
+    // Set initial state
+    D3D12_VIEWPORT viewport = {
+        .TopLeftX = 0,
+        .TopLeftY = 0,
+        .Width = (float)m_iBufferWidth,
+        .Height = (float)m_iBufferHeight,
+        .MinDepth = 0.0,
+        .MaxDepth = 1.0,
+    };
+    D3D12_RECT scissor = { 0, 0, m_iBufferWidth, m_iBufferHeight };
+    m_pCommandList->RSSetViewports(1, &viewport);
+    m_pCommandList->RSSetScissorRects(1, &scissor);
+    m_pCommandList->SetGraphicsRoot32BitConstants(0, sizeof(m_RootConstants) / 4, &m_RootConstants, 0);
+
+    // Bind to output merger
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtv(m_pRTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_uFrameIndex, m_uRTVDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsv(m_pDSVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+    m_pCommandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 }
