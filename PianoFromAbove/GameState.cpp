@@ -326,7 +326,7 @@ GameState::GameError SplashScreen::Logic()
 
     // Update root constants
     auto& root_consts = m_pRenderer->GetRootConstants();
-    root_consts.deflate = clamp(round(m_fWhiteCX * 0.15f / 2.0f), 1.0f, 3.0f) / 2.0f;
+    root_consts.deflate = clamp(round(m_fWhiteCX * 0.15f / 2.0f), 1.0f, 3.0f);
     root_consts.notes_y = m_fNotesY;
     root_consts.notes_cy = m_fNotesCY;
     root_consts.white_cx = m_fWhiteCX;
@@ -1218,7 +1218,7 @@ GameState::GameError MainScreen::Logic( void )
 
     // Update root constants
     auto& root_consts = m_pRenderer->GetRootConstants();
-    root_consts.deflate = clamp(round(m_fWhiteCX * 0.15f / 2.0f), 1.0f, 3.0f) / 2.0f;
+    root_consts.deflate = clamp(round(m_fWhiteCX * 0.15f / 2.0f), 1.0f, 3.0f);
     root_consts.notes_y = m_fNotesY;
     root_consts.notes_cy = m_fNotesCY;
     root_consts.white_cx = m_fWhiteCX;
