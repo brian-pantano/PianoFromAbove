@@ -208,7 +208,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
                 .RegisterSpace = 0,
                 .Num32BitValues = sizeof(RootConstants) / 4,
             },
-            .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL
         },
         // The rect shader doesn't actually use any of this, but I have to put it here because of Intel's shit iGPU drivers
         {
