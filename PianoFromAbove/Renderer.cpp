@@ -586,13 +586,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
 
     // Theme tweaks
     auto& style = ImGui::GetStyle();
-    /*
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(0, 0));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(6, 6));
-    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
-    */
-    style.WindowMinSize = ImVec2(0, 0);
+    style.WindowMinSize = ImVec2(1, 1);
     style.WindowBorderSize = 0.0f;
     style.WindowPadding = ImVec2(6, 6);
     style.Colors[ImGuiCol_WindowBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.50f);
