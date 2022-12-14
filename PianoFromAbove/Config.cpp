@@ -374,7 +374,7 @@ void VizSettings::LoadConfigValues(TiXmlElement* txRoot) {
     txViz->QueryStringAttribute("SplashMIDI", &sTempStr);
     sSplashMIDI = Util::StringToWstring(sTempStr);
     txViz->QueryIntAttribute("MarkerEncoding", (int*)&eMarkerEncoding);
-    eMarkerEncoding = min(MarkerEncoding::CP1252, max(eMarkerEncoding, MarkerEncoding::UTF8));
+    eMarkerEncoding = max(MarkerEncoding::CP1252, min(eMarkerEncoding, MarkerEncoding::UTF8));
 
     int r, g, b = 0;
     TiXmlElement* txBarColor = txViz->FirstChildElement("BarColor");

@@ -577,7 +577,11 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     auto imgui_heap = m_pImGuiSRVDescriptorHeap.Get();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
+    ImFontConfig font_config = {};
+    font_config.FontNo = 1; // Yu Gothic UI
+    io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\YuGothB.ttc", 13.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
     io.IniFilename = nullptr;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(0, 0));
 
     ImGui_ImplWin32_Init(hWnd);
     ImGui_ImplDX12_Init(m_pDevice.Get(), FrameCount, DXGI_FORMAT_R8G8B8A8_UNORM, imgui_heap, imgui_heap->GetCPUDescriptorHandleForHeapStart(), imgui_heap->GetGPUDescriptorHandleForHeapStart());
