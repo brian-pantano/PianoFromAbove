@@ -2206,7 +2206,7 @@ void MainScreen::RenderStatusLine(const char* left, const char* format, ...) {
 
     ImGui::Text("%s", left);
     ImGui::SameLine();
-    ImGui::SetCursorPosX(ImGui::GetWindowWidth() - ImGui::CalcTextSize(buf).x - ImGui::GetScrollX() - ImGui::GetStyle().ItemSpacing.x);
+    ImGui::SetCursorPosX(ImGui::GetWindowWidth() - ImGui::CalcTextSize(buf).x - ImGui::GetScrollX() - ImGui::GetStyle().WindowPadding.x);
     ImGui::Text("%s", buf);
 
     va_end(varargs);

@@ -576,12 +576,26 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     // Initialize ImGui
     auto imgui_heap = m_pImGuiSRVDescriptorHeap.Get();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
+
+    // Set up font and disable imgui.ini
+    auto& io = ImGui::GetIO();
     ImFontConfig font_config = {};
     font_config.FontNo = 1; // Yu Gothic UI
     io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\YuGothB.ttc", 13.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
     io.IniFilename = nullptr;
+
+    // Theme tweaks
+    auto& style = ImGui::GetStyle();
+    /*
     ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(0, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(6, 6));
+    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.5f);
+    */
+    style.WindowMinSize = ImVec2(0, 0);
+    style.WindowBorderSize = 0.0f;
+    style.WindowPadding = ImVec2(6, 6);
+    style.Colors[ImGuiCol_WindowBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.50f);
 
     ImGui_ImplWin32_Init(hWnd);
     ImGui_ImplDX12_Init(m_pDevice.Get(), FrameCount, DXGI_FORMAT_R8G8B8A8_UNORM, imgui_heap, imgui_heap->GetCPUDescriptorHandleForHeapStart(), imgui_heap->GetGPUDescriptorHandleForHeapStart());
