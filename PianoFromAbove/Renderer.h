@@ -48,6 +48,7 @@ struct TrackColor {
 
 struct RootConstants {
     float proj[4][4];
+    float deflate;
     float notes_y;
     float notes_cy;
     float white_cx;
@@ -119,7 +120,7 @@ private:
     static constexpr unsigned FrameCount = 2;
     static constexpr unsigned RectsPerPass = 10000; // Relatively low limit, but not many rects are supposed to be rendered anyway
     static constexpr unsigned NotesPerPass = 5000000;
-    static constexpr unsigned IndexBufferCount = max(RectsPerPass, NotesPerPass * 2) * 6;
+    static constexpr unsigned IndexBufferCount = max(RectsPerPass, NotesPerPass) * 6;
     static constexpr unsigned GenericUploadSize = sizeof(FixedSizeConstants) + MaxTrackColors * 16 * sizeof(TrackColor);
 
     int m_iBufferWidth = 0;

@@ -13,6 +13,7 @@
 #endif
 #include "RectPixelShader.h"
 #include "RectVertexShader.h"
+#include "NotePixelShader.h"
 #include "NoteVertexShader.h"
 #include "Globals.h"
 #include "Renderer.h"
@@ -335,7 +336,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
                 .RegisterSpace = 0,
                 .Num32BitValues = sizeof(RootConstants) / 4,
             },
-            .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL
         },
         {
             .ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
@@ -383,6 +384,10 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     note_pipeline_desc.VS = {
         .pShaderBytecode = g_pNoteVertexShader,
         .BytecodeLength = sizeof(g_pNoteVertexShader),
+    };
+    note_pipeline_desc.PS = {
+        .pShaderBytecode = g_pNotePixelShader,
+        .BytecodeLength = sizeof(g_pNotePixelShader),
     };
     note_pipeline_desc.DepthStencilState = {
         .DepthEnable = TRUE,
@@ -856,7 +861,7 @@ HRESULT D3D12Renderer::EndScene() {
             m_pNoteBuffers[m_uFrameIndex]->Unmap(0, &note_range);
 
             // Draw the notes
-            m_pCommandList->DrawIndexedInstanced(note_count * 6 * 2, 1, 0, 0, 0);
+            m_pCommandList->DrawIndexedInstanced(note_count * 6, 1, 0, 0, 0);
 
             if (remaining - note_count != 0) {
                 // Still more notes to go! Render the current batch and wait for the GPU to finish rendering it
