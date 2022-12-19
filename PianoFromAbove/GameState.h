@@ -13,6 +13,7 @@
 #include <map>
 #include <string>
 #include <functional>
+#include <deque>
 using namespace std;
 
 //#include "ProtoBuf\MetaData.pb.h"
@@ -287,6 +288,7 @@ private:
     vector< TrackSettings > m_vTrackSettings;
     vector< thread_work_t > m_vThreadWork;
     float m_pBends[16] = {};
+    deque<tuple<long long, long long>> m_dNPSNotes;
 
     float m_fZoomX, m_fOffsetX, m_fOffsetY;
     float m_fTempZoomX, m_fTempOffsetX, m_fTempOffsetY;

@@ -1174,7 +1174,8 @@ GameState::GameError MainScreen::Logic( void )
     if ( !m_bPaused )
     {
         // Advance start position updating initial state as we pass stale events
-        // Also PLAYS THE MUSICm
+        // Also PLAYS THE MUSIC
+        long long notes_played = 0;
         while ( m_iStartPos < iEventCount && m_vEvents[m_iStartPos]->GetAbsMicroSec() <= m_llStartTime )
         {
             MIDIChannelEvent *pEvent = m_vEvents[m_iStartPos];
@@ -1190,10 +1191,20 @@ GameState::GameError MainScreen::Logic( void )
             else if (!m_bMute && !m_vTrackSettings[pEvent->GetTrack()].aChannels[pEvent->GetChannel()].bMuted) {
                 m_OutDevice.PlayEvent(pEvent->GetEventCode(), pEvent->GetParam1(),
                     static_cast<int>(pEvent->GetParam2() * dVolumeCorrect + 0.5));
-                m_iNotesPlayed++;
+                notes_played++;
             }
             UpdateState( m_iStartPos );
             m_iStartPos++;
+        }
+        
+        // Update NPS
+        if (cViz.bNerdStats) {
+            for (; !m_dNPSNotes.empty(); m_dNPSNotes.pop_front()) {
+                if (std::get<0>(m_dNPSNotes.front()) >= m_llStartTime - 1000000)
+                    break;
+            }
+            if (notes_played != 0)
+                m_dNPSNotes.push_back(std::make_tuple(m_llStartTime, notes_played));
         }
     }
 
@@ -1302,6 +1313,9 @@ void MainScreen::UpdateState( int iPos )
 
 void MainScreen::JumpTo(long long llStartTime, bool bUpdateGUI)
 {
+    // Reset NPS
+    m_dNPSNotes.clear();
+
     // Kill the music!
     m_OutDevice.AllNotesOff();
 
@@ -2171,20 +2185,6 @@ void MainScreen::RenderText()
     rcMsg.right = m_pRenderer->GetBufferWidth();
     rcMsg.bottom = rcMsg.top + iMsgCY;
 
-    /*
-    // Draw the backgrounds
-    unsigned iBkgColor = 0x40000000;
-    m_pRenderer->DrawRect(static_cast<float>(rcStatus.left), static_cast<float>(rcStatus.top),
-        static_cast<float>(rcStatus.right - rcStatus.left), static_cast<float>(rcStatus.bottom - rcStatus.top), 0x80000000);
-    if (!m_wsMarker.empty() && viz.bShowMarkers) {
-        m_pRenderer->DrawRect(static_cast<float>(rcMarker.left), static_cast<float>(rcMarker.top),
-            static_cast<float>(rcMarker.right - rcMarker.left), static_cast<float>(rcMarker.bottom - rcMarker.top), 0x80000000);
-    }
-    if (m_bZoomMove)
-        m_pRenderer->DrawRect(static_cast<float>(rcMsg.left), static_cast<float>(rcMsg.top),
-            static_cast<float>(rcMsg.right - rcMsg.left), static_cast<float>(rcMsg.bottom - rcMsg.top), iBkgColor);
-    */
-
     // Draw the text
     m_pRenderer->BeginText();
 
@@ -2214,88 +2214,6 @@ void MainScreen::RenderStatusLine(const char* left, const char* format, ...) {
 
 void MainScreen::RenderStatus(LPRECT prcStatus)
 {
-    /*
-    // Build the time text
-    TCHAR sTime[128];
-    const MIDI::MIDIInfo& mInfo = m_MIDI.GetInfo();
-    if (m_llStartTime >= 0)
-        _stprintf_s(sTime, TEXT("%lld:%04.1lf / %lld:%04.1lf"),
-            m_llStartTime / 60000000, (m_llStartTime % 60000000) / 1000000.0,
-            mInfo.llTotalMicroSecs / 60000000, (mInfo.llTotalMicroSecs % 60000000) / 1000000.0);
-    else
-        _stprintf_s(sTime, TEXT("\t-%lld:%04.1lf / %lld:%04.1lf"),
-            -m_llStartTime / 60000000, (-m_llStartTime % 60000000) / 1000000.0,
-            mInfo.llTotalMicroSecs / 60000000, (mInfo.llTotalMicroSecs % 60000000) / 1000000.0);
-
-    // Build the FPS text
-    TCHAR sTempo[128];
-    _stprintf_s(sTempo, TEXT("%.3f bpm"), 60000000.0 / m_iMicroSecsPerBeat);
-
-    // Build the FPS text
-    TCHAR sFPS[128];
-    _stprintf_s(sFPS, TEXT("%.1lf"), m_dFPS);
-
-    // Build state debug text
-    size_t state_size = 0;
-    for (auto note_state : m_vState)
-        state_size += note_state.size();
-    TCHAR sStateSize[128];
-    _stprintf_s(sStateSize, TEXT("%llu"), state_size);
-
-    TCHAR sSpeed[128];
-    if (m_Timer.m_bManualTimer) {
-        // Build speed text if in manual timer mode
-        _stprintf_s(sSpeed, TEXT("%.1f%%"), (m_dFPS / m_Timer.m_dFramerate) * 100.0);
-    }
-
-    Config& config = Config::GetConfig();
-    VizSettings viz = config.GetVizSettings();
-
-    // Display the text
-    InflateRect(prcStatus, -6, -3);
-
-    OffsetRect(prcStatus, 2, 1);
-    m_pRenderer->DrawText(TEXT("Time:"), D3D12Renderer::Small, prcStatus, 0, 0xFF404040);
-    m_pRenderer->DrawText(sTime, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
-    OffsetRect(prcStatus, -2, -1);
-    m_pRenderer->DrawText(TEXT("Time:"), D3D12Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
-    m_pRenderer->DrawText(sTime, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
-
-    OffsetRect(prcStatus, 2, 16 + 1);
-    m_pRenderer->DrawText(TEXT("Tempo:"), D3D12Renderer::Small, prcStatus, 0, 0xFF404040);
-    m_pRenderer->DrawText(sTempo, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
-    OffsetRect(prcStatus, -2, -1);
-    m_pRenderer->DrawText(TEXT("Tempo:"), D3D12Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
-    m_pRenderer->DrawText(sTempo, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
-
-    if (m_bShowFPS && !m_bDumpFrames) {
-        OffsetRect(prcStatus, 2, 16 + 1);
-        m_pRenderer->DrawText(TEXT("FPS:"), D3D12Renderer::Small, prcStatus, 0, 0xFF404040);
-        m_pRenderer->DrawText(sFPS, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
-        OffsetRect(prcStatus, -2, -1);
-        m_pRenderer->DrawText(TEXT("FPS:"), D3D12Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
-        m_pRenderer->DrawText(sFPS, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
-    }
-
-    if (viz.bNerdStats) {
-        OffsetRect(prcStatus, 2, 16 + 1);
-        m_pRenderer->DrawText(TEXT("m_vState:"), D3D12Renderer::Small, prcStatus, 0, 0xFF404040);
-        m_pRenderer->DrawText(sStateSize, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
-        OffsetRect(prcStatus, -2, -1);
-        m_pRenderer->DrawText(TEXT("m_vState:"), D3D12Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
-        m_pRenderer->DrawText(sStateSize, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
-    }
-
-    if (m_Timer.m_bManualTimer && !m_bDumpFrames) {
-        OffsetRect(prcStatus, 2, 16 + 1);
-        m_pRenderer->DrawText(TEXT("Speed:"), D3D12Renderer::Small, prcStatus, 0, 0xFF404040);
-        m_pRenderer->DrawText(sSpeed, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFF404040);
-        OffsetRect(prcStatus, -2, -1);
-        m_pRenderer->DrawText(TEXT("Speed:"), D3D12Renderer::Small, prcStatus, 0, 0xFFFFFFFF);
-        m_pRenderer->DrawText(sSpeed, D3D12Renderer::Small, prcStatus, DT_RIGHT, 0xFFFFFFFF);
-    }
-    */
-
     constexpr float width = 156.0f;
     ImGui::SetNextWindowPos(ImVec2(m_pRenderer->GetBufferWidth() - width + 1, -1.0f));
     ImGui::SetNextWindowSize(ImVec2(width, 0.0f), ImGuiCond_Once);
@@ -2324,8 +2242,13 @@ void MainScreen::RenderStatus(LPRECT prcStatus)
     // Nerd stats
     Config& config = Config::GetConfig();
     VizSettings viz = config.GetVizSettings();
-    if (viz.bNerdStats)
+    if (viz.bNerdStats) {
+        long long nps = 0;
+        for (int i = 0; i < m_dNPSNotes.size(); i++)
+            nps += std::get<1>(m_dNPSNotes[i]);
+        RenderStatusLine("NPS:", "%lld", nps);
         RenderStatusLine("Rendered:", "%llu", m_pRenderer->GetRenderedNotesCount());
+    }
 
     ImGui::End();
 }
