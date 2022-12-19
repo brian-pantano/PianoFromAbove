@@ -781,13 +781,6 @@ INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     MainScreen *pGameState = ( MainScreen* )GetWindowLongPtr( hWnd, GWLP_USERDATA );
                     pGameState->SetChannelSettings( vMuted, vHidden, vColors );
 
-                    wchar_t szCapacity[80];
-                    if (GetDlgItemText(hWnd, IDC_VQCAPACITY, szCapacity, 80)) {
-                        if (swscanf(szCapacity, L"%llu", &vq_capacity_proc_res) != 1) {
-                            vq_capacity_proc_res = 0; // just in case
-                        }
-                    }
-
                     Config::GetConfig().m_bManualTimer = IsDlgButtonChecked(hWnd, IDC_CHECK1);
                     Config::GetConfig().m_bPianoOverride = IsDlgButtonChecked(hWnd, IDC_CHECK2);
                 }
@@ -806,6 +799,3 @@ INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 
 	return FALSE;
 }
-
-// still using a global variable for this
-size_t vq_capacity_proc_res = 0;
