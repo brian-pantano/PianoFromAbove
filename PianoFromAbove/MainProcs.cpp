@@ -25,6 +25,60 @@
 
 static WNDPROC g_pPrevBarProc; // Have to override the toolbar proc to make controls transparent
 
+VOID SizeWindows(int iMainWidth, int iMainHeight);
+INT_PTR SetResolutionProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+    switch (msg) {
+    case WM_INITDIALOG: {
+        RECT rect = {};
+        GetWindowRect(g_hWndGfx, &rect);
+        int width = rect.right - rect.left;
+        int height = rect.bottom - rect.top;
+        char buf[1024] = {};
+
+        _snprintf_s(buf, sizeof(buf), "%d", width);
+        SetWindowTextA(GetDlgItem(hwnd, IDC_WIDTH), buf);
+        _snprintf_s(buf, sizeof(buf), "%d", height);
+        SetWindowTextA(GetDlgItem(hwnd, IDC_HEIGHT), buf);
+
+        return true;
+    }
+    case WM_COMMAND: {
+        int iId = LOWORD(wparam);
+        switch (iId) {
+        case IDOK: {
+            char buf[1024] = {};
+            GetWindowTextA(GetDlgItem(hwnd, IDC_WIDTH), buf, sizeof(buf));
+            int width = max(MINWIDTH, min(atoi(buf), 65535));
+            GetWindowTextA(GetDlgItem(hwnd, IDC_HEIGHT), buf, sizeof(buf));
+            int height = max(MINHEIGHT, min(atoi(buf), 65535));
+
+            if (Config::GetConfig().GetViewSettings().GetControls()) {
+                RECT rcBarDlg;
+                GetWindowRect(g_hWndBar, &rcBarDlg);
+                height += rcBarDlg.bottom - rcBarDlg.top;
+            }
+
+            RECT adjusted = {0, 0, width, height};
+            AdjustWindowRectEx(&adjusted, GetWindowLongA(g_hWnd, GWL_STYLE), TRUE, GetWindowLongA(g_hWnd, GWL_EXSTYLE));
+            SetWindowPos(g_hWnd, NULL, 0, 0, adjusted.right - adjusted.left, adjusted.bottom - adjusted.top, SWP_NOMOVE);
+
+            [[clang::fallthrough]];
+        }
+        case IDCANCEL: {
+            EndDialog(hwnd, iId);
+            return TRUE;
+        }
+        }
+        return false;
+    }
+    case WM_CLOSE: {
+        EndDialog(hwnd, IDCANCEL);
+        return true;
+    }
+    }
+    return false;
+}
+
 //-----------------------------------------------------------------------------
 // Name: MsgProc()
 // Desc: The window's message handler
@@ -138,6 +192,10 @@ LRESULT WINAPI WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                 case ID_VIEW_RESETMOVEANDZOOM:
                     HandOffMsg( msg, wParam, lParam );
                     return 0;
+                case ID_VIEW_SETWINDOWSIZE: {
+                    DialogBox(NULL, MAKEINTRESOURCE(IDD_SETRESOLUTION), g_hWnd, SetResolutionProc);
+                    return 0;
+                }
                 case ID_VIEW_NOFULLSCREEN:
                     if ( cView.GetZoomMove() ) HandOffMsg( msg, ID_VIEW_CANCELMOVEANDZOOM, lParam );
                     else if ( cView.GetFullScreen() ) cView.SetFullScreen( false, true );
@@ -171,6 +229,8 @@ LRESULT WINAPI WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             LPMINMAXINFO lpmmi = ( LPMINMAXINFO )lParam;
             lpmmi->ptMinTrackSize.x = MINWIDTH;
             lpmmi->ptMinTrackSize.y = MINHEIGHT;
+            lpmmi->ptMaxTrackSize.x = 65535;
+            lpmmi->ptMaxTrackSize.y = 65535;
             return 0;
         }
         case WM_SIZE:

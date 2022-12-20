@@ -24,6 +24,7 @@
 #define IDB_LOCK                        146
 #define IDR_SPLASHMIDI                  149
 #define IDD_LOADING                     153
+#define IDD_SETRESOLUTION               158
 #define IDC_TRACKS                      1001
 #define IDC_HIDEKEYBOARD                1004
 #define IDC_FLIPSCREEN                  1005
@@ -80,7 +81,10 @@
 #define IDC_PIANOGROUP                  1078
 #define IDC_EDIT1                       1079
 #define IDC_SPLASHMIDI                  1079
+#define IDC_WIDTH                       1079
 #define IDC_BACKGROUND                  1080
+#define IDC_WIDTH2                      1080
+#define IDC_HEIGHT                      1080
 #define IDC_BUTTON7                     1081
 #define IDC_RADIO1                      1086
 #define IDC_RADIO2                      1087
@@ -109,7 +113,6 @@
 #define IDC_BACKGROUNDBROWSE            1109
 #define IDC_SPLASHRESET2                1110
 #define IDC_BACKGROUNDRESET             1110
-#define IDC_FFMPEG2                     1111
 #define IDC_COLORLOOP                   1111
 #define ID_FILE_PLAYFILE                40001
 #define ID_FILE_ADDFILE                 40002
@@ -202,14 +205,15 @@
 #define ID_GRAPHICS_SLOWERNOTES         40170
 #define ID_GRAPHICS_RESET               40171
 #define ID_VIEW_NOLIBRARYHERE           40172
+#define ID_VIEW_SETWINDOWSIZE           40173
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        158
-#define _APS_NEXT_COMMAND_VALUE         40173
-#define _APS_NEXT_CONTROL_VALUE         1108
+#define _APS_NEXT_RESOURCE_VALUE        160
+#define _APS_NEXT_COMMAND_VALUE         40174
+#define _APS_NEXT_CONTROL_VALUE         1109
 #define _APS_NEXT_SYMED_VALUE           102
 #endif
 #endif
