@@ -448,6 +448,7 @@ INT_PTR WINAPI VizProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         CheckDlgButton(hWnd, IDC_STATS, viz.bNerdStats);
         CheckDlgButton(hWnd, IDC_PITCHBENDS, viz.bVisualizePitchBends);
         CheckDlgButton(hWnd, IDC_FFMPEG, viz.bDumpFrames);
+        CheckDlgButton(hWnd, IDC_COLORLOOP, viz.bColorLoop);
 
         const wchar_t* codepages[] = { L"CP-1252 (Western)", L"CP-932 (Japanese)", L"UTF-8" };
         for (int i = 0; i < sizeof(codepages) / sizeof(const wchar_t*); i++)
@@ -522,6 +523,7 @@ INT_PTR WINAPI VizProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             viz.sBackground = background;
             viz.bVisualizePitchBends = IsDlgButtonChecked(hWnd, IDC_PITCHBENDS);
             viz.bDumpFrames = IsDlgButtonChecked(hWnd, IDC_FFMPEG);
+            viz.bColorLoop = IsDlgButtonChecked(hWnd, IDC_COLORLOOP);
 
             config.SetVizSettings(viz);
             SetWindowLongPtr(hWnd, DWLP_MSGRESULT, PSNRET_NOERROR);
@@ -564,6 +566,7 @@ BOOL GetCustomSettings( MainScreen *pGameState )
 INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
     static const VisualSettings &cVisual = Config::GetConfig().GetVisualSettings();
+    static const VizSettings &cViz = Config::GetConfig().GetVizSettings();
     static vector< bool > vMuted, vHidden; // Would rather be part of control, but no subitem lparam available
     static vector< unsigned > vColors;
 
@@ -599,8 +602,12 @@ INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             for ( int i = 0; i < mInfo.iNumChannels; i++ )
             {
                 vMuted[i] = vHidden[i] = false;
-                if ( i < iMax ) vColors[i] = cVisual.colors[i];
-                else vColors[i] = Util::RandColor();
+                if (cViz.bColorLoop) {
+                    vColors[i] = cVisual.colors[i % 16];
+                } else {
+                    if (i < iMax) vColors[i] = cVisual.colors[i];
+                    else vColors[i] = Util::RandColor();
+                }
             }
             
             // Set up the columns of the list view
@@ -698,8 +705,12 @@ INT_PTR WINAPI TracksProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                                 return TRUE;
                             case 5:
                                 for ( size_t i = 0; i < vColors.size(); i++ )
-                                    if ( i < iMax ) vColors[i] = cVisual.colors[i];
-                                    else vColors[i] = Util::RandColor();
+                                    if (cViz.bColorLoop) {
+                                        vColors[i] = cVisual.colors[i % 16];
+                                    } else {
+                                        if (i < iMax) vColors[i] = cVisual.colors[i];
+                                        else vColors[i] = Util::RandColor();
+                                    }
                                 InvalidateRect( lpnmlv->hdr.hwndFrom, NULL, FALSE );
                                 return TRUE;
                         }

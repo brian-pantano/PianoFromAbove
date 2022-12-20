@@ -181,6 +181,7 @@ struct VizSettings : public ISettings {
     bool bDumpFrames;
     int iBarColor;
     std::wstring sBackground;
+    bool bColorLoop;
 };
 
 class Config : public ISettings

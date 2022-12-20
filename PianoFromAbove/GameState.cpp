@@ -204,6 +204,9 @@ void SplashScreen::SetChannelSettings( const vector< bool > &vMuted, const vecto
     const MIDI::MIDIInfo &mInfo = m_MIDI.GetInfo();
     const vector< MIDITrack* > &vTracks = m_MIDI.GetTracks();
 
+    static Config& config = Config::GetConfig();
+    static const VizSettings& cViz = config.GetVizSettings();
+
     size_t iPos = 0;
     for ( int i = 0; i < mInfo.iNumTracks; i++ )
     {
@@ -211,10 +214,14 @@ void SplashScreen::SetChannelSettings( const vector< bool > &vMuted, const vecto
         for ( int j = 0; j < 16; j++ )
             if ( mTrackInfo.aNoteCount[j] > 0 )
             {
-                if ( iPos < vColor.size() )
-                    ColorChannel( i, j, vColor[iPos] );
-                else
-                    ColorChannel( i, j, 0, true );
+                if (cViz.bColorLoop) {
+                    ColorChannel(i, j, vColor[iPos % vColor.size()]);
+                } else {
+                    if (iPos < vColor.size())
+                        ColorChannel(i, j, vColor[iPos]);
+                    else
+                        ColorChannel(i, j, 0, true);
+                }
                 iPos++;
             }
     }
@@ -857,6 +864,9 @@ void MainScreen::SetChannelSettings( const vector< bool > &vMuted, const vector<
     bool bHidden = vHidden.size() > 0;
     bool bColor = vColor.size() > 0;
 
+    static Config& config = Config::GetConfig();
+    static const VizSettings& cViz = config.GetVizSettings();
+
     size_t iPos = 0;
     for ( int i = 0; i < vTracks.size(); i++ )
     {
@@ -866,10 +876,14 @@ void MainScreen::SetChannelSettings( const vector< bool > &vMuted, const vector<
             {
                 MuteChannel( i, j, bMuted ? vMuted[min( iPos, vMuted.size() - 1 )] : false );
                 HideChannel( i, j, bHidden ? vHidden[min( iPos, vHidden.size() - 1 )] : false );
-                if ( bColor && iPos < vColor.size() )
-                    ColorChannel( i, j, vColor[iPos] );
-                else
-                    ColorChannel( i, j, 0, true );
+                if (cViz.bColorLoop && bColor) {
+                    ColorChannel(i, j, vColor[iPos % vColor.size()]);
+                } else {
+                    if (bColor && iPos < vColor.size())
+                        ColorChannel(i, j, vColor[iPos]);
+                    else
+                        ColorChannel(i, j, 0, true);
+                }
                 iPos++;
             }
     }
@@ -1344,7 +1358,7 @@ void MainScreen::JumpTo(long long llStartTime, bool bUpdateGUI)
         {
             auto idx = m_vEvents.size() - 1 - (it - m_vEvents.rbegin());
             MIDIChannelEvent* pEvent = m_vEvents[idx];
-            if (pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn && pEvent->GetParam2() > 0) {
+            if (pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn && pEvent->GetParam2() > 0 && pEvent->GetSister()) {
                 MIDIChannelEvent* pSister = pEvent->GetSister();
                 if (pSister->GetAbsMicroSec() > pEvent->GetAbsMicroSec()) // > because itMiddle is the max for its time
                     iFound++;

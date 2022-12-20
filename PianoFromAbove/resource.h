@@ -109,6 +109,8 @@
 #define IDC_BACKGROUNDBROWSE            1109
 #define IDC_SPLASHRESET2                1110
 #define IDC_BACKGROUNDRESET             1110
+#define IDC_FFMPEG2                     1111
+#define IDC_COLORLOOP                   1111
 #define ID_FILE_PLAYFILE                40001
 #define ID_FILE_ADDFILE                 40002
 #define ID_FILE_ADDFOLDER               40003
