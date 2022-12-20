@@ -1219,10 +1219,12 @@ GameState::GameError MainScreen::Logic( void )
         m_Timer.IncrementFrame();
 
     // Update root constants
+    float fTransitionPct = .02f;
+    float fTransitionCY = max(3.0f, floor((m_pRenderer->GetBufferHeight() - m_fNotesCY) * fTransitionPct + 0.5f));
     auto& root_consts = m_pRenderer->GetRootConstants();
     root_consts.deflate = clamp(round(m_fWhiteCX * 0.15f / 2.0f), 1.0f, 3.0f);
     root_consts.notes_y = m_fNotesY;
-    root_consts.notes_cy = m_fNotesCY;
+    root_consts.notes_cy = m_fNotesCY + fTransitionCY;
     root_consts.white_cx = m_fWhiteCX;
     root_consts.timespan = (float)m_llTimeSpan;
 
