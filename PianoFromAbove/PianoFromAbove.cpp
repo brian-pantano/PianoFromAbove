@@ -107,7 +107,7 @@ INT WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdL
     PlaybackSettings &cPlayback = config.GetPlaybackSettings();
 
     // Create the application window
-    g_hWnd = CreateWindowEx( 0, CLASSNAME, L"pfavizkhang " __DATE__, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, cView.GetMainLeft(), cView.GetMainTop(),
+    g_hWnd = CreateWindowEx( 0, CLASSNAME, L"pfavizkhang-dx12 " __DATE__, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, cView.GetMainLeft(), cView.GetMainTop(),
                              cView.GetMainWidth(), cView.GetMainHeight(), NULL, NULL, wc.hInstance, NULL );
     if ( !g_hWnd ) return 1;
 
@@ -192,7 +192,7 @@ DWORD WINAPI GameThread( LPVOID lpParameter )
 
     // Put the adapter in the window title
     wchar_t buf[1024] = {};
-    _snwprintf_s(buf, 1024, L"pfavizkhang %S (D3D12 TEST BUILD 3! Device: %s)", __DATE__, pRenderer->GetAdapterName().c_str());
+    _snwprintf_s(buf, 1024, L"pfavizkhang-dx12 %S (Device: %s)", __DATE__, pRenderer->GetAdapterName().c_str());
     SetWindowTextW(g_hWnd, buf);
 
     // Event, logic, render...
