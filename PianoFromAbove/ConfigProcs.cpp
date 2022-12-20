@@ -487,7 +487,7 @@ INT_PTR WINAPI VizProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             TCHAR sFilename[1024] = { 0 };
             ofn.lStructSize = sizeof(OPENFILENAME);
             ofn.hwndOwner = hWnd;
-            ofn.lpstrFilter = TEXT("Image files\0*.png\0*.jpg\0*.jpeg");
+            ofn.lpstrFilter = TEXT("Image files\0*.png;*.jpg;*.jpeg\0");
             ofn.lpstrFile = sFilename;
             ofn.nMaxFile = sizeof(sFilename) / sizeof(TCHAR);
             ofn.lpstrTitle = TEXT("Select a background image!");
