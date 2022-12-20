@@ -64,6 +64,8 @@ private:
     int m_iCurrMicroSec;
 };
 
+typedef vector< pair< long long, int > > eventvec_t;
+
 //Holds MIDI data
 class MIDI
 {
@@ -101,8 +103,8 @@ public:
     int ParseEvents( const unsigned char *pcData, size_t iMaxSize );
     bool IsValid() const { return ( m_vTracks.size() > 0 && m_Info.iNoteCount > 0 && m_Info.iDivision > 0 ); }
 
-    void PostProcess() { PostProcess( NULL ); } 
-    void PostProcess( vector< MIDIEvent* > *vEvents );
+    void PostProcess(vector<MIDIChannelEvent*>& vChannelEvents, eventvec_t* vProgramChanges = nullptr,
+        vector<MIDIMetaEvent*>* vMetaEvents = nullptr, eventvec_t* vTempo = nullptr, eventvec_t* vSignature = nullptr, eventvec_t* vMarkers = nullptr);
     void ConnectNotes();
     void clear( void );
 

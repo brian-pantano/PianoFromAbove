@@ -190,8 +190,6 @@ public:
     void SetChannelSettings( const vector< bool > &vMuted, const vector< bool > &vHidden, const vector< unsigned > &vColor );
 
 private:
-    typedef vector< pair< long long, int > > eventvec_t;
-
     // Initialization
     void InitNoteMap( const vector< MIDIEvent* > &vEvents );
     void InitColors();

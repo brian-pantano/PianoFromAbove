@@ -415,7 +415,7 @@ void MIDI::MIDIInfo::AddTrackInfo( const MIDITrack &mTrack )
 
 // Sets absolute time variables. A lot of code for not much happening...
 // Has to be EXACT. Even a little drift and things start messing up a few minutes in (metronome, etc)
-void MIDI::PostProcess( vector< MIDIEvent* > *vEvents )
+void MIDI::PostProcess(vector<MIDIChannelEvent*>& vChannelEvents, eventvec_t* vProgramChanges, vector<MIDIMetaEvent*>* vMetaEvents, eventvec_t* vTempo, eventvec_t* vSignature, eventvec_t* vMarkers)
 {
     // Iterator like class
     MIDIPos midiPos( *this );
@@ -463,7 +463,13 @@ void MIDI::PostProcess( vector< MIDIEvent* > *vEvents )
                 }
                 else
                     iSimultaneous--;
+                pChannelEvent->GetSister()->SetSisterIdx(vChannelEvents.size());
             }
+            vChannelEvents.push_back(pChannelEvent);
+
+            MIDIChannelEvent::ChannelEventType eEventType = pChannelEvent->GetChannelEventType();
+            if (vProgramChanges && (eEventType == MIDIChannelEvent::ProgramChange || eEventType == MIDIChannelEvent::Controller))
+                vProgramChanges->push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), vChannelEvents.size() - 1));
         }
         else if ( pEvent->GetEventType() == MIDIEvent::MetaEvent )
         {
@@ -476,9 +482,27 @@ void MIDI::PostProcess( vector< MIDIEvent* > *vEvents )
                 iLastTempoTick = iTick;
                 llLastTempoTime = llTime;
             }
+
+            if (vMetaEvents) {
+                MIDIMetaEvent::MetaEventType eEventType = pMetaEvent->GetMetaEventType();
+                vMetaEvents->push_back(pMetaEvent);
+                switch (eEventType) {
+                case MIDIMetaEvent::SetTempo:
+                    if (vTempo)
+                        vTempo->push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), vMetaEvents->size() - 1));
+                    break;
+                case MIDIMetaEvent::TimeSignature:
+                    if (vSignature)
+                        vSignature->push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), vMetaEvents->size() - 1));
+                    break;
+                case MIDIMetaEvent::Marker:
+                    if (vMarkers)
+                        vMarkers->push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), vMetaEvents->size() - 1));
+                    break;
+                }
+            }
         }
 
-        if ( vEvents ) vEvents->push_back( pEvent );
         g_LoadingProgress.progress++;
     }
 

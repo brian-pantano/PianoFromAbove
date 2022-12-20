@@ -142,7 +142,7 @@ SplashScreen::SplashScreen( HWND hWnd, D3D12Renderer *pRenderer ) : GameState( h
     vector< MIDIEvent* > vEvents;
     vEvents.reserve( m_MIDI.GetInfo().iEventCount );
     m_MIDI.ConnectNotes(); // Order's important here
-    m_MIDI.PostProcess( &vEvents );
+    m_MIDI.PostProcess(m_vEvents);
 
     // Allocate
     m_vTrackSettings.resize( m_MIDI.GetInfo().iNumTracks );
@@ -150,7 +150,7 @@ SplashScreen::SplashScreen( HWND hWnd, D3D12Renderer *pRenderer ) : GameState( h
         m_vState[i].reserve(128);
 
     // Initialize
-    InitNotes( vEvents );
+    //InitNotes( vEvents );
     InitState();
 }
 
@@ -629,10 +629,8 @@ MainScreen::MainScreen( wstring sMIDIFile, State eGameMode, HWND hWnd, D3D12Rend
 {
     // Finish off midi processing
     if ( !m_MIDI.IsValid() ) return;
-    vector< MIDIEvent* > vEvents;
-    vEvents.reserve( m_MIDI.GetInfo().iEventCount );
     m_MIDI.ConnectNotes(); // Order's important here
-    m_MIDI.PostProcess( &vEvents );
+    m_MIDI.PostProcess(m_vEvents, &m_vProgramChange, &m_vMetaEvents, &m_vTempo, &m_vSignature, &m_vMarkers);
 
     // Allocate
     m_vTrackSettings.resize( m_MIDI.GetInfo().iNumTracks );
@@ -640,7 +638,7 @@ MainScreen::MainScreen( wstring sMIDIFile, State eGameMode, HWND hWnd, D3D12Rend
         note_state.reserve(m_MIDI.GetInfo().iNumTracks * 16);
 
     // Initialize
-    InitNoteMap( vEvents ); // Longish
+    //InitNoteMap( vEvents ); // Longish
     InitColors();
     InitState();
 
