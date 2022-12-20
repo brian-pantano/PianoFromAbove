@@ -657,7 +657,6 @@ void MainScreen::InitNoteMap( const vector< MIDIEvent* > &vEvents )
 
     //Get only the channel events
     m_vEvents.reserve( vEvents.size() );
-    m_vNoteOns.reserve(vEvents.size() / 2); 
     m_vMarkers.push_back(pair<long long, int>(0, -1)); // dummy value
     for (vector< MIDIEvent* >::const_iterator it = vEvents.begin(); it != vEvents.end(); ++it) {
         if ((*it)->GetEventType() == MIDIEvent::ChannelEvent)
@@ -667,14 +666,8 @@ void MainScreen::InitNoteMap( const vector< MIDIEvent* > &vEvents )
 
             // Makes random access to the song faster, but unsure if it's worth it
             MIDIChannelEvent::ChannelEventType eEventType = pEvent->GetChannelEventType();
-            if (eEventType == MIDIChannelEvent::NoteOn && pEvent->GetParam2() > 0 && pEvent->GetSister())
-                m_vNoteOns.push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), m_vEvents.size() - 1));
-            else
-            {
-                m_vNonNotes.push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), m_vEvents.size() - 1));
-                if (eEventType == MIDIChannelEvent::ProgramChange || eEventType == MIDIChannelEvent::Controller) {
-                    m_vProgramChange.push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), m_vEvents.size() - 1));
-                }
+            if (eEventType == MIDIChannelEvent::ProgramChange || eEventType == MIDIChannelEvent::Controller) {
+                m_vProgramChange.push_back(pair< long long, int >(pEvent->GetAbsMicroSec(), m_vEvents.size() - 1));
             }
             if (pEvent->GetSister())
                 pEvent->GetSister()->SetSisterIdx(m_vEvents.size() - 1);
@@ -1326,18 +1319,17 @@ void MainScreen::JumpTo(long long llStartTime, bool bUpdateGUI)
     long long llEndTime = m_llStartTime + m_llTimeSpan;
 
     // Start position and current state: hard!
-    eventvec_t::iterator itBegin = m_vNoteOns.begin();
-    eventvec_t::iterator itEnd = m_vNoteOns.end();
+    auto itBegin = m_vEvents.begin();
+    auto itEnd = m_vEvents.end();
     // Want lower bound to minimize simultaneous complexity
-    eventvec_t::iterator itMiddle = lower_bound(itBegin, itEnd, pair< long long, int >(llStartTime, 0));
+    auto itMiddle = lower_bound(itBegin, itEnd, llStartTime, [&](MIDIChannelEvent* lhs, const long long rhs) {
+        return lhs->GetAbsMicroSec() < rhs;
+    });
 
     // Start position
     m_iStartPos = (int)m_vEvents.size();
-    if (itMiddle != itEnd && itMiddle->second < m_iStartPos)
-        m_iStartPos = itMiddle->second;
-    eventvec_t::iterator itNonNote = lower_bound(m_vNonNotes.begin(), m_vNonNotes.end(), pair< long long, int >(llStartTime, 0));
-    if (itNonNote != m_vNonNotes.end() && itNonNote->second < m_iStartPos)
-        m_iStartPos = itNonNote->second;
+    if (itMiddle != itEnd && itMiddle - m_vEvents.begin() < m_iStartPos)
+        m_iStartPos = itMiddle - m_vEvents.begin();
 
     // Find the notes that occur simultaneously with the previous note on
     for (auto& note_state : m_vState)
@@ -1345,20 +1337,23 @@ void MainScreen::JumpTo(long long llStartTime, bool bUpdateGUI)
     memset(m_pNoteState, -1, sizeof(m_pNoteState));
     if (itMiddle != itBegin)
     {
-        eventvec_t::iterator itPrev = itMiddle - 1;
+        auto itPrev = itMiddle - 1;
         int iFound = 0;
-        int iSimultaneous = m_vEvents[itPrev->second]->GetSimultaneous() + 1;
-        for (eventvec_t::reverse_iterator it(itMiddle); iFound < iSimultaneous && it != m_vNoteOns.rend(); ++it)
+        int iSimultaneous = m_vEvents[itPrev - m_vEvents.begin()]->GetSimultaneous() + 1;
+        for (std::vector<MIDIChannelEvent*>::reverse_iterator it(itMiddle); iFound < iSimultaneous && it != m_vEvents.rend(); ++it)
         {
-            MIDIChannelEvent* pEvent = m_vEvents[it->second];
-            MIDIChannelEvent* pSister = pEvent->GetSister();
-            if (pSister->GetAbsMicroSec() > itPrev->first) // > because itMiddle is the max for its time
-                iFound++;
-            if (pSister->GetAbsMicroSec() > llStartTime) // > because we don't care about simultaneous ending notes
-            {
-                (m_vState[pEvent->GetParam1()]).push_back(it->second);
-                if (m_pNoteState[pEvent->GetParam1()] < 0)
-                    m_pNoteState[pEvent->GetParam1()] = it->second;
+            auto idx = m_vEvents.size() - 1 - (it - m_vEvents.rbegin());
+            MIDIChannelEvent* pEvent = m_vEvents[idx];
+            if (pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn && pEvent->GetParam2() > 0) {
+                MIDIChannelEvent* pSister = pEvent->GetSister();
+                if (pSister->GetAbsMicroSec() > pEvent->GetAbsMicroSec()) // > because itMiddle is the max for its time
+                    iFound++;
+                if (pSister->GetAbsMicroSec() > llStartTime) // > because we don't care about simultaneous ending notes
+                {
+                    (m_vState[pEvent->GetParam1()]).push_back(idx);
+                    if (m_pNoteState[pEvent->GetParam1()] < 0)
+                        m_pNoteState[pEvent->GetParam1()] = idx;
+                }
             }
         }
         for (auto& note_state : m_vState)
