@@ -219,6 +219,7 @@ void VizSettings::LoadDefaultValues() {
     this->bVisualizePitchBends = false;
     this->bDumpFrames = false;
     this->iBarColor = 0x00FF0080;
+    this->sBackground = L"";
 }
 
 void AudioSettings::LoadMIDIDevices()
@@ -373,6 +374,9 @@ void VizSettings::LoadConfigValues(TiXmlElement* txRoot) {
     std::string sTempStr;
     txViz->QueryStringAttribute("SplashMIDI", &sTempStr);
     sSplashMIDI = Util::StringToWstring(sTempStr);
+    sTempStr = "";
+    txViz->QueryStringAttribute("Background", &sTempStr);
+    sBackground = Util::StringToWstring(sTempStr);
     txViz->QueryIntAttribute("MarkerEncoding", (int*)&eMarkerEncoding);
     eMarkerEncoding = max(MarkerEncoding::CP1252, min(eMarkerEncoding, MarkerEncoding::UTF8));
 
@@ -488,6 +492,7 @@ bool VizSettings::SaveConfigValues(TiXmlElement* txRoot) {
     txViz->SetAttribute("SplashMIDI", Util::WstringToString(sSplashMIDI));
     txViz->SetAttribute("VisualizePitchBends", bVisualizePitchBends);
     txViz->SetAttribute("DumpFrames", bDumpFrames);
+    txViz->SetAttribute("Background", Util::WstringToString(sBackground));
 
     TiXmlElement* txBarColor = new TiXmlElement("BarColor");
     txViz->LinkEndChild(txBarColor);

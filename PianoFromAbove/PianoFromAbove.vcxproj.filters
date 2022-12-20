@@ -380,5 +380,11 @@
     <FxCompile Include="note_ps.hlsl">
       <Filter>Resource Files</Filter>
     </FxCompile>
+    <FxCompile Include="background_vs.hlsl">
+      <Filter>Resource Files</Filter>
+    </FxCompile>
+    <FxCompile Include="background_ps.hlsl">
+      <Filter>Resource Files</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

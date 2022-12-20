@@ -80,6 +80,7 @@
 #define IDC_PIANOGROUP                  1078
 #define IDC_EDIT1                       1079
 #define IDC_SPLASHMIDI                  1079
+#define IDC_BACKGROUND                  1080
 #define IDC_BUTTON7                     1081
 #define IDC_RADIO1                      1086
 #define IDC_RADIO2                      1087
@@ -105,6 +106,9 @@
 #define IDC_TICKBASED                   1107
 #define IDC_PITCHBENDS2                 1108
 #define IDC_FFMPEG                      1108
+#define IDC_BACKGROUNDBROWSE            1109
+#define IDC_SPLASHRESET2                1110
+#define IDC_BACKGROUNDRESET             1110
 #define ID_FILE_PLAYFILE                40001
 #define ID_FILE_ADDFILE                 40002
 #define ID_FILE_ADDFOLDER               40003

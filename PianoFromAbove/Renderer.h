@@ -15,6 +15,7 @@
 #include <wrl/client.h>
 #include <string>
 #include <vector>
+#include <wincodec.h>
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx12.h"
 #include "imgui/imgui_impl_win32.h"
@@ -24,6 +25,7 @@ using Microsoft::WRL::ComPtr;
 enum class Pipeline {
     Rect,
     Note,
+    Background,
 };
 
 struct RectVertex {
@@ -73,7 +75,7 @@ public:
     HRESULT ResetDeviceIfNeeded();
     HRESULT ResetDevice();
     HRESULT ClearAndBeginScene( DWORD color );
-    HRESULT EndScene();
+    HRESULT EndScene(bool draw_bg = false);
     HRESULT Present();
     HRESULT BeginText();
     HRESULT DrawTextW( const WCHAR *sText, FontSize fsFont, LPRECT rcPos, DWORD dwFormat, DWORD dwColor, INT iChars = -1 );
@@ -106,6 +108,7 @@ public:
     void SplitRect() { m_iRectSplit = (int)m_vRectsIntermediate.size(); }
 
     char* Screenshot();
+    bool LoadBackgroundBitmap(std::wstring path);
 
     void ImguiStartFrame() {
         ImGui_ImplDX12_NewFrame();
@@ -116,12 +119,15 @@ public:
 private:
     std::tuple<HRESULT, const char*> CreateWindowDependentObjects(HWND hWnd);
     void SetupCommandList();
+    bool UploadBackgroundBitmap();
 
     static constexpr unsigned FrameCount = 2;
     static constexpr unsigned RectsPerPass = 10000; // Relatively low limit, but not many rects are supposed to be rendered anyway
     static constexpr unsigned NotesPerPass = 5000000;
     static constexpr unsigned IndexBufferCount = max(RectsPerPass, NotesPerPass) * 6;
     static constexpr unsigned GenericUploadSize = sizeof(FixedSizeConstants) + MaxTrackColors * 16 * sizeof(TrackColor);
+
+    static ComPtr<IWICImagingFactory> s_pWICFactory;
 
     int m_iBufferWidth = 0;
     int m_iBufferHeight = 0;
@@ -140,6 +146,8 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_pSRVDescriptorHeap;
     UINT m_uSRVDescriptorSize = 0;
     ComPtr<ID3D12DescriptorHeap> m_pImGuiSRVDescriptorHeap;
+    ComPtr<ID3D12DescriptorHeap> m_pTextureSRVDescriptorHeap;
+    UINT m_uTextureSRVDescriptorSize = 0;
     ComPtr<ID3D12Resource> m_pRenderTargets[FrameCount];
     ComPtr<ID3D12Resource> m_pDepthBuffer;
     ComPtr<ID3D12CommandAllocator> m_pCommandAllocator[FrameCount];
@@ -147,6 +155,8 @@ private:
     ComPtr<ID3D12PipelineState> m_pRectPipelineState;
     ComPtr<ID3D12RootSignature> m_pNoteRootSignature;
     ComPtr<ID3D12PipelineState> m_pNotePipelineState;
+    ComPtr<ID3D12RootSignature> m_pBackgroundRootSignature;
+    ComPtr<ID3D12PipelineState> m_pBackgroundPipelineState;
     ComPtr<ID3D12GraphicsCommandList> m_pCommandList;
     ComPtr<ID3D12Fence> m_pFence;
     HANDLE m_hFenceEvent = NULL;
@@ -170,6 +180,10 @@ private:
     ComPtr<ID3D12Resource> m_pScreenshotStaging;
     std::vector<char> m_vScreenshotOutput;
     UINT64 m_ullScreenshotPitch;
+
+    ComPtr<ID3D12Resource> m_pTextureUpload;
+    ComPtr<ID3D12Resource> m_pTextureBuffer;
+    ComPtr<IWICBitmapSource> m_pUnscaledBackground;
 
     std::vector<RectVertex> m_vRectsIntermediate;
     std::vector<NoteData> m_vNotesIntermediate;

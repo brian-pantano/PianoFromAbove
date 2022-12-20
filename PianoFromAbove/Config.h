@@ -180,6 +180,7 @@ struct VizSettings : public ISettings {
     bool bVisualizePitchBends;
     bool bDumpFrames;
     int iBarColor;
+    std::wstring sBackground;
 };
 
 class Config : public ISettings

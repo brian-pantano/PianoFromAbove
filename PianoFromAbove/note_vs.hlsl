@@ -25,7 +25,6 @@ float3 unpack_color(uint col) {
     return float3(float((col >> 16) & 0xFF) / 255.0, float((col >> 8) & 0xFF) / 255.0, float(col & 0xFF) / 255.0);
 }
 
-[RootSignature("RootConstants(b0, num32BitConstants=20), SRV(t1), SRV(t2), SRV(t3)")]
 NotePSInput main(uint id : SV_VertexID) {
     NotePSInput result;
     uint note_index = id / 4;

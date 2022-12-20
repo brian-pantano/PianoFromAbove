@@ -289,6 +289,8 @@ private:
     vector< thread_work_t > m_vThreadWork;
     float m_pBends[16] = {};
     deque<tuple<long long, long long>> m_dNPSNotes;
+    std::wstring m_sCurBackground;
+    bool m_bBackgroundLoaded;
 
     float m_fZoomX, m_fOffsetX, m_fOffsetY;
     float m_fTempZoomX, m_fTempOffsetX, m_fTempOffsetY;

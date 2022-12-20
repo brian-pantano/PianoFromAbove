@@ -455,6 +455,7 @@ INT_PTR WINAPI VizProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         SendMessage(GetDlgItem(hWnd, IDC_MARKERENC), CB_SETCURSEL, viz.eMarkerEncoding, 0);
 
         SetDlgItemTextW(hWnd, IDC_SPLASHMIDI, viz.sSplashMIDI.c_str());
+        SetDlgItemTextW(hWnd, IDC_BACKGROUND, viz.sBackground.c_str());
         return TRUE;
     }
     case WM_COMMAND: {
@@ -480,6 +481,25 @@ INT_PTR WINAPI VizProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             SetDlgItemTextW(hWnd, IDC_SPLASHMIDI, L"");
             return TRUE;
         }
+        case IDC_BACKGROUNDBROWSE: {
+            OPENFILENAME ofn = { 0 };
+            TCHAR sFilename[1024] = { 0 };
+            ofn.lStructSize = sizeof(OPENFILENAME);
+            ofn.hwndOwner = hWnd;
+            ofn.lpstrFilter = TEXT("Image files\0*.png\0*.jpg\0*.jpeg");
+            ofn.lpstrFile = sFilename;
+            ofn.nMaxFile = sizeof(sFilename) / sizeof(TCHAR);
+            ofn.lpstrTitle = TEXT("Select a background image!");
+            ofn.Flags = OFN_EXPLORER | OFN_HIDEREADONLY | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+            if (GetOpenFileName(&ofn))
+                SetDlgItemTextW(hWnd, IDC_BACKGROUND, sFilename);
+            return TRUE;
+        }
+        case IDC_BACKGROUNDRESET: {
+            Changed(hWnd);
+            SetDlgItemTextW(hWnd, IDC_BACKGROUND, L"");
+            return TRUE;
+        }
         }
         break;
     }
@@ -490,6 +510,7 @@ INT_PTR WINAPI VizProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             Config& config = Config::GetConfig();
             VizSettings viz = config.GetVizSettings();
             wchar_t splash[1024]{};
+            wchar_t background[1024]{};
 
             viz.bTickBased = IsDlgButtonChecked(hWnd, IDC_TICKBASED);
             viz.bShowMarkers = IsDlgButtonChecked(hWnd, IDC_MARKERS);
@@ -497,6 +518,8 @@ INT_PTR WINAPI VizProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             viz.bNerdStats = IsDlgButtonChecked(hWnd, IDC_STATS);
             GetWindowTextW(GetDlgItem(hWnd, IDC_SPLASHMIDI), splash, 1024);
             viz.sSplashMIDI = splash;
+            GetWindowTextW(GetDlgItem(hWnd, IDC_BACKGROUND), background, 1024);
+            viz.sBackground = background;
             viz.bVisualizePitchBends = IsDlgButtonChecked(hWnd, IDC_PITCHBENDS);
             viz.bDumpFrames = IsDlgButtonChecked(hWnd, IDC_FFMPEG);
 

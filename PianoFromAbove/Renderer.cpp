@@ -15,10 +15,12 @@
 #include "RectVertexShader.h"
 #include "NotePixelShader.h"
 #include "NoteVertexShader.h"
+#include "BackgroundPixelShader.h"
+#include "BackgroundVertexShader.h"
 #include "Globals.h"
 #include "Renderer.h"
 
-#define SAFE_RELEASE(x) if (x) x->Release();
+ComPtr<IWICImagingFactory> D3D12Renderer::s_pWICFactory;
 
 D3D12Renderer::D3D12Renderer() {}
 
@@ -175,8 +177,10 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
         }
     };
     m_pDevice->CreateShaderResourceView(m_pGenericUpload.Get(), &srv_desc, srv_handle);
+    srv_desc.Buffer.StructureByteStride = GenericUploadSize;
     srv_handle.ptr += m_uSRVDescriptorSize;
     m_pDevice->CreateShaderResourceView(m_pFixedBuffer.Get(), &srv_desc, srv_handle);
+    srv_desc.Buffer.StructureByteStride = MaxTrackColors * 16 * sizeof(TrackColor);
     srv_handle.ptr += m_uSRVDescriptorSize;
     m_pDevice->CreateShaderResourceView(m_pTrackColorBuffer.Get(), &srv_desc, srv_handle);
 
@@ -191,6 +195,18 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     if (FAILED(res))
         return std::make_tuple(res, "CreateDescriptorHeap (ImGui SRV)");
 
+    // Create texture shader resource view heap
+    D3D12_DESCRIPTOR_HEAP_DESC texture_srv_heap_desc = {
+        .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+        .NumDescriptors = 1,
+        .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+        .NodeMask = 0,
+    };
+    res = m_pDevice->CreateDescriptorHeap(&texture_srv_heap_desc, IID_PPV_ARGS(&m_pTextureSRVDescriptorHeap));
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateDescriptorHeap (Texture SRV)");
+    m_uTextureSRVDescriptorSize = m_pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
     // Create command allocators
     for (int i = 0; i < FrameCount; i++) {
         res = m_pDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_pCommandAllocator[i]));
@@ -198,9 +214,9 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
             return std::make_tuple(res, "CreateCommandAllocator (direct)");
     }
 
-    // Create rectangle root signature
+    // Create root signature
     ComPtr<ID3DBlob> rect_serialized;
-    D3D12_ROOT_PARAMETER rect_root_sig_params[] = {
+    D3D12_ROOT_PARAMETER root_sig_params[] = {
         {
             .ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS,
             .Constants = {
@@ -236,15 +252,15 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
             .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
         },
     };
-    D3D12_ROOT_SIGNATURE_DESC rect_root_sig_desc = {
-        .NumParameters = _countof(rect_root_sig_params),
-        .pParameters = rect_root_sig_params,
+    D3D12_ROOT_SIGNATURE_DESC root_sig_desc = {
+        .NumParameters = _countof(root_sig_params),
+        .pParameters = root_sig_params,
         .Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
                  D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
                  D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
                  D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS,
     };
-    res = D3D12SerializeRootSignature(&rect_root_sig_desc, D3D_ROOT_SIGNATURE_VERSION_1, &rect_serialized, nullptr);
+    res = D3D12SerializeRootSignature(&root_sig_desc, D3D_ROOT_SIGNATURE_VERSION_1, &rect_serialized, nullptr);
     if (FAILED(res))
         return std::make_tuple(res, "D3D12SerializeRootSignature (rectangle)");
     res = m_pDevice->CreateRootSignature(0, rect_serialized->GetBufferPointer(), rect_serialized->GetBufferSize(), IID_PPV_ARGS(&m_pRectRootSignature));
@@ -328,50 +344,7 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     
     // Create note root signature
     ComPtr<ID3DBlob> note_serialized;
-    D3D12_ROOT_PARAMETER note_root_sig_params[] = {
-        {
-            .ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS,
-            .Constants = {
-                .ShaderRegister = 0,
-                .RegisterSpace = 0,
-                .Num32BitValues = sizeof(RootConstants) / 4,
-            },
-            .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL
-        },
-        {
-            .ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
-            .Descriptor = {
-                .ShaderRegister = 1,
-                .RegisterSpace = 0,
-            },
-            .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
-        },
-        {
-            .ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
-            .Descriptor = {
-                .ShaderRegister = 2,
-                .RegisterSpace = 0,
-            },
-            .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
-        },
-        {
-            .ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
-            .Descriptor = {
-                .ShaderRegister = 3,
-                .RegisterSpace = 0,
-            },
-            .ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
-        },
-    };
-    D3D12_ROOT_SIGNATURE_DESC note_root_sig_desc = {
-        .NumParameters = _countof(note_root_sig_params),
-        .pParameters = note_root_sig_params,
-        .Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-                 D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-                 D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-                 D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS,
-    };
-    res = D3D12SerializeRootSignature(&note_root_sig_desc, D3D_ROOT_SIGNATURE_VERSION_1, &note_serialized, nullptr);
+    res = D3D12SerializeRootSignature(&root_sig_desc, D3D_ROOT_SIGNATURE_VERSION_1, &note_serialized, nullptr);
     if (FAILED(res))
         return std::make_tuple(res, "D3D12SerializeRootSignature (note)");
     res = m_pDevice->CreateRootSignature(0, note_serialized->GetBufferPointer(), note_serialized->GetBufferSize(), IID_PPV_ARGS(&m_pNoteRootSignature));
@@ -400,6 +373,79 @@ std::tuple<HRESULT, const char*> D3D12Renderer::Init(HWND hWnd, bool bLimitFPS) 
     res = m_pDevice->CreateGraphicsPipelineState(&note_pipeline_desc, IID_PPV_ARGS(&m_pNotePipelineState));
     if (FAILED(res))
         return std::make_tuple(res, "CreateGraphicsPipelineState (note)");
+
+    // Create background root signature
+    D3D12_DESCRIPTOR_RANGE descriptor_ranges[] = {
+        {
+            .RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+            .NumDescriptors = 1,
+            .BaseShaderRegister = 0,
+            .RegisterSpace = 0,
+            .OffsetInDescriptorsFromTableStart = 0,
+        }
+    };
+    ComPtr<ID3DBlob> background_serialized;
+    D3D12_ROOT_PARAMETER background_root_sig_params[] = {
+        {
+            .ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
+            .DescriptorTable = {
+                .NumDescriptorRanges = 1,
+                .pDescriptorRanges = descriptor_ranges,
+            },
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL,
+        },
+    };
+    D3D12_STATIC_SAMPLER_DESC background_root_sig_samplers[] = {
+        {
+            .Filter = D3D12_FILTER_MIN_MAG_MIP_POINT,
+            .AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+            .AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+            .AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+            .MipLODBias = 0,
+            .MaxAnisotropy = 0,
+            .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+            .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+            .MinLOD = 0,
+            .MaxLOD = D3D12_FLOAT32_MAX,
+            .ShaderRegister = 0,
+            .RegisterSpace = 0,
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL,
+        }
+    };
+    D3D12_ROOT_SIGNATURE_DESC background_root_sig_desc = {
+        .NumParameters = _countof(background_root_sig_params),
+        .pParameters = background_root_sig_params,
+        .NumStaticSamplers = _countof(background_root_sig_samplers),
+        .pStaticSamplers = background_root_sig_samplers,
+        .Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+                 D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+                 D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+                 D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS,
+    };
+    res = D3D12SerializeRootSignature(&background_root_sig_desc, D3D_ROOT_SIGNATURE_VERSION_1, &background_serialized, nullptr);
+    if (FAILED(res))
+        return std::make_tuple(res, "D3D12SerializeRootSignature (background)");
+    res = m_pDevice->CreateRootSignature(0, background_serialized->GetBufferPointer(), background_serialized->GetBufferSize(), IID_PPV_ARGS(&m_pBackgroundRootSignature));
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateRootSignature (background)");
+
+    // Create background pipeline
+    auto background_pipeline_desc = rect_pipeline_desc;
+    background_pipeline_desc.pRootSignature = m_pBackgroundRootSignature.Get();
+    background_pipeline_desc.VS = {
+        .pShaderBytecode = g_pBackgroundVertexShader,
+        .BytecodeLength = sizeof(g_pBackgroundVertexShader),
+    };
+    background_pipeline_desc.PS = {
+        .pShaderBytecode = g_pBackgroundPixelShader,
+        .BytecodeLength = sizeof(g_pBackgroundPixelShader),
+    };
+    background_pipeline_desc.InputLayout = {
+        .NumElements = 0,
+    };
+    res = m_pDevice->CreateGraphicsPipelineState(&background_pipeline_desc, IID_PPV_ARGS(&m_pBackgroundPipelineState));
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateGraphicsPipelineState (background)");
 
     // Create command list
     //res = m_pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&m_pCommandList));
@@ -733,6 +779,65 @@ std::tuple<HRESULT, const char*> D3D12Renderer::CreateWindowDependentObjects(HWN
     // Resize screenshot target buffer
     m_vScreenshotOutput.resize(m_iBufferWidth * m_iBufferHeight * 4);
 
+    // Create background image texture
+    CD3DX12_HEAP_PROPERTIES default_heap(D3D12_HEAP_TYPE_DEFAULT);
+    D3D12_RESOURCE_DESC texture_desc = {
+        .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+        .Alignment = 0,
+        .Width = (UINT64)m_iBufferWidth,
+        .Height = (UINT)m_iBufferHeight,
+        .DepthOrArraySize = 1,
+        .MipLevels = 1,
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .SampleDesc = {
+            .Count = 1,
+        },
+        .Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+        .Flags = D3D12_RESOURCE_FLAG_NONE,
+    };
+    res = m_pDevice->CreateCommittedResource(
+        &default_heap,
+        D3D12_HEAP_FLAG_NONE,
+        &texture_desc,
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+        nullptr,
+        IID_PPV_ARGS(&m_pTextureBuffer)
+    );
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateCommittedResource (background texture)");
+    m_pTextureBuffer->SetName(L"Background texture");
+
+    // Create texture SRV
+    D3D12_SHADER_RESOURCE_VIEW_DESC texture_view_desc = {
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+        .Texture2D {
+            .MipLevels = 1,
+        }
+    };
+    m_pDevice->CreateShaderResourceView(m_pTextureBuffer.Get(), &texture_view_desc, m_pTextureSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
+    // Create background image upload buffer
+    UINT64 texture_upload_size = 0;
+    m_pDevice->GetCopyableFootprints(&texture_desc, 0, 1, 0, NULL, NULL, NULL, &texture_upload_size);
+    CD3DX12_HEAP_PROPERTIES upload_heap(D3D12_HEAP_TYPE_UPLOAD);
+    auto texture_upload_desc = CD3DX12_RESOURCE_DESC::Buffer(texture_upload_size);
+    res = m_pDevice->CreateCommittedResource(
+        &upload_heap,
+        D3D12_HEAP_FLAG_NONE,
+        &texture_upload_desc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&m_pTextureUpload)
+    );
+    if (FAILED(res))
+        return std::make_tuple(res, "CreateCommittedResource (background texture upload buffer)");
+    m_pTextureUpload->SetName(L"Background texture upload buffer");
+
+    // Scale and upload background image
+    UploadBackgroundBitmap();
+
     // Set up root constants
     // https://github.com/ocornut/imgui/blob/master/backends/imgui_impl_dx12.cpp#L99
     float L = 0;
@@ -828,9 +933,17 @@ HRESULT D3D12Renderer::ClearAndBeginScene(DWORD color) {
     return S_OK;
 }
 
-HRESULT D3D12Renderer::EndScene() {
+HRESULT D3D12Renderer::EndScene(bool draw_bg) {
     // Generate ImGui render data
     ImGui::Render();
+
+    // Draw background
+    if (draw_bg) {
+        SetPipeline(Pipeline::Background);
+        m_pCommandList->DrawIndexedInstanced(3, 1, 0, 0, 0);
+        SetPipeline(Pipeline::Rect);
+        m_pCommandList->IASetVertexBuffers(0, 1, &m_VertexBufferViews[m_uFrameIndex]);
+    }
 
     // Flush the intermediate rect buffer
     // TODO: Handle more than RectsPerPass
@@ -1065,6 +1178,7 @@ void D3D12Renderer::SetPipeline(Pipeline pipeline) {
         m_pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         m_pCommandList->IASetVertexBuffers(0, 1, &m_VertexBufferViews[m_uFrameIndex]);
         m_pCommandList->IASetIndexBuffer(&m_IndexBufferView);
+        m_pCommandList->SetGraphicsRoot32BitConstants(0, sizeof(m_RootConstants) / 4, &m_RootConstants, 0);
         break;
     case Pipeline::Note:
         m_pCommandList->SetPipelineState(m_pNotePipelineState.Get());
@@ -1075,6 +1189,16 @@ void D3D12Renderer::SetPipeline(Pipeline pipeline) {
         m_pCommandList->SetGraphicsRootShaderResourceView(1, m_pFixedBuffer->GetGPUVirtualAddress());
         m_pCommandList->SetGraphicsRootShaderResourceView(2, m_pTrackColorBuffer->GetGPUVirtualAddress());
         m_pCommandList->SetGraphicsRootShaderResourceView(3, m_pNoteBuffers[m_uFrameIndex]->GetGPUVirtualAddress());
+        break;
+    case Pipeline::Background:
+        ID3D12DescriptorHeap* heaps[] = { m_pTextureSRVDescriptorHeap.Get() };
+        m_pCommandList->SetDescriptorHeaps(_countof(heaps), heaps);
+        m_pCommandList->SetPipelineState(m_pBackgroundPipelineState.Get());
+        m_pCommandList->SetGraphicsRootSignature(m_pBackgroundRootSignature.Get());
+        m_pCommandList->SetGraphicsRootDescriptorTable(0, m_pTextureSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
+        m_pCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        m_pCommandList->IASetVertexBuffers(0, 0, nullptr);
+        m_pCommandList->IASetIndexBuffer(&m_IndexBufferView);
         break;
     }
 }
@@ -1151,4 +1275,98 @@ char* D3D12Renderer::Screenshot() {
     m_pScreenshotStaging->Unmap(0, &staging_range);
 
     return m_vScreenshotOutput.data();
+}
+
+bool D3D12Renderer::LoadBackgroundBitmap(std::wstring path) {
+    // Initialize the WIC factory if it hasn't been initialized yet
+    if (!s_pWICFactory) {
+        if (FAILED(CoCreateInstance(CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&s_pWICFactory))))
+            return false;
+    }
+
+    // Make a decoder for the image
+    ComPtr<IWICBitmapDecoder> decoder;
+    if (FAILED(s_pWICFactory->CreateDecoderFromFilename(path.c_str(), NULL, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &decoder)))
+        return false;
+
+    // Decode the first frame of the image
+    ComPtr<IWICBitmapFrameDecode> frame;
+    if (FAILED(decoder->GetFrame(0, &frame)))
+        return false;
+
+    // Create a WIC format converter
+    ComPtr<IWICFormatConverter> converter;
+    if (FAILED(s_pWICFactory->CreateFormatConverter(&converter)))
+        return false;
+
+    // Get the loaded image's pixel format
+    WICPixelFormatGUID orig_pixel_format;
+    if (FAILED(frame->GetPixelFormat(&orig_pixel_format)))
+        return false;
+
+    // Make sure the image can be converted to RGBA8 format
+    BOOL can_convert;
+    if (FAILED(converter->CanConvert(orig_pixel_format, GUID_WICPixelFormat32bppRGBA, &can_convert)) || !can_convert)
+        return false;
+
+    // Run image conversion
+    if (FAILED(converter->Initialize(frame.Get(), GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeErrorDiffusion, 0, 0, WICBitmapPaletteTypeCustom)))
+        return false;
+
+    // Store the converted image
+    if (FAILED(converter.As(&m_pUnscaledBackground)))
+        return false;
+
+    // Upload the new background to the GPU
+    return UploadBackgroundBitmap();
+}
+
+bool D3D12Renderer::UploadBackgroundBitmap() {
+    // Don't bother if an image wasn't loaded in the first place
+    if (!m_pUnscaledBackground)
+        return false;
+
+    // Create a WIC bitmap scaler
+    ComPtr<IWICBitmapScaler> scaler;
+    if (FAILED(s_pWICFactory->CreateBitmapScaler(&scaler)))
+        return false;
+
+    // Resize the image to the desired resolution
+    if (FAILED(scaler->Initialize(m_pUnscaledBackground.Get(), m_iBufferWidth, m_iBufferHeight, WICBitmapInterpolationModeHighQualityCubic)))
+        return false;
+
+    // Copy the scaled bitmap to a new buffer
+    std::vector<BYTE> scaled;
+    scaled.resize(m_iBufferWidth * m_iBufferHeight * 4);
+    if (FAILED(scaler->CopyPixels(NULL, m_iBufferWidth * 4, scaled.size(), scaled.data())))
+        return false;
+
+    // Wait for the GPU to finish any work it's doing
+    WaitForGPU();
+
+    // Reset the command list
+    m_pCommandAllocator[m_uFrameIndex]->Reset();
+    m_pCommandList->Reset(m_pCommandAllocator[m_uFrameIndex].Get(), nullptr);
+
+    // Upload the new texture data
+    D3D12_SUBRESOURCE_DATA texture_data = {
+        .pData = scaled.data(),
+        .RowPitch = m_iBufferWidth * 4,
+        .SlicePitch = (LONG_PTR)scaled.size(),
+    };
+    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pTextureBuffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+    m_pCommandList->ResourceBarrier(1, &barrier);
+    UpdateSubresources(m_pCommandList.Get(), m_pTextureBuffer.Get(), m_pTextureUpload.Get(), 0, 0, 1, &texture_data);
+    barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_pTextureBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    m_pCommandList->ResourceBarrier(1, &barrier);
+    
+    // Execute the command list
+    m_pCommandList->Close();
+    ID3D12CommandList* command_lists[] = { m_pCommandList.Get() };
+    m_pCommandQueue->ExecuteCommandLists(1, command_lists);
+
+    // Wait for the GPU to finish
+    WaitForGPU();
+
+    return true;
 }

@@ -1645,6 +1645,14 @@ GameState::GameError MainScreen::Render()
 {
     if ( FAILED( m_pRenderer->ResetDeviceIfNeeded() ) ) return DirectXError;
 
+    // Update background if it changed
+    static Config& config = Config::GetConfig();
+    static const VizSettings& cViz = config.GetVizSettings();
+    if (cViz.sBackground != m_sCurBackground) {
+        m_bBackgroundLoaded = cViz.sBackground.empty() ? false : m_pRenderer->LoadBackgroundBitmap(cViz.sBackground);
+        m_sCurBackground = cViz.sBackground;
+    }
+
     m_pRenderer->ClearAndBeginScene( 0x00000000 );
     RenderLines();
     RenderNotes();
@@ -1654,7 +1662,7 @@ GameState::GameError MainScreen::Render()
     RenderText();
 
     // Present the backbuffer contents to the display
-    m_pRenderer->EndScene();
+    m_pRenderer->EndScene(m_bBackgroundLoaded);
     m_pRenderer->Present();
 
     // Dump frame!!!!
@@ -1728,6 +1736,9 @@ void MainScreen::RenderGlobals()
 
 void MainScreen::RenderLines()
 {
+    if (m_bBackgroundLoaded)
+        return;
+
     m_pRenderer->DrawRect( m_fNotesX, m_fNotesY, m_fNotesCX, m_fNotesCY, m_csBackground.iPrimaryRGB );
 
     // Vertical lines
@@ -1983,13 +1994,24 @@ void MainScreen::RenderKeys()
     float fNearCY = fKeysCY - fSpacerCY - fRedCY - fTransitionCY - fTopCY;
 
     // Draw the background
-    m_pRenderer->DrawRect( m_fNotesX, fKeysY, m_fNotesCX, fKeysCY, m_csKBBackground.iVeryDarkRGB );
-    m_pRenderer->DrawRect( m_fNotesX, fKeysY, m_fNotesCX, fTransitionCY,
-        m_csBackground.iPrimaryRGB, m_csBackground.iPrimaryRGB, m_csKBBackground.iVeryDarkRGB, m_csKBBackground.iVeryDarkRGB );
-    m_pRenderer->DrawRect( m_fNotesX, fKeysY + fTransitionCY, m_fNotesCX, fRedCY,
-        m_csKBRed.iDarkRGB, m_csKBRed.iDarkRGB, m_csKBRed.iPrimaryRGB, m_csKBRed.iPrimaryRGB );
-    m_pRenderer->DrawRect( m_fNotesX, fKeysY + fTransitionCY + fRedCY, m_fNotesCX, fSpacerCY,
-        m_csKBBackground.iDarkRGB, m_csKBBackground.iDarkRGB, m_csKBBackground.iDarkRGB, m_csKBBackground.iDarkRGB );
+    if (m_bBackgroundLoaded) {
+        auto dark = 0x80000000;
+        auto very_dark = 0x00000000;
+        m_pRenderer->DrawRect(m_fNotesX, fKeysY + fTransitionCY, m_fNotesCX, fKeysCY, very_dark);
+        m_pRenderer->DrawRect(m_fNotesX, fKeysY, m_fNotesCX, fTransitionCY,
+            0xFF000000, 0xFF000000, very_dark, very_dark);
+        m_pRenderer->DrawRect(m_fNotesX, fKeysY + fTransitionCY, m_fNotesCX, fRedCY,
+            m_csKBRed.iDarkRGB, m_csKBRed.iDarkRGB, m_csKBRed.iPrimaryRGB, m_csKBRed.iPrimaryRGB);
+        m_pRenderer->DrawRect(m_fNotesX, fKeysY + fTransitionCY + fRedCY, m_fNotesCX, fSpacerCY, dark);
+    } else {
+        m_pRenderer->DrawRect(m_fNotesX, fKeysY, m_fNotesCX, fKeysCY, m_csKBBackground.iVeryDarkRGB);
+        m_pRenderer->DrawRect(m_fNotesX, fKeysY, m_fNotesCX, fTransitionCY,
+            m_csBackground.iPrimaryRGB, m_csBackground.iPrimaryRGB, m_csKBBackground.iVeryDarkRGB, m_csKBBackground.iVeryDarkRGB);
+        m_pRenderer->DrawRect(m_fNotesX, fKeysY + fTransitionCY, m_fNotesCX, fRedCY,
+            m_csKBRed.iDarkRGB, m_csKBRed.iDarkRGB, m_csKBRed.iPrimaryRGB, m_csKBRed.iPrimaryRGB);
+        m_pRenderer->DrawRect(m_fNotesX, fKeysY + fTransitionCY + fRedCY, m_fNotesCX, fSpacerCY,
+            m_csKBBackground.iDarkRGB, m_csKBBackground.iDarkRGB, m_csKBBackground.iDarkRGB, m_csKBBackground.iDarkRGB);
+    }
 
     // Keys info
     float fKeyGap = max( 1.0f, floor( m_fWhiteCX * 0.05f + 0.5f ) );
