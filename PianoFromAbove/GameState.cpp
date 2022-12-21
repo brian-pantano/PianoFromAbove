@@ -1657,7 +1657,7 @@ GameState::GameError MainScreen::Render()
     // Update background if it changed
     static Config& config = Config::GetConfig();
     static const VizSettings& cViz = config.GetVizSettings();
-    if (cViz.sBackground != m_sCurBackground) {
+    if (cViz.sBackground != m_sCurBackground || cViz.sBackground.empty()) {
         m_bBackgroundLoaded = cViz.sBackground.empty() ? false : m_pRenderer->LoadBackgroundBitmap(cViz.sBackground);
         m_sCurBackground = cViz.sBackground;
     }
