@@ -8,7 +8,7 @@ This is the software that drives some of the Impossible MIDI videos on youtube:
   </a>
 </p>
 
-Synthesia is the main alternate with way more market share and much more active development, but appaerently PFA is more performant, so some prefer it. Yay.
+Synthesia is the main alternate with way more market share and much more active development, but apparently PFA is more performant, so some prefer it. Yay.
 
 The original inspiration:
 
